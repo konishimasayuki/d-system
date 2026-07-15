@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import SenzaiMaker from "./SenzaiMaker.jsx";
 
 // ============================================================
 // デザイントークン
@@ -807,6 +808,9 @@ function MediaTab({ casts, setCasts }) {
           <PrimaryButton onClick={() => {}} style={{ marginTop: 10, width: "100%" }}>HP・各媒体へ投稿(デモ)</PrimaryButton>
         </Card>
       </div>
+
+      <div style={{ borderTop: `1px solid ${COLORS.border}`, margin: "24px 0 18px" }} />
+      <SenzaiMaker casts={casts} />
     </div>
   );
 }

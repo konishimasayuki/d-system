@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { loadGoogleMaps, HOTEL_COORDS, OFFICE_LATLNG } from "./mapsLoader.js";
 
 // ============================================================
 // キャストポータル / ドライバーポータル
@@ -369,6 +370,7 @@ function DriverApp({ theme, onLogout }) {
   const [jobs, setJobs] = useState(DRIVER_JOBS);
   const [filter, setFilter] = useState("すべて");
   const [toast, setToast] = useState("");
+  const [routeJob, setRouteJob] = useState(null);
   const [shiftReq, setShiftReq] = useState([]);
   const [reqDate, setReqDate] = useState(""); const [reqTime, setReqTime] = useState("");
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(""), 2200); };
@@ -379,7 +381,7 @@ function DriverApp({ theme, onLogout }) {
     showToast(`${next}を記録しました`);
     return { ...j, status: next };
   }));
-  const openMap = (place) => { try { window.open(`https://www.google.com/maps/search/${encodeURIComponent(place)}`, "_blank"); } catch (e) {} };
+  const openRoute = (job) => setRouteJob(job);
 
   const filters = ["すべて", "待機", "出発", "到着"];
   const shown = jobs.filter((j) => filter === "すべて" ? true : j.status === filter);
@@ -414,7 +416,7 @@ function DriverApp({ theme, onLogout }) {
                 <span style={{ fontSize: 11, fontWeight: 700, color: statusColor(j.status), background: `${statusColor(j.status)}18`, padding: "4px 10px", borderRadius: 999 }}>{j.status}</span>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <Btn theme={theme} variant="line" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }} onClick={() => openMap(j.place)}><Icon name="pin" size={16} color={INK} /> ルート</Btn>
+                <Btn theme={theme} variant="line" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }} onClick={() => openRoute(j)}><Icon name="pin" size={16} color={INK} /> ルート</Btn>
                 {j.status === "待機" && <Btn theme={theme} style={{ flex: 1 }} onClick={() => advance(j.id)}>出発</Btn>}
                 {j.status === "出発" && <Btn theme={theme} style={{ flex: 1 }} onClick={() => advance(j.id)}>到着</Btn>}
                 {(j.status === "到着" || j.status === "完了") && <Btn theme={theme} variant="soft" style={{ flex: 1 }} disabled>{j.status === "完了" ? "完了" : "到着済"}</Btn>}
@@ -461,6 +463,15 @@ function DriverApp({ theme, onLogout }) {
           </Card>
         </div>
       )}
+
+      {routeJob && (
+        <RouteMap
+          dest={HOTEL_COORDS[routeJob.place] || OFFICE_LATLNG}
+          destName={`${routeJob.place}（${routeJob.kind}）`}
+          theme={theme}
+          onClose={() => setRouteJob(null)}
+        />
+      )}
     </MobileShell>
   );
 }
@@ -486,6 +497,62 @@ function Picker({ onPick }) {
         {opt("cast", THEMES.cast)}
         {opt("driver", THEMES.driver)}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ルート表示(現在地→目的地)オーバーレイ
+// ============================================================
+function RouteMap({ dest, destName, theme, onClose }) {
+  const ref = useRef(null);
+  const [note, setNote] = useState("現在地を取得しています…");
+
+  useEffect(() => {
+    let cancelled = false;
+    loadGoogleMaps().then((maps) => {
+      if (cancelled || !ref.current) return;
+      const map = new maps.Map(ref.current, {
+        center: dest, zoom: 13, mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
+      });
+      const renderer = new maps.DirectionsRenderer({ map });
+      const service = new maps.DirectionsService();
+      const drawFrom = (origin, originNote) => {
+        service.route({ origin, destination: dest, travelMode: maps.TravelMode.DRIVING }, (res, status) => {
+          if (cancelled) return;
+          if (status === "OK") {
+            renderer.setDirections(res);
+            const leg = res.routes[0]?.legs[0];
+            setNote(`${originNote}　距離 ${leg?.distance?.text ?? "-"} ／ 所要 ${leg?.duration?.text ?? "-"}`);
+          } else {
+            new maps.Marker({ position: dest, map });
+            setNote("ルートを取得できませんでした。目的地のみ表示しています。");
+          }
+        });
+      };
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (p) => drawFrom({ lat: p.coords.latitude, lng: p.coords.longitude }, "現在地から"),
+          () => drawFrom(OFFICE_LATLNG, "営業所から（位置情報が使えません）"),
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      } else {
+        drawFrom(OFFICE_LATLNG, "営業所から（位置情報が使えません）");
+      }
+    }).catch((e) => {
+      setNote(e.message === "no-key" ? "地図APIキーが未設定です。" : "地図の読み込みに失敗しました。");
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#fff", zIndex: 50, display: "flex", flexDirection: "column" }}>
+      <div style={{ background: theme.grad, color: "#fff", padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+        <button onClick={onClose} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, padding: "6px 12px", borderRadius: 9, cursor: "pointer" }}>← 戻る</button>
+        <div style={{ fontSize: 14, fontWeight: 800 }}>{destName}</div>
+      </div>
+      <div ref={ref} style={{ flex: 1, minHeight: 0 }} />
+      <div style={{ padding: "10px 14px", fontSize: 12, color: SUB, borderTop: `1px solid ${LINE}`, background: "#fff" }}>{note}</div>
     </div>
   );
 }

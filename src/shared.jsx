@@ -310,28 +310,32 @@ export function generateDrivers() {
 }
 const INITIAL_DRIVERS_RAW = generateDrivers();
 
-// デモ表示用：本日の近い時間帯のジョブをいくつか実際にドライバーへ割り当てておく
+// デモ表示用：本日の近い時間帯のジョブを実際にドライバーへ割り当てておく(だいたい 送り7台・迎え7台・待機6台)
 // (でないと「送迎中」等のラベルだけあって、線を引く先が無い状態になってしまうため)
 export function seedDemoDispatch(drivers, allReservations, dateStr) {
   const jobs = buildDispatchJobs(allReservations, dateStr).filter((j) => j.jobStatus === "unassigned");
   const now = new Date();
   const nowHour = now.getHours() + now.getMinutes() / 60;
-  const nearJobs = jobs.filter((j) => j.time >= nowHour && j.time <= nowHour + 1.5).sort((a, b) => a.time - b.time);
-  const patterns = ["dispatch", "dispatch", "arrived", "dispatch"];
+  const nearJobs = jobs.filter((j) => j.time >= nowHour && j.time <= nowHour + 2).sort((a, b) => a.time - b.time);
+  const sendJobs = nearJobs.filter((j) => j.kind === "send");
+  const pickJobs = nearJobs.filter((j) => j.kind === "pick");
+
   const resPatch = new Map();
   const driverPatch = new Map();
-  const n = Math.min(4, nearJobs.length, drivers.length);
-  for (let i = 0; i < n; i++) {
-    const job = nearJobs[i];
-    const driver = drivers[i];
-    const pattern = patterns[i % patterns.length];
-    const jobStatus = pattern === "arrived" ? "arrived" : "enroute";
+  let di = 0;
+  const assign = (job) => {
+    const driver = drivers[di]; if (!driver) return;
+    di++;
     const patch = resPatch.get(job.reservationId) || {};
-    if (job.kind === "send") { patch.sendDriver = driver.car; patch.sendStatus = jobStatus; }
-    else { patch.pickDriver = driver.car; patch.pickStatus = jobStatus; }
+    if (job.kind === "send") { patch.sendDriver = driver.car; patch.sendStatus = "enroute"; }
+    else { patch.pickDriver = driver.car; patch.pickStatus = "enroute"; }
     resPatch.set(job.reservationId, patch);
-    driverPatch.set(driver.id, pattern);
-  }
+    driverPatch.set(driver.id, "dispatch");
+  };
+  sendJobs.slice(0, 7).forEach(assign);
+  pickJobs.slice(0, 7).forEach(assign);
+  // 残りは待機中のまま(既定値)
+
   const reservations = allReservations.map((r) => resPatch.has(r.id) ? { ...r, ...resPatch.get(r.id) } : r);
   const seededDrivers = drivers.map((d) => driverPatch.has(d.id) ? { ...d, status: driverPatch.get(d.id), note: "" } : d);
   return { reservations, drivers: seededDrivers };
@@ -528,6 +532,15 @@ export function driverLocationLabel(d, jobs) {
   if (d.status === "waiting") return `${d.area || "-"}で待機中`;
   if (queue[0]) return `次: ${fmtHour(queue[0].time)} ${queue[0].hotel}`;
   return d.note || "";
+}
+
+// 状態が"dispatch"の時、現在対応中のジョブが送り/迎えどちらかで「送り中」「迎え中」に出し分ける
+export function driverStatusLabel(d, jobs) {
+  if (d.status !== "dispatch") return DRIVER_STATUS[d.status]?.label || "-";
+  const queue = driverQueue(jobs, d.car);
+  const active = queue.find((j) => j.jobStatus === "enroute") || queue[0];
+  if (!active) return "送迎中";
+  return active.kind === "send" ? "送り中" : "迎え中";
 }
 
 // 予約への割当変更(送り/迎え共通)。setReservationsにそのまま渡せる更新関数を返す

@@ -157,6 +157,35 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
   const [name, setName] = useState(""); const [area, setArea] = useState(AREAS[0]); const [address, setAddress] = useState("");
   const [offAddr, setOffAddr] = useState(office.address);
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
+
+  const missingCount = hotels.filter((h) => h.lat == null && h.address).length;
+
+  // 未取得ホテルの座標をまとめて取得(少しずつ・進捗表示・途中保存)
+  const geocodeMissing = async () => {
+    const targets = hotels.filter((h) => h.lat == null && h.address);
+    if (targets.length === 0) { setMsg("未取得のホテルはありません。"); return; }
+    setGeocoding(true);
+    let done = 0, ok = 0, fail = 0;
+    // 現在のホテル配列をコピーして、随時更新していく
+    let working = hotels.map((h) => ({ ...h }));
+    for (const t of targets) {
+      try {
+        const c = await geocodeAddress(t.address);
+        const idx = working.findIndex((x) => x.id === t.id);
+        if (idx >= 0) { working[idx] = { ...working[idx], lat: c.lat, lng: c.lng }; ok++; }
+      } catch (e) { fail++; }
+      done++;
+      // 10件ごと、または最後に画面へ反映(こまめに保存され、途中で閉じても進捗が残る)
+      if (done % 10 === 0 || done === targets.length) {
+        setHotels(working.map((h) => ({ ...h })));
+        setMsg(`座標取得中… ${done}/${targets.length}件(成功${ok}・失敗${fail})`);
+        await new Promise((r) => setTimeout(r, 60)); // API負荷を抑えるため少し待つ
+      }
+    }
+    setGeocoding(false);
+    setMsg(`座標取得が完了しました。成功${ok}件・失敗${fail}件(失敗は住所をご確認ください)。実ホテルでデモ予約も作り直すには、設定右上の「リセット」を押してください。`);
+  };
 
   const saveOffice = async () => {
     if (!offAddr.trim()) return;
@@ -243,6 +272,18 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
         </div>
         <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 12 }}>CSV列：id,name,area,address ／ 差分はホテルIDで判定(同一IDは上書き・新規IDは追加・CSVに無い既存は保持) ／ 変更は自動的に保存されます</div>
 
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 12px", borderRadius: 10, marginBottom: 12, background: missingCount > 0 ? "#FBF3E6" : "#EAF6EF", border: `1px solid ${missingCount > 0 ? "#E7C983" : "#BFE3CE"}` }}>
+          <div style={{ fontSize: 12.5, color: COLORS.textMain, fontWeight: 600 }}>
+            {missingCount > 0
+              ? `座標が未取得のホテルが ${missingCount} 件あります。ルート表示にはホテルの座標が必要です。`
+              : "すべてのホテルの座標が取得済みです。"}
+          </div>
+          <button onClick={geocodeMissing} disabled={geocoding || missingCount === 0}
+            style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: (geocoding || missingCount === 0) ? "#C7D0DB" : COLORS.accent, color: "#FFF", fontSize: 12.5, fontWeight: 700, cursor: (geocoding || missingCount === 0) ? "default" : "pointer", whiteSpace: "nowrap" }}>
+            {geocoding ? "取得中…" : `未取得の座標をまとめて取得(${missingCount}件)`}
+          </button>
+        </div>
+
         <div className="table-scroll" style={{ maxHeight: 320, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 10, marginBottom: 16 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
             <thead><tr style={{ background: "#EDF3FA" }}>{["ID", "ホテル名", "エリア", "住所", "座標", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 11, color: COLORS.textSub, fontWeight: 600, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#EDF3FA" }}>{h}</th>)}</tr></thead>
@@ -280,9 +321,14 @@ export const SETTINGS_SUBTABS = [
 export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, setReservations, syncMsg }) {
   const [sub, setSub] = useState("driver");
   const resetDemoData = () => {
-    if (!window.confirm("キャスト・予約(本日〜10日後まで)・ドライバーを初期デモデータで上書きします。よろしいですか？(保存済みの内容は失われます)")) return;
+    const coordHotels = hotels.filter((h) => h.lat != null);
+    const usingReal = coordHotels.length > 15;
+    const extra = usingReal
+      ? `\n\n登録済みの座標付きホテル${coordHotels.length}件からデモ予約を作成します。`
+      : "\n\n※現在、座標付きホテルが少ないため、デモは基本ホテルで作成されます。実ホテルも使いたい場合は、先にホテル一覧の「未取得の座標をまとめて取得」を実行してください。";
+    if (!window.confirm(`キャスト・予約(本日〜10日後まで)・ドライバーを初期デモデータで上書きします。よろしいですか？(保存済みの内容は失われます)${extra}`)) return;
     const freshBase = generateCasts();
-    const freshReservations = generateAllReservations(freshBase);
+    const freshReservations = generateAllReservations(freshBase, hotels);
     const freshCasts = applyDay0State(freshBase, freshReservations);
     const freshDrivers = generateDrivers();
     const seeded = seedDemoDispatch(freshDrivers, freshReservations, isoDate(DAY_DATES[0]));

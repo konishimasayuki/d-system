@@ -29,6 +29,21 @@ export function loadGoogleMaps() {
 // 営業所（デモ用・福岡中心付近）
 export const OFFICE_LATLNG = { lat: 33.5902, lng: 130.4017 };
 
+// 住所→座標（Geocoding API）
+export function geocodeAddress(address) {
+  return loadGoogleMaps().then((maps) => new Promise((resolve, reject) => {
+    const g = new maps.Geocoder();
+    g.geocode({ address, region: "jp" }, (res, status) => {
+      if (status === "OK" && res && res[0]) {
+        const l = res[0].geometry.location;
+        resolve({ lat: l.lat(), lng: l.lng() });
+      } else {
+        reject(new Error("geocode-failed:" + status));
+      }
+    });
+  }));
+}
+
 // ホテル座標（デモ用の概算。実店舗では実住所→座標に差し替え）
 export const HOTEL_COORDS = {
   "天神プラザホテル": { lat: 33.5914, lng: 130.3990 },

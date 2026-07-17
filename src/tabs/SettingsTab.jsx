@@ -1,19 +1,45 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
-export function DriverRegisterForm({ setDrivers }) {
+export function DriverRegisterForm({ drivers, setDrivers }) {
   const [name, setName] = useState(""); const [car, setCar] = useState(""); const [wage, setWage] = useState("1300");
   const [loginId, setLoginId] = useState(""); const [password, setPassword] = useState(""); const [msg, setMsg] = useState("");
   const submit = () => {
     if (!name.trim() || !car.trim()) { setMsg("名前と車両番号を入力してください"); return; }
     if (!loginId.trim() || !password.trim()) { setMsg("ログインID・パスワードを入力してください(ドライバーアプリのログインに使用します)"); return; }
-    setDrivers((prev) => [...prev, { id: `d${prev.length + 1}`, name: name.trim(), car: car.trim(), status: "waiting", pos: { x: 50, y: 50 }, note: "待機中", wage: Number(wage) || 1300, hours: 0, loginId: loginId.trim(), password: password.trim() }]);
+    setDrivers((prev) => [...prev, { id: `d${Date.now()}`, name: name.trim(), car: car.trim(), status: "waiting", area: "中央区", pos: { x: 50, y: 50 }, note: "待機中", wage: Number(wage) || 1300, hours: 0, loginId: loginId.trim(), password: password.trim() }]);
     setMsg(`${name}(${car}) を登録しました`); setName(""); setCar(""); setLoginId(""); setPassword("");
   };
+  const removeDriver = (id) => { if (window.confirm("このドライバーを削除しますか？")) setDrivers((prev) => prev.filter((d) => d.id !== id)); };
   return (
-    <Card>
+    <div>
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>ドライバー一覧(全{drivers.length}名)</div>
+        </div>
+        <div className="table-scroll" style={{ maxHeight: 320, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 10 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["車両", "氏名", "状態", "エリア", "時給", "ログインID", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 11, color: COLORS.textSub, fontWeight: 600, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#EDF3FA" }}>{h}</th>)}</tr></thead>
+            <tbody>
+              {drivers.map((d) => (
+                <tr key={d.id} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                  <td style={{ padding: "8px 10px", fontSize: 13, fontWeight: 600, color: COLORS.textMain, whiteSpace: "nowrap" }}>{d.car}</td>
+                  <td style={{ padding: "8px 10px", fontSize: 13, color: COLORS.textMain, whiteSpace: "nowrap" }}>{d.name}</td>
+                  <td style={{ padding: "8px 10px", fontSize: 11 }}><span style={{ fontWeight: 700, color: DRIVER_STATUS[d.status]?.color }}>{DRIVER_STATUS[d.status]?.label}</span></td>
+                  <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub }}>{d.area || "-"}</td>
+                  <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textMain }}><Yen value={d.wage} /></td>
+                  <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub, fontFamily: "'JetBrains Mono', monospace" }}>{d.loginId || "-"}</td>
+                  <td style={{ padding: "8px 10px" }}><button onClick={() => removeDriver(d.id)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>削除</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Card>
       <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 14 }}>ドライバー登録</div>
       <TextField label="ドライバー名" value={name} onChange={setName} placeholder="例: 山田" />
       <div style={{ display: "flex", gap: 10 }}>
@@ -28,7 +54,8 @@ export function DriverRegisterForm({ setDrivers }) {
       <PrimaryButton onClick={submit}>登録する</PrimaryButton>
       {msg && <div style={{ marginTop: 10, fontSize: 12, color: COLORS.green }}>{msg}</div>}
       <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 8 }}>※このID・パスワードは今後ドライバーアプリのログインに使用する想定です(現在アプリ側は仮ログインのままです)。</div>
-    </Card>
+      </Card>
+    </div>
   );
 }
 export function StaffRegisterForm({ staff, setStaff }) {
@@ -250,15 +277,16 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
 export const SETTINGS_SUBTABS = [
   { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "項目登録" }, { key: "security", label: "セキュリティ" },
 ];
-export function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, setReservations, syncMsg }) {
+export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, setReservations, syncMsg }) {
   const [sub, setSub] = useState("driver");
   const resetDemoData = () => {
-    if (!window.confirm("キャスト一覧と予約(本日〜10日後まで)を初期デモデータで上書きします。よろしいですか？(保存済みの内容は失われます)")) return;
+    if (!window.confirm("キャスト・予約(本日〜10日後まで)・ドライバーを初期デモデータで上書きします。よろしいですか？(保存済みの内容は失われます)")) return;
     const freshBase = generateCasts();
     const freshReservations = generateAllReservations(freshBase);
     const freshCasts = applyDay0State(freshBase, freshReservations);
     setCasts(freshCasts);
     setReservations(freshReservations);
+    setDrivers(generateDrivers());
   };
   return (
     <div>
@@ -268,9 +296,9 @@ export function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, s
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {SETTINGS_SUBTABS.map((t) => <button key={t.key} onClick={() => setSub(t.key)} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${sub === t.key ? COLORS.accent : COLORS.border}`, background: sub === t.key ? COLORS.accent : "#FFF", color: sub === t.key ? "#FFF" : COLORS.textMain, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.label}</button>)}
         </div>
-        <button onClick={resetDemoData} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>キャスト・予約を初期デモデータにリセット</button>
+        <button onClick={resetDemoData} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>キャスト・予約・ドライバーを初期デモデータにリセット</button>
       </div>
-      {sub === "driver" && <DriverRegisterForm setDrivers={setDrivers} />}
+      {sub === "driver" && <DriverRegisterForm drivers={drivers} setDrivers={setDrivers} />}
       {sub === "hotel" && <HotelForm hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} />}
       {sub === "staff" && <StaffRegisterForm staff={staff} setStaff={setStaff} />}
       {sub === "master" && <MasterForm courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} />}

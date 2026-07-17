@@ -283,7 +283,6 @@ export function applyDay0State(casts, allReservations) {
 
 export const ALL_RESERVATIONS_10D = generateAllReservations(INITIAL_CASTS_BASE);
 export const INITIAL_CASTS = applyDay0State(INITIAL_CASTS_BASE, ALL_RESERVATIONS_10D);
-export const INITIAL_RESERVATIONS = ALL_RESERVATIONS_10D; // 本日〜10日後、日付(date)付きで全件保持
 
 const DRIVER_NAME_POOL = ["佃", "森", "野口", "堤", "本田", "川島", "浜田", "秋山", "宮下", "北村", "西田", "岡崎", "藤井", "村上", "松岡", "橋本", "三浦", "内田", "石田", "菅原"];
 const DRIVER_LOGIN_POOL = ["tsukuda", "mori", "noguchi", "tsutsumi", "honda", "kawashima", "hamada", "akiyama", "miyashita", "kitamura", "nishida", "okazaki", "fujii", "murakami", "matsuoka", "hashimoto", "miura", "uchida", "ishida", "sugawara"];
@@ -297,21 +296,50 @@ const DRIVER_SPOTS = [
 ];
 const DRIVER_AREAS = ["中央区", "東区", "博多区", "南区", "中央区", "博多区", "中央区", "東区", "南区", "博多区", "中央区", "博多区", "南区", "博多区", "博多区", "早良区", "東区", "中央区", "南区", "早良区"];
 export function generateDrivers() {
-  const statusCycle = ["waiting", "dispatch", "waiting", "arrived", "waiting", "returning"];
   return DRIVER_NAME_POOL.map((name, i) => {
-    const status = statusCycle[i % statusCycle.length];
     const area = DRIVER_AREAS[i % DRIVER_AREAS.length];
     return {
-      id: `d${i + 1}`, name, car: `${i + 1}号車`, status, area,
+      id: `d${i + 1}`, name, car: `${i + 1}号車`, status: "waiting", area,
       pos: { x: 20 + (i * 11) % 60, y: 20 + (i * 17) % 60 },
       latlng: DRIVER_SPOTS[i % DRIVER_SPOTS.length],
-      dest: null, note: status === "waiting" ? `${area}で待機中` : "",
+      dest: null, note: `${area}で待機中`,
       wage: 1250 + (i % 3) * 25, hours: 5 + (i % 4),
       loginId: DRIVER_LOGIN_POOL[i], password: "pass1234",
     };
   });
 }
-export const INITIAL_DRIVERS = generateDrivers();
+const INITIAL_DRIVERS_RAW = generateDrivers();
+
+// デモ表示用：本日の近い時間帯のジョブをいくつか実際にドライバーへ割り当てておく
+// (でないと「送迎中」等のラベルだけあって、線を引く先が無い状態になってしまうため)
+export function seedDemoDispatch(drivers, allReservations, dateStr) {
+  const jobs = buildDispatchJobs(allReservations, dateStr).filter((j) => j.jobStatus === "unassigned");
+  const now = new Date();
+  const nowHour = now.getHours() + now.getMinutes() / 60;
+  const nearJobs = jobs.filter((j) => j.time >= nowHour && j.time <= nowHour + 1.5).sort((a, b) => a.time - b.time);
+  const patterns = ["dispatch", "dispatch", "arrived", "dispatch"];
+  const resPatch = new Map();
+  const driverPatch = new Map();
+  const n = Math.min(4, nearJobs.length, drivers.length);
+  for (let i = 0; i < n; i++) {
+    const job = nearJobs[i];
+    const driver = drivers[i];
+    const pattern = patterns[i % patterns.length];
+    const jobStatus = pattern === "arrived" ? "arrived" : "enroute";
+    const patch = resPatch.get(job.reservationId) || {};
+    if (job.kind === "send") { patch.sendDriver = driver.car; patch.sendStatus = jobStatus; }
+    else { patch.pickDriver = driver.car; patch.pickStatus = jobStatus; }
+    resPatch.set(job.reservationId, patch);
+    driverPatch.set(driver.id, pattern);
+  }
+  const reservations = allReservations.map((r) => resPatch.has(r.id) ? { ...r, ...resPatch.get(r.id) } : r);
+  const seededDrivers = drivers.map((d) => driverPatch.has(d.id) ? { ...d, status: driverPatch.get(d.id), note: "" } : d);
+  return { reservations, drivers: seededDrivers };
+}
+
+const _seeded = seedDemoDispatch(INITIAL_DRIVERS_RAW, ALL_RESERVATIONS_10D, isoDate(DAY_DATES[0]));
+export const INITIAL_DRIVERS = _seeded.drivers;
+export const INITIAL_RESERVATIONS = _seeded.reservations; // 本日〜10日後、日付(date)付きで全件保持
 
 export const INITIAL_CUSTOMERS = [
   { id: "u1", name: "田中様", phones: ["090-XXXX-1111", "092-XXX-1111"], address: "福岡市中央区天神X-X", email: "tanaka@example.com", visits: 14, lastVisit: "2026-06-28", colorLevel: "vip", note: "常連。指名多め",

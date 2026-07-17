@@ -9,8 +9,12 @@ const REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 const ALLOWED_KEYS = [
   "hotels", "office", "casts", "customers", "drivers",
-  "reservations", "staff", "courses", "options", "expenses",
+  "staff", "courses", "options", "expenses",
 ];
+const RESERVATION_KEY_RE = /^reservations:\d{4}-\d{2}-\d{2}$/;
+function isAllowedKey(key) {
+  return ALLOWED_KEYS.includes(key) || RESERVATION_KEY_RE.test(key);
+}
 
 async function kvGet(key) {
   const r = await fetch(`${REST_URL}/get/${encodeURIComponent(key)}`, {
@@ -36,8 +40,8 @@ export default async function handler(req, res) {
     return;
   }
   const key = req.query?.key;
-  if (!key || !ALLOWED_KEYS.includes(key)) {
-    res.status(400).json({ error: `keyが不正です。許可されたキー: ${ALLOWED_KEYS.join(", ")}` });
+  if (!key || !isAllowedKey(key)) {
+    res.status(400).json({ error: `keyが不正です。許可されたキー: ${ALLOWED_KEYS.join(", ")}, reservations:YYYY-MM-DD` });
     return;
   }
   const redisKey = `kanri:${key}`;

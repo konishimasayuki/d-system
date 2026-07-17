@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import SenzaiMaker from "./SenzaiMaker.jsx";
-import { loadGoogleMaps, HOTEL_COORDS } from "./mapsLoader.js";
+import { loadGoogleMaps, HOTEL_COORDS, geocodeAddress } from "./mapsLoader.js";
 
 // ============================================================
 // デザイントークン
@@ -20,9 +20,10 @@ const CAST_STATUS = {
 };
 
 const DRIVER_STATUS = {
-  dispatch: { label: "配車中", color: "#2F6DB5" },
-  waiting: { label: "待機中", color: "#3E9C74" },
+  dispatch: { label: "送迎中", color: "#2F6DB5" },
+  arrived: { label: "到着済", color: "#E08A1E" },
   returning: { label: "戻り中", color: "#5C93C4" },
+  waiting: { label: "待機中", color: "#3E9C74" },
 };
 
 const CUSTOMER_COLORS = {
@@ -47,13 +48,32 @@ const VIEW_ROLES = {
 // マスタ・モックデータ
 // ============================================================
 const AREAS = ["中央区", "東区", "博多区", "南区"];
-const HOTELS_BY_AREA = {
-  "中央区": ["天神プラザホテル", "中央グランドイン", "西鉄シティホテル"],
-  "東区": ["博多ベイサイドホテル", "東区パークホテル"],
-  "博多区": ["博多エクセルホテル", "博多ステーションイン"],
-  "南区": ["南区シティホテル", "大橋ステーションイン"],
-};
-const ALL_HOTELS = Object.values(HOTELS_BY_AREA).flat();
+
+// ホテルマスタ(ID=4桁。住所は仮。座標はデモ近似で、住所変更/追加時にGeocodingで更新)
+const INITIAL_HOTELS = [
+  { id: "0001", name: "博多グランドホテル", area: "博多区", address: "福岡市博多区博多駅前2-1-1", lat: 33.5900, lng: 130.4200 },
+  { id: "0002", name: "博多ステーションイン", area: "博多区", address: "福岡市博多区博多駅東1-2-3", lat: 33.5895, lng: 130.4205 },
+  { id: "0003", name: "中洲リバーサイドホテル", area: "博多区", address: "福岡市博多区中洲3-4-5", lat: 33.5930, lng: 130.4060 },
+  { id: "0004", name: "天神プラザホテル", area: "中央区", address: "福岡市中央区天神2-1-1", lat: 33.5914, lng: 130.3990 },
+  { id: "0005", name: "西鉄シティホテル", area: "中央区", address: "福岡市中央区天神1-5-5", lat: 33.5896, lng: 130.3986 },
+  { id: "0006", name: "中央グランドイン", area: "中央区", address: "福岡市中央区大名1-2-3", lat: 33.5850, lng: 130.4017 },
+  { id: "0007", name: "薬院ステーションホテル", area: "中央区", address: "福岡市中央区薬院1-1-1", lat: 33.5820, lng: 130.4030 },
+  { id: "0008", name: "博多ベイサイドホテル", area: "東区", address: "福岡市東区箱崎1-1-1", lat: 33.6050, lng: 130.4100 },
+  { id: "0009", name: "東区パークホテル", area: "東区", address: "福岡市東区香椎2-2-2", lat: 33.6200, lng: 130.4300 },
+  { id: "0010", name: "南区シティホテル", area: "南区", address: "福岡市南区大橋1-1-1", lat: 33.5600, lng: 130.4250 },
+  { id: "0011", name: "大橋ステーションイン", area: "南区", address: "福岡市南区大橋2-3-4", lat: 33.5620, lng: 130.4260 },
+  { id: "0012", name: "ホテル ルミエール中洲", area: "博多区", address: "福岡市博多区中洲5-1-1", lat: 33.5945, lng: 130.4050 },
+  { id: "0013", name: "ホテル ノワール天神", area: "中央区", address: "福岡市中央区渡辺通4-1-1", lat: 33.5860, lng: 130.4010 },
+  { id: "0014", name: "ホテル ミラージュ博多", area: "博多区", address: "福岡市博多区祇園町3-2-1", lat: 33.5920, lng: 130.4130 },
+  { id: "0015", name: "ホテル アヴァンティ南", area: "南区", address: "福岡市南区高宮1-2-3", lat: 33.5680, lng: 130.4180 },
+];
+
+// 営業所(出発・戻りポイント)デフォルト
+const DEFAULT_OFFICE = { address: "福岡市博多区美野島2-18-10", lat: 33.5805, lng: 130.4225 };
+
+// 予約フォーム等の選択肢用(初期マスタから導出)
+const HOTELS_BY_AREA = INITIAL_HOTELS.reduce((acc, h) => { (acc[h.area] = acc[h.area] || []).push(h.name); return acc; }, {});
+const ALL_HOTELS = INITIAL_HOTELS.map((h) => h.name);
 
 const INITIAL_COURSES = [
   { id: "co1", name: "60分コース", price: 18000 },
@@ -118,10 +138,10 @@ function generateCasts() {
 const INITIAL_CASTS = generateCasts();
 
 const INITIAL_DRIVERS = [
-  { id: "d1", name: "佃", car: "1号車", status: "dispatch", pos: { x: 32, y: 38 }, latlng: { lat: 33.5914, lng: 130.3990 }, note: "田中様を天神プラザホテルへ送迎中", wage: 1300, hours: 7 },
-  { id: "d2", name: "森", car: "2号車", status: "dispatch", pos: { x: 68, y: 55 }, latlng: { lat: 33.6050, lng: 130.4100 }, note: "佐藤様を博多ベイサイドホテルへ送迎中", wage: 1300, hours: 6 },
-  { id: "d3", name: "野口", car: "3号車", status: "waiting", pos: { x: 45, y: 20 }, latlng: { lat: 33.5896, lng: 130.4050 }, note: "中央区エリアで待機中", wage: 1250, hours: 8 },
-  { id: "d4", name: "堤", car: "4号車", status: "returning", pos: { x: 20, y: 70 }, latlng: { lat: 33.5700, lng: 130.4200 }, note: "南区より営業所へ戻り中", wage: 1250, hours: 5 },
+  { id: "d1", name: "佃", car: "1号車", status: "dispatch", pos: { x: 32, y: 38 }, latlng: { lat: 33.5914, lng: 130.3990 }, dest: "天神プラザホテル", note: "田中様を天神プラザホテルへ送迎中", wage: 1300, hours: 7 },
+  { id: "d2", name: "森", car: "2号車", status: "arrived", pos: { x: 68, y: 55 }, latlng: { lat: 33.6050, lng: 130.4100 }, dest: "博多ベイサイドホテル", note: "佐藤様を博多ベイサイドホテルへ送迎(到着済)", wage: 1300, hours: 6 },
+  { id: "d3", name: "野口", car: "3号車", status: "waiting", pos: { x: 45, y: 20 }, latlng: { lat: 33.5896, lng: 130.4050 }, dest: null, note: "中央区エリアで待機中", wage: 1250, hours: 8 },
+  { id: "d4", name: "堤", car: "4号車", status: "returning", pos: { x: 20, y: 70 }, latlng: { lat: 33.5700, lng: 130.4200 }, dest: "営業所", note: "南区より営業所へ戻り中", wage: 1250, hours: 5 },
 ];
 
 const INITIAL_RESERVATIONS = [
@@ -602,23 +622,74 @@ function ReservationManagement({ reservations, setReservations, casts, drivers, 
 // ============================================================
 // 配車管理(マップ)
 // ============================================================
-function DriverMap({ drivers }) {
+function driverPinSvg(car, label, color) {
+  const num = String(car || "").replace(/[^0-9]/g, "") || "?";
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='96' height='66' viewBox='0 0 96 66'>
+    <rect x='6' y='2' rx='8' ry='8' width='84' height='22' fill='${color}'/>
+    <text x='48' y='17' font-size='13' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${label}</text>
+    <circle cx='48' cy='42' r='14' fill='${color}' stroke='#ffffff' stroke-width='2.5'/>
+    <text x='48' y='47' font-size='14' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${num}</text>
+    <path d='M48 58 l-7 -8 h14 z' fill='${color}'/>
+  </svg>`;
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+}
+
+function DriverMap({ drivers, hotels, office }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const routesRef = useRef([]);
+  const officeMarkerRef = useRef(null);
   const [err, setErr] = useState("");
 
-  const renderMarkers = (maps) => {
+  const coordForDest = (dest) => {
+    if (!dest) return null;
+    if (dest === "営業所") return office ? { lat: office.lat, lng: office.lng } : null;
+    const h = (hotels || []).find((x) => x.name === dest);
+    return h && h.lat != null ? { lat: h.lat, lng: h.lng } : (HOTEL_COORDS[dest] || null);
+  };
+
+  const renderAll = (maps) => {
+    // マーカー再描画
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
+    routesRef.current.forEach((r) => r.setMap(null));
+    routesRef.current = [];
+
+    // 営業所マーカー
+    if (office && office.lat != null) {
+      if (officeMarkerRef.current) officeMarkerRef.current.setMap(null);
+      officeMarkerRef.current = new maps.Marker({
+        position: { lat: office.lat, lng: office.lng }, map: mapRef.current, title: "営業所(出発・戻り)",
+        label: { text: "営", color: "#fff", fontSize: "12px", fontWeight: "700" },
+        icon: { path: maps.SymbolPath.CIRCLE, scale: 12, fillColor: "#20262E", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 },
+      });
+    }
+
     drivers.forEach((d) => {
       if (!d.latlng) return;
+      const st = DRIVER_STATUS[d.status] || { label: "-", color: "#7A8798" };
+      // ピン(状態ラベル付き)
       const m = new maps.Marker({
-        position: d.latlng, map: mapRef.current, title: `${d.car} ${d.name}`,
-        label: { text: d.car[0], color: "#fff", fontSize: "12px", fontWeight: "700" },
-        icon: { path: maps.SymbolPath.CIRCLE, scale: 14, fillColor: DRIVER_STATUS[d.status].color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 },
+        position: d.latlng, map: mapRef.current, title: `${d.car} ${d.name}(${st.label})`,
+        icon: { url: driverPinSvg(d.car, st.label, st.color), anchor: new maps.Point(48, 58), scaledSize: new maps.Size(96, 66) },
+        zIndex: 10,
       });
       markersRef.current.push(m);
+
+      // ルート(待機中以外で目的地があるとき)
+      const destPos = coordForDest(d.dest);
+      if (d.status !== "waiting" && destPos) {
+        const renderer = new maps.DirectionsRenderer({
+          map: mapRef.current, suppressMarkers: true, preserveViewport: true,
+          polylineOptions: { strokeColor: st.color, strokeWeight: 5, strokeOpacity: 0.85 },
+        });
+        const service = new maps.DirectionsService();
+        service.route({ origin: d.latlng, destination: destPos, travelMode: maps.TravelMode.DRIVING }, (res, status) => {
+          if (status === "OK") renderer.setDirections(res);
+        });
+        routesRef.current.push(renderer);
+      }
     });
   };
 
@@ -630,7 +701,7 @@ function DriverMap({ drivers }) {
         center: { lat: 33.5902, lng: 130.4017 }, zoom: 12,
         mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
       });
-      renderMarkers(maps);
+      renderAll(maps);
     }).catch((e) => {
       setErr(e.message === "no-key"
         ? "地図APIキーが未設定です（VITE_GOOGLE_MAPS_API_KEY）。"
@@ -640,8 +711,8 @@ function DriverMap({ drivers }) {
   }, []);
 
   useEffect(() => {
-    if (window.google && window.google.maps && mapRef.current) renderMarkers(window.google.maps);
-  }, [drivers]);
+    if (window.google && window.google.maps && mapRef.current) renderAll(window.google.maps);
+  }, [drivers, hotels, office]);
 
   if (err) {
     return <div style={{ width: "100%", aspectRatio: "4 / 3", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#F2F5F9", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, textAlign: "center", color: COLORS.red, fontSize: 13 }}>{err}</div>;
@@ -649,14 +720,14 @@ function DriverMap({ drivers }) {
   return <div ref={ref} style={{ width: "100%", aspectRatio: "4 / 3", borderRadius: 10, border: `1px solid ${COLORS.border}`, overflow: "hidden" }} />;
 }
 
-function DispatchMap({ drivers, reservations, casts }) {
+function DispatchMap({ drivers, reservations, casts, hotels, office }) {
   const castName = (id) => casts.find((c) => c.id === id) ? castFullName(casts.find((x) => x.id === id)) : "-";
   return (
     <div>
-      <SectionTitle sub="ドライバーの現在位置と送迎状況を確認">配車管理</SectionTitle>
+      <SectionTitle sub="ドライバーの現在位置・状態・向かう先を確認">配車管理</SectionTitle>
       <div className="grid-2">
         <Card style={{ padding: 12 }}>
-          <DriverMap drivers={drivers} />
+          <DriverMap drivers={drivers} hotels={hotels} office={office} />
           <div style={{ display: "flex", gap: 14, marginTop: 12, flexWrap: "wrap" }}>
             {Object.entries(DRIVER_STATUS).map(([key, v]) => <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textSub }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: v.color }} />{v.label}</div>)}
           </div>
@@ -1274,19 +1345,158 @@ function SecurityForm() {
     </Card>
   );
 }
+// ---- CSVユーティリティ ----
+function csvEscape(v) { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function parseCSV(text) {
+  const rows = []; const lines = String(text).replace(/\r\n/g, "\n").split("\n").filter((l) => l.trim().length);
+  for (const line of lines) {
+    const cells = []; let cur = ""; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+      else { if (ch === ",") { cells.push(cur); cur = ""; } else if (ch === '"') { q = true; } else cur += ch; }
+    }
+    cells.push(cur); rows.push(cells);
+  }
+  return rows;
+}
+function nextHotelId(hotels) { let max = 0; hotels.forEach((h) => { const n = parseInt(h.id, 10); if (!isNaN(n) && n > max) max = n; }); return String(max + 1).padStart(4, "0"); }
+
+function HotelForm({ hotels, setHotels, office, setOffice }) {
+  const [name, setName] = useState(""); const [area, setArea] = useState(AREAS[0]); const [address, setAddress] = useState("");
+  const [offAddr, setOffAddr] = useState(office.address);
+  const [busy, setBusy] = useState(false); const [msg, setMsg] = useState("");
+
+  const saveOffice = async () => {
+    if (!offAddr.trim()) return;
+    setBusy(true); setMsg("営業所の座標を取得中…");
+    try { const c = await geocodeAddress(offAddr.trim()); setOffice({ address: offAddr.trim(), lat: c.lat, lng: c.lng }); setMsg("営業所を更新しました。"); }
+    catch (e) { setMsg("座標の取得に失敗しました。住所をご確認ください。"); }
+    setBusy(false);
+  };
+
+  const addHotel = async () => {
+    if (!name.trim() || !address.trim()) { setMsg("ホテル名と住所を入力してください。"); return; }
+    const id = nextHotelId(hotels);
+    setBusy(true); setMsg("座標を取得中…");
+    try {
+      const c = await geocodeAddress(address.trim());
+      setHotels((p) => [...p, { id, name: name.trim(), area, address: address.trim(), lat: c.lat, lng: c.lng }]);
+      setMsg(`${name}(ID:${id})を追加しました。`);
+    } catch (e) {
+      setHotels((p) => [...p, { id, name: name.trim(), area, address: address.trim(), lat: null, lng: null }]);
+      setMsg(`${name}(ID:${id})を追加しましたが、座標取得に失敗しました。住所をご確認ください。`);
+    }
+    setBusy(false); setName(""); setAddress("");
+  };
+
+  const del = (id) => setHotels((p) => p.filter((h) => h.id !== id));
+
+  const exportCSV = () => {
+    const header = "id,name,area,address";
+    const body = hotels.map((h) => [h.id, h.name, h.area, h.address].map(csvEscape).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + header + "\n" + body], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "hotels.csv"; a.click();
+  };
+
+  const importCSV = (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const rows = parseCSV(String(reader.result).replace(/^\uFEFF/, ""));
+      let start = 0;
+      if (rows[0] && (rows[0][0] || "").trim().toLowerCase() === "id") start = 1;
+      const incoming = rows.slice(start).map((r) => ({ id: (r[0] || "").trim(), name: (r[1] || "").trim(), area: (r[2] || "").trim(), address: (r[3] || "").trim() })).filter((r) => r.id && r.name);
+      if (incoming.length === 0) { setMsg("取り込める行がありませんでした。"); e.target.value = ""; return; }
+      const map = new Map(hotels.map((h) => [h.id, h]));
+      const toGeocode = [];
+      incoming.forEach((inc) => {
+        const ex = map.get(inc.id);
+        if (ex) { const changed = ex.address !== inc.address; map.set(inc.id, { ...ex, ...inc, lat: changed ? null : ex.lat, lng: changed ? null : ex.lng }); if (changed) toGeocode.push(inc.id); }
+        else { map.set(inc.id, { ...inc, lat: null, lng: null }); toGeocode.push(inc.id); }
+      });
+      const merged = Array.from(map.values()).sort((a, b) => a.id.localeCompare(b.id));
+      setHotels(merged);
+      setBusy(true); setMsg(`${incoming.length}件を取り込みました。座標を取得中…(${toGeocode.length}件)`);
+      for (const id of toGeocode) {
+        const h = merged.find((x) => x.id === id); if (!h || !h.address) continue;
+        try { const c = await geocodeAddress(h.address); h.lat = c.lat; h.lng = c.lng; } catch (err) {}
+      }
+      setHotels([...merged]); setBusy(false);
+      setMsg(`取り込み完了：${incoming.length}件(差分はホテルIDで判定)。`);
+      e.target.value = "";
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div>
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 4 }}>営業所(出発・戻りポイント)</div>
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 12 }}>ドライバーの出発地・戻り先。配車マップの基準になります。</div>
+        <TextField label="住所" value={offAddr} onChange={setOffAddr} placeholder="福岡市博多区美野島2-18-10" />
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 10 }}>現在の座標：{office.lat != null ? `${office.lat.toFixed(5)}, ${office.lng.toFixed(5)}` : "未取得"}</div>
+        <PrimaryButton onClick={saveOffice} disabled={busy}>住所から座標を更新</PrimaryButton>
+      </Card>
+
+      <Card>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 8 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>ホテル登録(全{hotels.length}件)</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={exportCSV} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>CSVエクスポート</button>
+            <label style={{ padding: "7px 12px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              CSVインポート
+              <input type="file" accept=".csv,text/csv" onChange={importCSV} style={{ display: "none" }} />
+            </label>
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 12 }}>CSV列：id,name,area,address ／ 差分はホテルIDで判定(同一IDは上書き・新規IDは追加・CSVに無い既存は保持)</div>
+
+        <div className="table-scroll" style={{ maxHeight: 320, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 10, marginBottom: 16 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["ID", "ホテル名", "エリア", "住所", "座標", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 11, color: COLORS.textSub, fontWeight: 600, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#EDF3FA" }}>{h}</th>)}</tr></thead>
+            <tbody>
+              {hotels.map((h) => (
+                <tr key={h.id} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                  <td style={{ padding: "8px 10px", fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: COLORS.textMain }}>{h.id}</td>
+                  <td style={{ padding: "8px 10px", fontSize: 13, color: COLORS.textMain, fontWeight: 600, whiteSpace: "nowrap" }}>{h.name}</td>
+                  <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub }}>{h.area}</td>
+                  <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub }}>{h.address}</td>
+                  <td style={{ padding: "8px 10px", fontSize: 11 }}><span style={{ color: h.lat != null ? COLORS.green : COLORS.red, fontWeight: 700 }}>{h.lat != null ? "取得済" : "未取得"}</span></td>
+                  <td style={{ padding: "8px 10px" }}><button onClick={() => del(h.id)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>削除</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, marginBottom: 8 }}>ホテルを追加</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <div style={{ flex: 2 }}><TextField label="ホテル名" value={name} onChange={setName} placeholder="例: 博多〇〇ホテル" /></div>
+          <div style={{ flex: 1 }}><SelectField label="エリア" value={area} onChange={setArea} options={AREAS} /></div>
+        </div>
+        <TextField label="住所" value={address} onChange={setAddress} placeholder="福岡市博多区〇〇1-2-3" />
+        <PrimaryButton onClick={addHotel} disabled={busy}>住所から座標を取得して追加</PrimaryButton>
+        {msg && <div style={{ marginTop: 10, fontSize: 12, color: busy ? COLORS.textSub : COLORS.accent }}>{msg}</div>}
+      </Card>
+    </div>
+  );
+}
+
 const SETTINGS_SUBTABS = [
-  { key: "cast", label: "キャスト登録" }, { key: "driver", label: "ドライバー登録" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "項目登録" }, { key: "security", label: "セキュリティ" },
+  { key: "cast", label: "キャスト登録" }, { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "項目登録" }, { key: "security", label: "セキュリティ" },
 ];
-function SettingsTab({ setCasts, setDrivers }) {
+function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffice }) {
   const [sub, setSub] = useState("cast");
   return (
     <div>
-      <SectionTitle sub="キャスト・ドライバー・スタッフ・項目・セキュリティの管理">設定</SectionTitle>
+      <SectionTitle sub="キャスト・ドライバー・ホテル・スタッフ・項目・セキュリティの管理">設定</SectionTitle>
       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         {SETTINGS_SUBTABS.map((t) => <button key={t.key} onClick={() => setSub(t.key)} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${sub === t.key ? COLORS.accent : COLORS.border}`, background: sub === t.key ? COLORS.accent : "#FFF", color: sub === t.key ? "#FFF" : COLORS.textMain, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.label}</button>)}
       </div>
       {sub === "cast" && <CastRegisterForm setCasts={setCasts} />}
       {sub === "driver" && <DriverRegisterForm setDrivers={setDrivers} />}
+      {sub === "hotel" && <HotelForm hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} />}
       {sub === "staff" && <StaffRegisterForm />}
       {sub === "master" && <MasterForm />}
       {sub === "security" && <SecurityForm />}
@@ -1417,6 +1627,8 @@ export default function KanriApp() {
   const [casts, setCasts] = useState(INITIAL_CASTS);
   const [customers, setCustomers] = useState(INITIAL_CUSTOMERS);
   const [drivers, setDrivers] = useState(INITIAL_DRIVERS);
+  const [hotels, setHotels] = useState(INITIAL_HOTELS);
+  const [office, setOffice] = useState(DEFAULT_OFFICE);
   const [reservations, setReservations] = useState(INITIAL_RESERVATIONS);
   const [menuOpen, setMenuOpen] = useState(false);
   const [ctiCustomer, setCtiCustomer] = useState(null);
@@ -1477,7 +1689,7 @@ export default function KanriApp() {
           {tab === "shift" && <ShiftManagement casts={casts} setCasts={setCasts} />}
           {tab === "castlist" && <CastList casts={casts} setCasts={setCasts} />}
           {tab === "reservation" && <ReservationManagement reservations={reservations} setReservations={setReservations} casts={casts} drivers={drivers} courses={INITIAL_COURSES} />}
-          {tab === "dispatch" && <DispatchMap drivers={drivers} reservations={reservations} casts={casts} />}
+          {tab === "dispatch" && <DispatchMap drivers={drivers} reservations={reservations} casts={casts} hotels={hotels} office={office} />}
           {tab === "customer" && <CustomerManagement customers={customers} setCustomers={setCustomers} onQuote={startQuote} />}
           {tab === "media" && <MediaTab casts={casts} setCasts={setCasts} />}
           {tab === "report" && <Report />}
@@ -1486,7 +1698,7 @@ export default function KanriApp() {
           {tab === "driverpage" && <DriverPage reservations={reservations} casts={casts} drivers={drivers} />}
           {tab === "mypage" && <CastMyPage casts={casts} reservations={reservations} />}
           {tab === "std" && <StdManagement casts={casts} />}
-          {tab === "settings" && <SettingsTab setCasts={setCasts} setDrivers={setDrivers} />}
+          {tab === "settings" && <SettingsTab setCasts={setCasts} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} />}
         </div>
       </div>
 

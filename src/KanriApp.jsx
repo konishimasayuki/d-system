@@ -951,11 +951,10 @@ function Report() {
 // ============================================================
 // 会計(仕訳帳・財務諸表・仕訳辞書・総額/純額・時給・清算方法)
 // ============================================================
-function AccountingTab({ casts, drivers }) {
+function AccountingTab({ casts, drivers, expenses, setExpenses }) {
   const [subtab, setSubtab] = useState("shiwake");
   const [method, setMethod] = useState("総額"); // 総額 / 純額
   const [settle, setSettle] = useState("事務所渡し"); // 清算方法
-  const [expenses, setExpenses] = useState(INITIAL_EXPENSES);
   const [dictKey, setDictKey] = useState(JOURNAL_DICT[0].key);
   const [amount, setAmount] = useState("");
 
@@ -1277,8 +1276,7 @@ function DriverRegisterForm({ setDrivers }) {
     </Card>
   );
 }
-function StaffRegisterForm() {
-  const [staff, setStaff] = useState(INITIAL_STAFF);
+function StaffRegisterForm({ staff, setStaff }) {
   const [name, setName] = useState(""); const [role, setRole] = useState(ROLES[0]);
   const add = () => { if (!name.trim()) return; setStaff((prev) => [...prev, { id: `s${prev.length + 1}`, name: name.trim(), role }]); setName(""); };
   return (
@@ -1293,9 +1291,7 @@ function StaffRegisterForm() {
     </Card>
   );
 }
-function MasterForm() {
-  const [courses, setCourses] = useState(INITIAL_COURSES);
-  const [options, setOptions] = useState(INITIAL_OPTIONS);
+function MasterForm({ courses, setCourses, options, setOptions }) {
   const [cName, setCName] = useState(""); const [cPrice, setCPrice] = useState("");
   const [oName, setOName] = useState(""); const [oPrice, setOPrice] = useState("");
   const addCourse = () => { if (!cName.trim()) return; setCourses((p) => [...p, { id: `co${p.length + 1}`, name: cName.trim(), price: Number(cPrice) || 0 }]); setCName(""); setCPrice(""); };
@@ -1486,20 +1482,20 @@ function HotelForm({ hotels, setHotels, office, setOffice }) {
 const SETTINGS_SUBTABS = [
   { key: "cast", label: "キャスト登録" }, { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "項目登録" }, { key: "security", label: "セキュリティ" },
 ];
-function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffice, syncMsg }) {
+function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, syncMsg }) {
   const [sub, setSub] = useState("cast");
   return (
     <div>
       <SectionTitle sub="キャスト・ドライバー・ホテル・スタッフ・項目・セキュリティの管理">設定</SectionTitle>
-      {syncMsg && sub === "hotel" && <div style={{ marginBottom: 12, fontSize: 12, color: COLORS.red, background: "#FBEAE5", padding: "8px 12px", borderRadius: 8 }}>{syncMsg}</div>}
+      {syncMsg && <div style={{ marginBottom: 12, fontSize: 12, color: COLORS.red, background: "#FBEAE5", padding: "8px 12px", borderRadius: 8 }}>{syncMsg}</div>}
       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         {SETTINGS_SUBTABS.map((t) => <button key={t.key} onClick={() => setSub(t.key)} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${sub === t.key ? COLORS.accent : COLORS.border}`, background: sub === t.key ? COLORS.accent : "#FFF", color: sub === t.key ? "#FFF" : COLORS.textMain, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.label}</button>)}
       </div>
       {sub === "cast" && <CastRegisterForm setCasts={setCasts} />}
       {sub === "driver" && <DriverRegisterForm setDrivers={setDrivers} />}
       {sub === "hotel" && <HotelForm hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} />}
-      {sub === "staff" && <StaffRegisterForm />}
-      {sub === "master" && <MasterForm />}
+      {sub === "staff" && <StaffRegisterForm staff={staff} setStaff={setStaff} />}
+      {sub === "master" && <MasterForm courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} />}
       {sub === "security" && <SecurityForm />}
     </div>
   );
@@ -1622,50 +1618,53 @@ function HamburgerIcon({ onClick }) {
   );
 }
 
+// ============================================================
+// サーバー保存フック(Upstash経由・/api/state)
+// ============================================================
+function usePersistedState(key, initialValue) {
+  const [value, setValue] = useState(initialValue);
+  const [loaded, setLoaded] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/state?key=${key}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        if (d && d.value !== null && d.value !== undefined) setValue(d.value);
+      })
+      .catch(() => { if (!cancelled) setErr("読み込みに失敗しました(初期データで表示中)"); })
+      .finally(() => { if (!cancelled) setLoaded(true); });
+    return () => { cancelled = true; };
+  }, [key]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    fetch(`/api/state?key=${key}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value }),
+    }).then((r) => { if (!r.ok) throw new Error("save-failed"); setErr(""); })
+      .catch(() => setErr("保存に失敗しました"));
+  }, [value, loaded, key]);
+
+  return [value, setValue, { loaded, err }];
+}
+
 export default function KanriApp() {
   const [role, setRole] = useState("owner");
   const [tab, setTab] = useState("dashboard");
-  const [casts, setCasts] = useState(INITIAL_CASTS);
-  const [customers, setCustomers] = useState(INITIAL_CUSTOMERS);
-  const [drivers, setDrivers] = useState(INITIAL_DRIVERS);
-  const [hotels, setHotels] = useState(INITIAL_HOTELS);
-  const [office, setOffice] = useState(DEFAULT_OFFICE);
-  const [dataLoaded, setDataLoaded] = useState(false);
-  const [syncMsg, setSyncMsg] = useState("");
-
-  // 初回読み込み(Upstash保存分があれば反映)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [hRes, oRes] = await Promise.all([
-          fetch("/api/hotels").then((r) => r.json()),
-          fetch("/api/office").then((r) => r.json()),
-        ]);
-        if (cancelled) return;
-        if (Array.isArray(hRes.hotels) && hRes.hotels.length > 0) setHotels(hRes.hotels);
-        if (oRes.office) setOffice(oRes.office);
-      } catch (e) {
-        setSyncMsg("保存データの読み込みに失敗しました(初期データで表示中)。");
-      }
-      if (!cancelled) setDataLoaded(true);
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  // 変更をUpstashへ保存(初回読込後のみ)
-  useEffect(() => {
-    if (!dataLoaded) return;
-    fetch("/api/hotels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hotels }) })
-      .catch(() => setSyncMsg("ホテル情報の保存に失敗しました。"));
-  }, [hotels, dataLoaded]);
-
-  useEffect(() => {
-    if (!dataLoaded) return;
-    fetch("/api/office", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ office }) })
-      .catch(() => setSyncMsg("営業所情報の保存に失敗しました。"));
-  }, [office, dataLoaded]);
-  const [reservations, setReservations] = useState(INITIAL_RESERVATIONS);
+  const [casts, setCasts, castsSync] = usePersistedState("casts", INITIAL_CASTS);
+  const [customers, setCustomers, customersSync] = usePersistedState("customers", INITIAL_CUSTOMERS);
+  const [drivers, setDrivers, driversSync] = usePersistedState("drivers", INITIAL_DRIVERS);
+  const [reservations, setReservations, reservationsSync] = usePersistedState("reservations", INITIAL_RESERVATIONS);
+  const [hotels, setHotels, hotelsSync] = usePersistedState("hotels", INITIAL_HOTELS);
+  const [office, setOffice, officeSync] = usePersistedState("office", DEFAULT_OFFICE);
+  const [staff, setStaff, staffSync] = usePersistedState("staff", INITIAL_STAFF);
+  const [courses, setCourses, coursesSync] = usePersistedState("courses", INITIAL_COURSES);
+  const [options, setOptions, optionsSync] = usePersistedState("options", INITIAL_OPTIONS);
+  const [expenses, setExpenses, expensesSync] = usePersistedState("expenses", INITIAL_EXPENSES);
+  const syncErrors = [castsSync, customersSync, driversSync, reservationsSync, hotelsSync, officeSync, staffSync, coursesSync, optionsSync, expensesSync].map((s) => s.err).filter(Boolean);
+  const syncMsg = syncErrors[0] || "";
   const [menuOpen, setMenuOpen] = useState(false);
   const [ctiCustomer, setCtiCustomer] = useState(null);
   const [quoteCustomer, setQuoteCustomer] = useState(null);
@@ -1729,12 +1728,12 @@ export default function KanriApp() {
           {tab === "customer" && <CustomerManagement customers={customers} setCustomers={setCustomers} onQuote={startQuote} />}
           {tab === "media" && <MediaTab casts={casts} setCasts={setCasts} />}
           {tab === "report" && <Report />}
-          {tab === "accounting" && <AccountingTab casts={casts} drivers={drivers} />}
+          {tab === "accounting" && <AccountingTab casts={casts} drivers={drivers} expenses={expenses} setExpenses={setExpenses} />}
           {tab === "payout" && <Payout casts={casts} />}
           {tab === "driverpage" && <DriverPage reservations={reservations} casts={casts} drivers={drivers} />}
           {tab === "mypage" && <CastMyPage casts={casts} reservations={reservations} />}
           {tab === "std" && <StdManagement casts={casts} />}
-          {tab === "settings" && <SettingsTab setCasts={setCasts} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} syncMsg={syncMsg} />}
+          {tab === "settings" && <SettingsTab setCasts={setCasts} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} staff={staff} setStaff={setStaff} courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} syncMsg={syncMsg} />}
         </div>
       </div>
 

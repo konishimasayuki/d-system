@@ -1,5 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { loadGoogleMaps, HOTEL_COORDS, OFFICE_LATLNG } from "./mapsLoader.js";
+import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName } from "./shared.jsx";
+
+// ============================================================
+// サーバー(Upstash経由 /api/state)との簡易読み書き
+// ============================================================
+async function apiGet(key) {
+  try { const r = await fetch(`/api/state?key=${key}`); const d = await r.json(); return d.value ?? null; } catch (e) { return null; }
+}
+async function apiSet(key, value) {
+  try { await fetch(`/api/state?key=${key}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value }) }); } catch (e) {}
+}
 
 // ============================================================
 // キャストポータル / ドライバーポータル
@@ -88,28 +99,11 @@ function Icon({ name, size = 22, color = "currentColor" }) {
 }
 
 // ============================================================
-// モックデータ
+// モックデータ(週間シフトの参考表示のみ。当日の予約・配車は実データを使用)
 // ============================================================
-const CAST_ME = { sei: "白石", name: "みお", age: 24, itakuRate: 0.6, shift: "18:00〜26:00" };
-const CAST_TODAY = [
-  { id: "r1", time: "19:30", customer: "田中様", course: "90分", hotel: "天神プラザホテル", price: 21000, status: "受付済" },
-  { id: "r2", time: "21:30", customer: "鈴木様", course: "60分", hotel: "中央グランドイン", price: 18000, status: "受付済" },
-];
 const CAST_WEEK = [
   { d: "7/17(木)", t: "18:00〜26:00" }, { d: "7/18(金)", t: "19:00〜27:00" },
   { d: "7/19(土)", t: "17:00〜25:00" }, { d: "7/20(日)", t: "休み" },
-];
-const CAST_PAYSLIP = [
-  { date: "7/16", count: 3, sales: 63000, itaku: 37800 },
-  { date: "7/15", count: 2, sales: 42000, itaku: 25200 },
-  { date: "7/14", count: 3, sales: 60000, itaku: 36000 },
-];
-
-const DRIVER_ME = { name: "佃", car: "1号車", wage: 1300, shift: "17:00〜25:00" };
-const DRIVER_JOBS = [
-  { id: "j1", time: "19:30", kind: "送り", cast: "白石 みお", customer: "田中様", place: "天神プラザホテル", status: "待機" },
-  { id: "j2", time: "20:30", kind: "迎え", cast: "白石 みお", customer: "田中様", place: "天神プラザホテル", status: "待機" },
-  { id: "j3", time: "21:30", kind: "送り", cast: "藤原 ゆら", customer: "鈴木様", place: "中央グランドイン", status: "待機" },
 ];
 const DRIVER_WEEK = [
   { d: "7/17(木)", t: "17:00〜25:00" }, { d: "7/18(金)", t: "17:00〜26:00" },
@@ -144,7 +138,7 @@ function Btn({ children, onClick, theme, variant = "solid", disabled, style }) {
 // ============================================================
 // スマホ枠
 // ============================================================
-function MobileShell({ theme, app, children, nav, active, onNav, onLogout, toast }) {
+function MobileShell({ theme, app, subtitle, children, nav, active, onNav, onLogout, toast }) {
   return (
     <div className="pa-page">
       <div className="pa-phone">
@@ -153,7 +147,7 @@ function MobileShell({ theme, app, children, nav, active, onNav, onLogout, toast
           <div style={{ background: "rgba(255,255,255,0.18)", borderRadius: 12, padding: 4, display: "flex" }}><Logo app={app} size={34} /></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 0.3 }}>{theme.name}</div>
-            <div style={{ fontSize: 11, opacity: 0.85 }}>{app === "cast" ? `${CAST_ME.sei} ${CAST_ME.name} さん` : `${DRIVER_ME.name}(${DRIVER_ME.car})`}</div>
+            <div style={{ fontSize: 11, opacity: 0.85 }}>{subtitle}</div>
           </div>
           <button onClick={onLogout} style={{ background: "rgba(255,255,255,0.16)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, padding: "7px 12px", borderRadius: 9, cursor: "pointer" }}>ログアウト</button>
         </div>
@@ -184,13 +178,17 @@ function MobileShell({ theme, app, children, nav, active, onNav, onLogout, toast
 // ============================================================
 // ログイン
 // ============================================================
-function Login({ theme, app, onLogin }) {
+function Login({ theme, app, drivers, onLogin }) {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   const submit = () => {
-    if (id.trim() === "z" && pw.trim() === "z") { setErr(""); onLogin(); }
-    else setErr("IDまたはパスワードが違います。");
+    if (id.trim() === "z" && pw.trim() === "z") { setErr(""); onLogin(null); return; }
+    if (app === "driver") {
+      const match = (drivers || []).find((d) => d.loginId === id.trim() && d.password === pw.trim());
+      if (match) { setErr(""); onLogin(match.id); return; }
+    }
+    setErr("IDまたはパスワードが違います。");
   };
   const field = { width: "100%", padding: "13px 14px", borderRadius: 12, border: `1px solid ${LINE}`, fontSize: 15, boxSizing: "border-box", background: "#fff", color: INK };
   return (
@@ -211,8 +209,40 @@ function Login({ theme, app, onLogin }) {
           {err && <div style={{ color: "#C0492B", fontSize: 12.5, marginBottom: 8 }}>{err}</div>}
           <Btn theme={theme} onClick={submit} style={{ width: "100%", padding: "13px", fontSize: 15, marginTop: 6 }}>ログイン</Btn>
           <div style={{ marginTop: 18, padding: 12, background: theme.accentSoft, borderRadius: 10, fontSize: 12, color: theme.accentDark, textAlign: "center" }}>
-            デモ用ログイン　ID「z」／ パスワード「z」
+            デモ用ログイン　ID「z」／ パスワード「z」{app === "driver" ? "（または設定で登録した本人のログインID/パスワード）" : ""}
           </div>
+        </div>
+      </div>
+      <style>{`
+        .pa-page{ min-height:100vh; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
+        .pa-phone{ width:390px; height:min(92vh,820px); background:#fff; border-radius:38px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
+        @media (max-width:480px){ .pa-page{ padding:0; } .pa-phone{ width:100%; height:100vh; border-radius:0; border:none; } }
+      `}</style>
+    </div>
+  );
+}
+
+// ============================================================
+// 識別ピッカー(z/zログイン時、または該当ドライバーが判別できない時に本人を選ぶ)
+// ============================================================
+function IdentityPicker({ theme, title, options, onPick }) {
+  const [sel, setSel] = useState(options[0]?.value || "");
+  return (
+    <div className="pa-page">
+      <div className="pa-phone" style={{ justifyContent: "center", alignItems: "center", padding: 28 }}>
+        <div style={{ width: "100%", maxWidth: 320 }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginBottom: 6, textAlign: "center" }}>{title}</div>
+          <div style={{ fontSize: 12, color: SUB, marginBottom: 20, textAlign: "center" }}>本番では個人ごとのログインに置き換わります(現在は選択式の簡易確認です)</div>
+          {options.length === 0 ? (
+            <div style={{ fontSize: 13, color: SUB, textAlign: "center" }}>データを読み込み中です…</div>
+          ) : (
+            <>
+              <select value={sel} onChange={(e) => setSel(e.target.value)} style={{ width: "100%", padding: "13px 14px", borderRadius: 12, border: `1px solid ${LINE}`, fontSize: 15, marginBottom: 14, background: "#fff", color: INK }}>
+                {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <Btn theme={theme} onClick={() => onPick(sel)} style={{ width: "100%", padding: "13px", fontSize: 15 }}>この内容で進む</Btn>
+            </>
+          )}
         </div>
       </div>
       <style>{`
@@ -227,27 +257,28 @@ function Login({ theme, app, onLogin }) {
 // ============================================================
 // キャストポータル
 // ============================================================
-function CastApp({ theme, onLogout }) {
+function CastApp({ theme, onLogout, casts, drivers, reservations, castId, updateReservations }) {
   const [tab, setTab] = useState("home");
-  const [jobs, setJobs] = useState(CAST_TODAY);
   const [toast, setToast] = useState("");
-  const [callAck, setCallAck] = useState(false);
-  const nextRef = useRef(new Date(Date.now() + 8 * 60000)); // 8分後を次の予約に
-  const [now, setNow] = useState(Date.now());
-  const [shiftReq, setShiftReq] = useState([]);
-  const [reqDate, setReqDate] = useState(""); const [reqTime, setReqTime] = useState("");
-
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(""), 2200); };
 
-  const msLeft = nextRef.current - now;
-  const minLeft = Math.floor(msLeft / 60000);
-  const secLeft = Math.max(0, Math.floor((msLeft % 60000) / 1000));
-  const showCall = msLeft > 0 && minLeft < 10 && !callAck;
+  const me = casts.find((c) => c.id === castId);
+  const myReservations = reservations.filter((r) => r.castId === castId && r.status !== "キャンセル").sort((a, b) => a.start - b.start);
+  const totalSales = myReservations.reduce((a, r) => a + r.price, 0);
 
-  const setStatus = (id, status, msg) => { setJobs((p) => p.map((j) => j.id === id ? { ...j, status } : j)); showToast(msg); };
-  const totalCount = CAST_PAYSLIP[0].count;
-  const totalSales = CAST_TODAY.reduce((a, r) => a + r.price, 0);
+  const driverInfo = (car) => drivers.find((d) => d.car === car);
+
+  // 送り/迎えの「今の状況」を出す(開始前は送り、開始後は迎え)
+  const legInfo = (r) => {
+    const nowH = new Date().getHours() + new Date().getMinutes() / 60;
+    const useKind = nowH < r.start ? "send" : "pick";
+    const car = useKind === "send" ? r.sendDriver : r.pickDriver;
+    const st = useKind === "send" ? (r.sendStatus || "unassigned") : (r.pickStatus || "unassigned");
+    const d = driverInfo(car);
+    return { kind: useKind, driver: d, status: JOB_STATUS[st] || JOB_STATUS.unassigned };
+  };
+
+  const markStatus = (r, status, msg) => { updateReservations((prev) => prev.map((x) => x.id === r.id ? { ...x, status } : x)); showToast(msg); };
 
   const nav = [
     { key: "home", label: "ホーム", icon: "home" },
@@ -257,62 +288,58 @@ function CastApp({ theme, onLogout }) {
   ];
 
   return (
-    <MobileShell theme={theme} app="cast" nav={nav} active={tab} onNav={setTab} onLogout={onLogout} toast={toast}>
+    <MobileShell theme={theme} app="cast" subtitle={me ? `${castFullName(me)} さん` : ""} nav={nav} active={tab} onNav={setTab} onLogout={onLogout} toast={toast}>
       {tab === "home" && (
         <div>
-          {showCall && (
-            <div style={{ marginTop: 12, background: theme.grad, color: "#fff", borderRadius: 16, padding: 16, boxShadow: "0 8px 20px rgba(200,78,42,0.3)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700 }}><Icon name="bell" size={18} color="#fff" /> まもなく予約(コール)</div>
-              <div style={{ fontSize: 30, fontWeight: 800, margin: "6px 0", fontVariantNumeric: "tabular-nums" }}>{minLeft}:{String(secLeft).padStart(2, "0")}</div>
-              <div style={{ fontSize: 12, opacity: 0.9 }}>次の予約まで。準備をお願いします。</div>
-              <button onClick={() => setCallAck(true)} style={{ marginTop: 10, width: "100%", background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", padding: "9px", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>確認しました</button>
-            </div>
-          )}
-
           <Eyebrow>本日のシフト</Eyebrow>
           <Card style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: INK }}>{CAST_ME.shift}</span>
-            <span style={{ fontSize: 12, color: SUB }}>中央区エリア</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: INK }}>{me && me.shiftStart !== "-" ? `${me.shiftStart}〜${me.shiftEnd}` : "本日は休み"}</span>
+            <span style={{ fontSize: 12, color: SUB }}>{me?.hotel ? `${me.hotel} 対応中` : ""}</span>
           </Card>
 
           <Eyebrow>本日の予約</Eyebrow>
-          {jobs.map((r) => (
-            <Card key={r.id} style={{ marginBottom: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: INK }}>{r.time} <span style={{ fontSize: 13, fontWeight: 600, color: SUB }}>／ {r.course}</span></div>
-                  <div style={{ fontSize: 12.5, color: SUB, marginTop: 3 }}>{r.customer} ・ {r.hotel}</div>
+          {myReservations.length === 0 && <div style={{ fontSize: 13, color: SUB, marginTop: 8 }}>本日の予約はありません。</div>}
+          {myReservations.map((r) => {
+            const leg = legInfo(r);
+            return (
+              <Card key={r.id} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: INK }}>{fmtHour(r.start)} <span style={{ fontSize: 13, fontWeight: 600, color: SUB }}>／ {r.course}</span></div>
+                    <div style={{ fontSize: 12.5, color: SUB, marginTop: 3 }}>{r.customer} ・ {r.hotel}{r.room ? ` ${r.room}` : ""}</div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: theme.accentDark, background: theme.accentSoft, padding: "4px 10px", borderRadius: 999 }}>{r.status}</span>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: theme.accentDark, background: theme.accentSoft, padding: "4px 10px", borderRadius: 999 }}>{r.status}</span>
-              </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <Btn theme={theme} variant="soft" style={{ flex: 1 }} onClick={() => setStatus(r.id, "接客中", "到着を記録しました")}>到着</Btn>
-                <Btn theme={theme} variant="soft" style={{ flex: 1 }} onClick={() => setStatus(r.id, "終了", "終了を記録しました")}>終了</Btn>
-                <Btn theme={theme} variant="line" style={{ flex: 1 }} onClick={() => showToast("延長を申請しました")}>延長申請</Btn>
-              </div>
-            </Card>
-          ))}
+
+                {/* お迎え状況 */}
+                <div style={{ marginTop: 10, padding: "8px 10px", background: "#F4F6F9", borderRadius: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 12, color: SUB }}>{leg.kind === "send" ? "お迎え(送り)" : "お迎え(帰り)"}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: INK }}>
+                    {leg.driver ? `${leg.driver.car}・${leg.driver.name}` : "未定"}
+                    <span style={{ marginLeft: 6, fontWeight: 700, color: leg.status.color }}>{leg.status.label}</span>
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <Btn theme={theme} variant="soft" style={{ flex: 1 }} onClick={() => markStatus(r, "接客中", "到着を記録しました")}>到着</Btn>
+                  <Btn theme={theme} variant="soft" style={{ flex: 1 }} onClick={() => markStatus(r, "終了", "終了を記録しました")}>終了</Btn>
+                  <Btn theme={theme} variant="line" style={{ flex: 1 }} onClick={() => showToast("延長を申請しました(デモ)")}>延長申請</Btn>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
 
       {tab === "shift" && (
         <div>
-          <Eyebrow>今週のシフト</Eyebrow>
+          <Eyebrow>今週のシフト(参考表示)</Eyebrow>
           {CAST_WEEK.map((s) => (
             <Card key={s.d} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
               <span style={{ fontSize: 14, color: INK, fontWeight: 600 }}>{s.d}</span>
               <span style={{ fontSize: 14, color: s.t === "休み" ? SUB : theme.accentDark, fontWeight: 700 }}>{s.t}</span>
             </Card>
           ))}
-          <Eyebrow>シフト申請</Eyebrow>
-          <Card>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input value={reqDate} onChange={(e) => setReqDate(e.target.value)} placeholder="7/22(火)" style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: `1px solid ${LINE}`, fontSize: 14 }} />
-              <input value={reqTime} onChange={(e) => setReqTime(e.target.value)} placeholder="19:00〜27:00" style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: `1px solid ${LINE}`, fontSize: 14 }} />
-            </div>
-            <Btn theme={theme} style={{ width: "100%", marginTop: 10 }} onClick={() => { if (!reqDate) return; setShiftReq((p) => [...p, { d: reqDate, t: reqTime || "-" }]); setReqDate(""); setReqTime(""); showToast("シフトを申請しました"); }}>この内容で申請</Btn>
-            {shiftReq.length > 0 && <div style={{ marginTop: 12, fontSize: 12, color: SUB }}>申請済み：{shiftReq.map((s) => `${s.d} ${s.t}`).join("、")}</div>}
-          </Card>
         </div>
       )}
 
@@ -322,39 +349,23 @@ function CastApp({ theme, onLogout }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <Card style={{ textAlign: "center" }}>
               <div style={{ fontSize: 12, color: SUB }}>本数</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: INK }}>{jobs.length}<span style={{ fontSize: 13, color: SUB }}> 本</span></div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: INK }}>{myReservations.length}<span style={{ fontSize: 13, color: SUB }}> 本</span></div>
             </Card>
             <Card style={{ textAlign: "center" }}>
               <div style={{ fontSize: 12, color: SUB }}>売上</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: theme.accent }}>¥{totalSales.toLocaleString()}</div>
             </Card>
           </div>
-          <Eyebrow>直近の実績</Eyebrow>
-          {CAST_PAYSLIP.map((d) => (
-            <Card key={d.date} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: 13, color: INK }}>{d.date}</span>
-              <span style={{ fontSize: 13, color: SUB }}>{d.count}本 ・ ¥{d.sales.toLocaleString()}</span>
-            </Card>
-          ))}
         </div>
       )}
 
       {tab === "pay" && (
         <div>
-          <Eyebrow>給与明細(委託費)</Eyebrow>
+          <Eyebrow>給与明細(委託費・本日分)</Eyebrow>
           <Card style={{ background: theme.grad, color: "#fff", border: "none", marginBottom: 12 }}>
-            <div style={{ fontSize: 12, opacity: 0.9 }}>本日の見込み委託費(率{Math.round(CAST_ME.itakuRate * 100)}%)</div>
-            <div style={{ fontSize: 30, fontWeight: 800, marginTop: 4 }}>¥{Math.round(totalSales * CAST_ME.itakuRate).toLocaleString()}</div>
+            <div style={{ fontSize: 12, opacity: 0.9 }}>本日の見込み委託費(率{me ? Math.round(me.itakuRate * 100) : "-"}%)</div>
+            <div style={{ fontSize: 30, fontWeight: 800, marginTop: 4 }}>¥{me ? Math.round(totalSales * me.itakuRate).toLocaleString() : "-"}</div>
           </Card>
-          {CAST_PAYSLIP.map((d) => (
-            <Card key={d.date} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>{d.date}</div>
-                <div style={{ fontSize: 11.5, color: SUB }}>{d.count}本 ・ 売上 ¥{d.sales.toLocaleString()}</div>
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: theme.accent }}>¥{d.itaku.toLocaleString()}</div>
-            </Card>
-          ))}
           <div style={{ fontSize: 11, color: SUB, textAlign: "center", marginTop: 8 }}>清算方法：事務所渡し</div>
         </div>
       )}
@@ -365,27 +376,31 @@ function CastApp({ theme, onLogout }) {
 // ============================================================
 // ドライバーポータル
 // ============================================================
-function DriverApp({ theme, onLogout }) {
+function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservations, driverId, updateReservations }) {
   const [tab, setTab] = useState("jobs");
-  const [jobs, setJobs] = useState(DRIVER_JOBS);
   const [filter, setFilter] = useState("すべて");
   const [toast, setToast] = useState("");
   const [routeJob, setRouteJob] = useState(null);
-  const [shiftReq, setShiftReq] = useState([]);
-  const [reqDate, setReqDate] = useState(""); const [reqTime, setReqTime] = useState("");
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(""), 2200); };
 
-  const advance = (id) => setJobs((p) => p.map((j) => {
-    if (j.id !== id) return j;
-    const next = j.status === "待機" ? "出発" : j.status === "出発" ? "到着" : "完了";
-    showToast(`${next}を記録しました`);
-    return { ...j, status: next };
-  }));
-  const openRoute = (job) => setRouteJob(job);
+  const me = drivers.find((d) => d.id === driverId);
+  const myCar = me?.car;
+  const todayStr = isoDate(new Date());
+  const allJobs = buildDispatchJobs(reservations, todayStr).filter((j) => j.driverCar === myCar);
+  const nextJob = allJobs.find((j) => j.jobStatus !== "arrived");
+  const restJobs = allJobs.filter((j) => j.id !== nextJob?.id);
 
-  const filters = ["すべて", "待機", "出発", "到着"];
-  const shown = jobs.filter((j) => filter === "すべて" ? true : j.status === filter);
-  const statusColor = (s) => s === "待機" ? "#8A96A5" : s === "出発" ? theme.accent : s === "到着" ? "#3E9C74" : "#B0B8C2";
+  const advance = (job) => {
+    const next = job.jobStatus === "assigned" ? "enroute" : "arrived";
+    updateReservations(advanceJobStatus(job.reservationId, job.kind, next));
+    showToast(next === "enroute" ? "出発を記録しました" : "到着を記録しました");
+  };
+  const openRoute = (job) => setRouteJob(job);
+  const castName = (id) => { const c = casts.find((x) => x.id === id); return c ? castFullName(c) : "-"; };
+
+  const filters = ["すべて", "assigned", "enroute", "arrived"];
+  const filterLabel = (f) => f === "すべて" ? "すべて" : JOB_STATUS[f].label;
+  const shown = filter === "すべて" ? allJobs : allJobs.filter((j) => j.jobStatus === filter);
 
   const nav = [
     { key: "jobs", label: "配車", icon: "car" },
@@ -393,81 +408,76 @@ function DriverApp({ theme, onLogout }) {
     { key: "me", label: "マイページ", icon: "user" },
   ];
 
+  const JobCard = ({ j, highlight }) => (
+    <Card style={{ marginTop: 10, border: highlight ? `2px solid ${theme.accent}` : undefined }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 18, fontWeight: 800, color: INK }}>{fmtHour(j.time)}</span>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", background: j.kind === "send" ? theme.accent : "#3E9C74", padding: "2px 9px", borderRadius: 999 }}>{j.kind === "send" ? "送り" : "迎え"}</span>
+          </div>
+          <div style={{ fontSize: 13, color: INK, marginTop: 5, fontWeight: 600 }}>{castName(j.castId)}</div>
+          <div style={{ fontSize: 12, color: SUB, marginTop: 2 }}>{j.customer} ・ {j.hotel}{j.room ? ` ${j.room}` : ""}</div>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, color: JOB_STATUS[j.jobStatus].color, background: `${JOB_STATUS[j.jobStatus].color}18`, padding: "4px 10px", borderRadius: 999 }}>{JOB_STATUS[j.jobStatus].label}</span>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <Btn theme={theme} variant="line" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }} onClick={() => openRoute(j)}><Icon name="pin" size={16} color={INK} /> ルート</Btn>
+        {j.jobStatus === "assigned" && <Btn theme={theme} style={{ flex: 1 }} onClick={() => advance(j)}>出発</Btn>}
+        {j.jobStatus === "enroute" && <Btn theme={theme} style={{ flex: 1 }} onClick={() => advance(j)}>到着</Btn>}
+        {j.jobStatus === "arrived" && <Btn theme={theme} variant="soft" style={{ flex: 1 }} disabled>到着済</Btn>}
+      </div>
+    </Card>
+  );
+
   return (
-    <MobileShell theme={theme} app="driver" nav={nav} active={tab} onNav={setTab} onLogout={onLogout} toast={toast}>
+    <MobileShell theme={theme} app="driver" subtitle={me ? `${me.name}(${me.car})` : ""} nav={nav} active={tab} onNav={setTab} onLogout={onLogout} toast={toast}>
       {tab === "jobs" && (
         <div>
-          <div style={{ display: "flex", gap: 7, marginTop: 12, marginBottom: 4, overflowX: "auto" }}>
+          {nextJob && (
+            <div style={{ marginTop: 12 }}>
+              <Eyebrow>次に向かう場所</Eyebrow>
+              <JobCard j={nextJob} highlight />
+            </div>
+          )}
+          <Eyebrow>本日の配車一覧</Eyebrow>
+          <div style={{ display: "flex", gap: 7, marginBottom: 4, overflowX: "auto" }}>
             {filters.map((f) => (
-              <button key={f} onClick={() => setFilter(f)} style={{ padding: "7px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer", border: `1px solid ${filter === f ? theme.accent : LINE}`, background: filter === f ? theme.accent : "#fff", color: filter === f ? "#fff" : INK }}>{f}</button>
+              <button key={f} onClick={() => setFilter(f)} style={{ padding: "7px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer", border: `1px solid ${filter === f ? theme.accent : LINE}`, background: filter === f ? theme.accent : "#fff", color: filter === f ? "#fff" : INK }}>{filterLabel(f)}</button>
             ))}
           </div>
-          {shown.map((j) => (
-            <Card key={j.id} style={{ marginTop: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 18, fontWeight: 800, color: INK }}>{j.time}</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", background: j.kind === "送り" ? theme.accent : "#3E9C74", padding: "2px 9px", borderRadius: 999 }}>{j.kind}</span>
-                  </div>
-                  <div style={{ fontSize: 13, color: INK, marginTop: 5, fontWeight: 600 }}>{j.cast}</div>
-                  <div style={{ fontSize: 12, color: SUB, marginTop: 2 }}>{j.customer} ・ {j.place}</div>
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: statusColor(j.status), background: `${statusColor(j.status)}18`, padding: "4px 10px", borderRadius: 999 }}>{j.status}</span>
-              </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <Btn theme={theme} variant="line" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }} onClick={() => openRoute(j)}><Icon name="pin" size={16} color={INK} /> ルート</Btn>
-                {j.status === "待機" && <Btn theme={theme} style={{ flex: 1 }} onClick={() => advance(j.id)}>出発</Btn>}
-                {j.status === "出発" && <Btn theme={theme} style={{ flex: 1 }} onClick={() => advance(j.id)}>到着</Btn>}
-                {(j.status === "到着" || j.status === "完了") && <Btn theme={theme} variant="soft" style={{ flex: 1 }} disabled>{j.status === "完了" ? "完了" : "到着済"}</Btn>}
-              </div>
-            </Card>
-          ))}
+          {shown.filter((j) => j.id !== nextJob?.id).map((j) => <JobCard key={j.id} j={j} />)}
           {shown.length === 0 && <div style={{ textAlign: "center", color: SUB, fontSize: 13, marginTop: 40 }}>該当する配車はありません。</div>}
         </div>
       )}
 
       {tab === "shift" && (
         <div>
-          <Eyebrow>今週のシフト</Eyebrow>
+          <Eyebrow>今週のシフト(参考表示)</Eyebrow>
           {DRIVER_WEEK.map((s) => (
             <Card key={s.d} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
               <span style={{ fontSize: 14, color: INK, fontWeight: 600 }}>{s.d}</span>
               <span style={{ fontSize: 14, color: s.t === "休み" ? SUB : theme.accentDark, fontWeight: 700 }}>{s.t}</span>
             </Card>
           ))}
-          <Eyebrow>シフト申請</Eyebrow>
-          <Card>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input value={reqDate} onChange={(e) => setReqDate(e.target.value)} placeholder="7/22(火)" style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: `1px solid ${LINE}`, fontSize: 14 }} />
-              <input value={reqTime} onChange={(e) => setReqTime(e.target.value)} placeholder="17:00〜25:00" style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: `1px solid ${LINE}`, fontSize: 14 }} />
-            </div>
-            <Btn theme={theme} style={{ width: "100%", marginTop: 10 }} onClick={() => { if (!reqDate) return; setShiftReq((p) => [...p, { d: reqDate, t: reqTime || "-" }]); setReqDate(""); setReqTime(""); showToast("シフトを申請しました"); }}>この内容で申請</Btn>
-            {shiftReq.length > 0 && <div style={{ marginTop: 12, fontSize: 12, color: SUB }}>申請済み：{shiftReq.map((s) => `${s.d} ${s.t}`).join("、")}</div>}
-          </Card>
         </div>
       )}
 
-      {tab === "me" && (
+      {tab === "me" && me && (
         <div>
           <Eyebrow>プロフィール</Eyebrow>
           <Card style={{ marginBottom: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><span style={{ color: SUB, fontSize: 13 }}>氏名</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{DRIVER_ME.name}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><span style={{ color: SUB, fontSize: 13 }}>担当車両</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{DRIVER_ME.car}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: SUB, fontSize: 13 }}>時給</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>¥{DRIVER_ME.wage.toLocaleString()}</span></div>
-          </Card>
-          <Eyebrow>本日の勤務</Eyebrow>
-          <Card style={{ background: theme.grad, color: "#fff", border: "none" }}>
-            <div style={{ fontSize: 12, opacity: 0.9 }}>本日のシフト</div>
-            <div style={{ fontSize: 22, fontWeight: 800, marginTop: 2 }}>{DRIVER_ME.shift}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><span style={{ color: SUB, fontSize: 13 }}>氏名</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{me.name}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><span style={{ color: SUB, fontSize: 13 }}>担当車両</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{me.car}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: SUB, fontSize: 13 }}>時給</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>¥{me.wage.toLocaleString()}</span></div>
           </Card>
         </div>
       )}
 
       {routeJob && (
         <RouteMap
-          dest={HOTEL_COORDS[routeJob.place] || OFFICE_LATLNG}
-          destName={`${routeJob.place}（${routeJob.kind}）`}
+          dest={coordForHotelName(routeJob.hotel, hotels, office, HOTEL_COORDS) || OFFICE_LATLNG}
+          destName={`${routeJob.hotel}（${routeJob.kind === "send" ? "送り" : "迎え"}）`}
           theme={theme}
           onClose={() => setRouteJob(null)}
         />
@@ -563,11 +573,61 @@ function RouteMap({ dest, destName, theme, onClose }) {
 export default function PortalApp() {
   const [app, setApp] = useState(resolveApp());
   const [authed, setAuthed] = useState(false);
+  const [driverId, setDriverId] = useState(null);
+  const [castId, setCastId] = useState(null);
+  const [data, setData] = useState({ casts: [], drivers: [], hotels: [], office: null, reservations: [], loaded: false });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const today = isoDate(new Date());
+      const [casts, drivers, hotels, office, reservations] = await Promise.all([
+        apiGet("casts"), apiGet("drivers"), apiGet("hotels"), apiGet("office"), apiGet(`reservations:${today}`),
+      ]);
+      if (cancelled) return;
+      setData({
+        casts: casts || [], drivers: drivers || [], hotels: hotels || [], office: office || null,
+        reservations: reservations || [], loaded: true,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const updateReservations = (updater) => {
+    setData((prev) => {
+      const next = typeof updater === "function" ? updater(prev.reservations) : updater;
+      apiSet(`reservations:${isoDate(new Date())}`, next);
+      return { ...prev, reservations: next };
+    });
+  };
 
   if (!app) return <Picker onPick={(a) => { try { window.location.hash = a; } catch (e) {} setApp(a); }} />;
   const theme = THEMES[app];
-  if (!authed) return <Login theme={theme} app={app} onLogin={() => setAuthed(true)} />;
+
+  if (!authed) {
+    return <Login theme={theme} app={app} drivers={data.drivers} onLogin={(id) => { setAuthed(true); if (app === "driver" && id) setDriverId(id); }} />;
+  }
+
+  if (app === "driver" && !driverId) {
+    return (
+      <IdentityPicker theme={theme} title="あなたを選択してください"
+        options={data.drivers.map((d) => ({ value: d.id, label: `${d.car}・${d.name}` }))}
+        onPick={setDriverId}
+      />
+    );
+  }
+  if (app === "cast" && !castId) {
+    return (
+      <IdentityPicker theme={theme} title="あなたの源氏名を選択してください"
+        options={data.casts.map((c) => ({ value: c.id, label: castFullName(c) }))}
+        onPick={setCastId}
+      />
+    );
+  }
+
+  const logout = () => { setAuthed(false); setDriverId(null); setCastId(null); };
+
   return app === "cast"
-    ? <CastApp theme={theme} onLogout={() => setAuthed(false)} />
-    : <DriverApp theme={theme} onLogout={() => setAuthed(false)} />;
+    ? <CastApp theme={theme} onLogout={logout} casts={data.casts} drivers={data.drivers} reservations={data.reservations} castId={castId} updateReservations={updateReservations} />
+    : <DriverApp theme={theme} onLogout={logout} casts={data.casts} drivers={data.drivers} hotels={data.hotels} office={data.office} reservations={data.reservations} driverId={driverId} updateReservations={updateReservations} />;
 }

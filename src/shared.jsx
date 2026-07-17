@@ -49,21 +49,21 @@ export const AREAS = ["中央区", "東区", "博多区", "南区"];
 
 // ホテルマスタ(ID=4桁。住所は仮。座標はデモ近似で、住所変更/追加時にGeocodingで更新)
 export const INITIAL_HOTELS = [
-  { id: "0001", name: "博多グランドホテル", area: "博多区", address: "福岡市博多区博多駅前2-1-1", lat: 33.5900, lng: 130.4200 },
-  { id: "0002", name: "博多ステーションイン", area: "博多区", address: "福岡市博多区博多駅東1-2-3", lat: 33.5895, lng: 130.4205 },
-  { id: "0003", name: "中洲リバーサイドホテル", area: "博多区", address: "福岡市博多区中洲3-4-5", lat: 33.5930, lng: 130.4060 },
-  { id: "0004", name: "天神プラザホテル", area: "中央区", address: "福岡市中央区天神2-1-1", lat: 33.5914, lng: 130.3990 },
-  { id: "0005", name: "西鉄シティホテル", area: "中央区", address: "福岡市中央区天神1-5-5", lat: 33.5896, lng: 130.3986 },
-  { id: "0006", name: "中央グランドイン", area: "中央区", address: "福岡市中央区大名1-2-3", lat: 33.5850, lng: 130.4017 },
-  { id: "0007", name: "薬院ステーションホテル", area: "中央区", address: "福岡市中央区薬院1-1-1", lat: 33.5820, lng: 130.4030 },
-  { id: "0008", name: "博多ベイサイドホテル", area: "東区", address: "福岡市東区箱崎1-1-1", lat: 33.6050, lng: 130.4100 },
-  { id: "0009", name: "東区パークホテル", area: "東区", address: "福岡市東区香椎2-2-2", lat: 33.6200, lng: 130.4300 },
-  { id: "0010", name: "南区シティホテル", area: "南区", address: "福岡市南区大橋1-1-1", lat: 33.5600, lng: 130.4250 },
-  { id: "0011", name: "大橋ステーションイン", area: "南区", address: "福岡市南区大橋2-3-4", lat: 33.5620, lng: 130.4260 },
-  { id: "0012", name: "ホテル ルミエール中洲", area: "博多区", address: "福岡市博多区中洲5-1-1", lat: 33.5945, lng: 130.4050 },
-  { id: "0013", name: "ホテル ノワール天神", area: "中央区", address: "福岡市中央区渡辺通4-1-1", lat: 33.5860, lng: 130.4010 },
-  { id: "0014", name: "ホテル ミラージュ博多", area: "博多区", address: "福岡市博多区祇園町3-2-1", lat: 33.5920, lng: 130.4130 },
-  { id: "0015", name: "ホテル アヴァンティ南", area: "南区", address: "福岡市南区高宮1-2-3", lat: 33.5680, lng: 130.4180 },
+  { id: "D001", name: "博多グランドホテル", area: "博多区", address: "福岡市博多区博多駅前2-1-1", lat: 33.5900, lng: 130.4200 },
+  { id: "D002", name: "博多ステーションイン", area: "博多区", address: "福岡市博多区博多駅東1-2-3", lat: 33.5895, lng: 130.4205 },
+  { id: "D003", name: "中洲リバーサイドホテル", area: "博多区", address: "福岡市博多区中洲3-4-5", lat: 33.5930, lng: 130.4060 },
+  { id: "D004", name: "天神プラザホテル", area: "中央区", address: "福岡市中央区天神2-1-1", lat: 33.5914, lng: 130.3990 },
+  { id: "D005", name: "西鉄シティホテル", area: "中央区", address: "福岡市中央区天神1-5-5", lat: 33.5896, lng: 130.3986 },
+  { id: "D006", name: "中央グランドイン", area: "中央区", address: "福岡市中央区大名1-2-3", lat: 33.5850, lng: 130.4017 },
+  { id: "D007", name: "薬院ステーションホテル", area: "中央区", address: "福岡市中央区薬院1-1-1", lat: 33.5820, lng: 130.4030 },
+  { id: "D008", name: "博多ベイサイドホテル", area: "東区", address: "福岡市東区箱崎1-1-1", lat: 33.6050, lng: 130.4100 },
+  { id: "D009", name: "東区パークホテル", area: "東区", address: "福岡市東区香椎2-2-2", lat: 33.6200, lng: 130.4300 },
+  { id: "D010", name: "南区シティホテル", area: "南区", address: "福岡市南区大橋1-1-1", lat: 33.5600, lng: 130.4250 },
+  { id: "D011", name: "大橋ステーションイン", area: "南区", address: "福岡市南区大橋2-3-4", lat: 33.5620, lng: 130.4260 },
+  { id: "D012", name: "ホテル ルミエール中洲", area: "博多区", address: "福岡市博多区中洲5-1-1", lat: 33.5945, lng: 130.4050 },
+  { id: "D013", name: "ホテル ノワール天神", area: "中央区", address: "福岡市中央区渡辺通4-1-1", lat: 33.5860, lng: 130.4010 },
+  { id: "D014", name: "ホテル ミラージュ博多", area: "博多区", address: "福岡市博多区祇園町3-2-1", lat: 33.5920, lng: 130.4130 },
+  { id: "D015", name: "ホテル アヴァンティ南", area: "南区", address: "福岡市南区高宮1-2-3", lat: 33.5680, lng: 130.4180 },
 ];
 
 // 営業所(出発・戻りポイント)デフォルト
@@ -210,7 +210,11 @@ export const INITIAL_CASTS_BASE = generateCasts();
 export const CUSTOMER_SURNAMES = ["田中", "佐藤", "鈴木", "高橋", "伊藤", "渡辺", "山本", "中村", "小林", "加藤", "吉田", "山田", "佐々木", "山口", "松本", "井上", "木村", "林", "清水", "斎藤"];
 
 // 本日〜10日後まで、各日のスケジュールに沿って予約を自動生成(10分単位)
-export function generateAllReservations(casts) {
+export function generateAllReservations(casts, hotelList) {
+  // 座標を持つホテルだけを対象に予約を生成(ルートが必ず引けるようにするため)。
+  // 引数が無ければデモの座標付き15ホテルを使う。
+  const src = (hotelList && hotelList.length ? hotelList : INITIAL_HOTELS).filter((h) => h.lat != null && h.name && h.name !== "-");
+  const pool = src.length ? src : INITIAL_HOTELS;
   const list = [];
   let idx = 1;
   const durPattern = [1, 1.5, 1];
@@ -231,7 +235,8 @@ export function generateAllReservations(casts) {
         start = Math.round(start * 6) / 6; // 10分単位
         dur = Math.round(dur * 6) / 6;
         if (start + dur > entry.shiftEnd) dur = Math.max(1 / 6, Math.round((entry.shiftEnd - start) * 6) / 6);
-        const hotel = ALL_HOTELS[(entry.castIndex * 3 + k + d) % ALL_HOTELS.length];
+        const hotelObj = pool[(entry.castIndex * 3 + k + d) % pool.length];
+        const hotel = hotelObj.name;
         const course = dur >= 2 ? INITIAL_COURSES[2] : dur >= 1.5 ? INITIAL_COURSES[1] : INITIAL_COURSES[0];
         const surname = CUSTOMER_SURNAMES[(entry.castIndex * 7 + k * 3 + d) % CUSTOMER_SURNAMES.length];
         const status = d === 0 ? statusCycle[(entry.castIndex + k) % statusCycle.length] : "受付済";
@@ -239,7 +244,7 @@ export function generateAllReservations(casts) {
         list.push({
           id: `r${idx}`, start, dur, customer: `${surname}様`,
           phone: `090-${String(3000 + entry.castIndex * 7 + k).slice(-4)}-${String(4000 + entry.castIndex * 3 + k + d).slice(-4)}`,
-          castId: cast.id, area: hotelArea(hotel), hotel, room: `${300 + ((entry.castIndex * 5 + k * 11 + d * 3) % 600)}号室`,
+          castId: cast.id, area: hotelObj.area || hotelArea(hotel), hotel, room: `${300 + ((entry.castIndex * 5 + k * 11 + d * 3) % 600)}号室`,
           course: course.name, options: withShimei ? [{ name: "指名", price: 2000 }] : [],
           price: course.price + (withShimei ? 2000 : 0), status,
           sendDriver: "未定", pickDriver: "未定", sendStatus: "unassigned", pickStatus: "unassigned", note: "", date: dateStr,

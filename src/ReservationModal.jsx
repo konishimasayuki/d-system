@@ -42,7 +42,7 @@ export function NewReservationModal({ prefillCustomer, editReservation, casts, d
   const [extension, setExtension] = useState(!!r0?.options?.find((o) => o.name === "延長30分"));
   const [extraOptions, setExtraOptions] = useState(r0?.options?.filter((o) => o.name !== "指名" && o.name !== "本指名" && o.name !== "延長30分") || []);
   const [start, setStart] = useState(r0 ? r0.start : 21);
-  const [sendDriver, setSendDriver] = useState(r0?.sendDriver || drivers[0]?.car || "未定");
+  const [sendDriver, setSendDriver] = useState(r0?.sendDriver || "未定");
   const [status, setStatus] = useState(r0?.status || "受付済");
 
   // 料金その他
@@ -78,13 +78,18 @@ export function NewReservationModal({ prefillCustomer, editReservation, casts, d
     ...extraOptions,
   ];
 
-  const buildPayload = () => ({
-    id: r0 ? r0.id : `r${Date.now()}${Math.floor(Math.random() * 1000)}`, start: startNum, dur,
-    customer, phone, castId: selectedCast?.id || null, area: hotels.find((h) => h.name === hotel)?.area || hotelArea(hotel), hotel, room,
-    course, options: optionsForSave, price: total, status: isEdit ? status : "受付済", sendDriver, pickDriver: r0?.pickDriver || "未定",
-    date: r0?.date || isoDate(DAY_DATES[0]),
-    note: [note, otherTotal > 0 ? `交通費/その他:¥${otherTotal.toLocaleString()}` : "", discount > 0 ? `ハッピーチケット:-¥${discount.toLocaleString()}` : "", guestCount && guestCount !== "1" ? `宿泊人数:${guestCount}名` : ""].filter(Boolean).join(" / "),
-  });
+  const buildPayload = () => {
+    const pickDriver = r0?.pickDriver || "未定";
+    const sendStatus = sendDriver === "未定" ? "unassigned" : (r0?.sendDriver === sendDriver ? (r0?.sendStatus || "assigned") : "assigned");
+    const pickStatus = pickDriver === "未定" ? "unassigned" : (r0?.pickStatus || "assigned");
+    return {
+      id: r0 ? r0.id : `r${Date.now()}${Math.floor(Math.random() * 1000)}`, start: startNum, dur,
+      customer, phone, castId: selectedCast?.id || null, area: hotels.find((h) => h.name === hotel)?.area || hotelArea(hotel), hotel, room,
+      course, options: optionsForSave, price: total, status: isEdit ? status : "受付済", sendDriver, pickDriver, sendStatus, pickStatus,
+      date: r0?.date || isoDate(DAY_DATES[0]),
+      note: [note, otherTotal > 0 ? `交通費/その他:¥${otherTotal.toLocaleString()}` : "", discount > 0 ? `ハッピーチケット:-¥${discount.toLocaleString()}` : "", guestCount && guestCount !== "1" ? `宿泊人数:${guestCount}名` : ""].filter(Boolean).join(" / "),
+    };
+  };
 
   const save = () => { onCreate(buildPayload()); onClose(); };
   const cancelReservation = () => { onCancelReservation({ ...r0, status: "キャンセル" }); onClose(); };

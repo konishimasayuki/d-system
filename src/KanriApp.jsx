@@ -170,7 +170,7 @@ export default function KanriApp() {
           {tab === "driverpage" && <DriverPage reservations={reservations} casts={casts} drivers={drivers} />}
           {tab === "mypage" && <CastMyPage casts={casts} reservations={reservations} />}
           {tab === "std" && <StdManagement casts={casts} />}
-          {tab === "settings" && <SettingsTab setCasts={setCasts} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} staff={staff} setStaff={setStaff} courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} setReservations={setReservations} syncMsg={syncMsg} />}
+          {tab === "settings" && <SettingsTab setCasts={setCasts} drivers={drivers} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} staff={staff} setStaff={setStaff} courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} setReservations={setReservations} syncMsg={syncMsg} />}
         </div>
       </div>
 

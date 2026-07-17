@@ -686,7 +686,7 @@ function TimeBadge({ label, value, color }) {
   );
 }
 
-function NewReservationModal({ prefillCustomer, editReservation, casts, drivers, reservations, courses, options, onClose, onCreate, onCancelReservation }) {
+function NewReservationModal({ prefillCustomer, editReservation, casts, drivers, reservations, courses, options, hotels, onClose, onCreate, onCancelReservation }) {
   const r0 = editReservation;
   const last = prefillCustomer?.history?.[0];
   const prefillCast = last ? findCast(casts, last.cast) : null;
@@ -708,7 +708,7 @@ function NewReservationModal({ prefillCustomer, editReservation, casts, drivers,
   // 受付内容
   const initialCastName = r0 ? castFullName(casts.find((c) => c.id === r0.castId)) : (prefillCast ? castFullName(prefillCast) : (casts[0] ? castFullName(casts[0]) : ""));
   const [castName, setCastName] = useState(initialCastName);
-  const [hotel, setHotel] = useState(r0?.hotel && r0.hotel !== "-" ? r0.hotel : (last?.hotel || ALL_HOTELS[0]));
+  const [hotel, setHotel] = useState(r0?.hotel && r0.hotel !== "-" ? r0.hotel : (last?.hotel || hotels[0]?.name || ""));
   const [room, setRoom] = useState(r0?.room || "");
   const [course, setCourse] = useState(r0?.course || last?.course || courses[0]?.name || "");
   const r0ShimeiName = r0?.options?.find((o) => o.name === "指名" || o.name === "本指名")?.name;
@@ -754,7 +754,7 @@ function NewReservationModal({ prefillCustomer, editReservation, casts, drivers,
 
   const buildPayload = () => ({
     id: r0 ? r0.id : `r${reservations.length + 1}`, start: startNum, dur,
-    customer, phone, castId: selectedCast?.id || null, area: hotelArea(hotel), hotel, room,
+    customer, phone, castId: selectedCast?.id || null, area: hotels.find((h) => h.name === hotel)?.area || hotelArea(hotel), hotel, room,
     course, options: optionsForSave, price: total, status: isEdit ? status : "受付済", sendDriver, pickDriver: r0?.pickDriver || "未定",
     note: [note, otherTotal > 0 ? `交通費/その他:¥${otherTotal.toLocaleString()}` : "", discount > 0 ? `ハッピーチケット:-¥${discount.toLocaleString()}` : "", guestCount && guestCount !== "1" ? `宿泊人数:${guestCount}名` : ""].filter(Boolean).join(" / "),
   });
@@ -819,7 +819,7 @@ function NewReservationModal({ prefillCustomer, editReservation, casts, drivers,
         <div>
           <SelectField label="女の子選択(指名キャスト)" value={castName} onChange={setCastName} options={casts.map((c) => castFullName(c))} />
           <div style={{ display: "flex", gap: 10 }}>
-            <div style={{ flex: 2 }}><SelectField label="ホテル選択" value={hotel} onChange={setHotel} options={ALL_HOTELS} /></div>
+            <div style={{ flex: 2 }}><SelectField label="ホテル選択" value={hotel} onChange={setHotel} options={hotels.map((h) => h.name)} /></div>
             <div style={{ flex: 1 }}><TextField label="号室" value={room} onChange={setRoom} placeholder="802" /></div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -930,7 +930,7 @@ function WorkMailModal({ reservation, castName, onClose }) {
 // ============================================================
 // 予約管理
 // ============================================================
-function ReservationManagement({ reservations, setReservations, casts, drivers, courses, options }) {
+function ReservationManagement({ reservations, setReservations, casts, drivers, courses, options, hotels }) {
   const [mailFor, setMailFor] = useState(null);
   const [newOpen, setNewOpen] = useState(false);
   const castName = (id) => castFullName(casts.find((c) => c.id === id));
@@ -960,7 +960,7 @@ function ReservationManagement({ reservations, setReservations, casts, drivers, 
         ))}
       </div>
       {mailFor && <WorkMailModal reservation={mailFor} castName={castName(mailFor.castId)} onClose={() => setMailFor(null)} />}
-      {newOpen && <NewReservationModal casts={casts} drivers={drivers} reservations={reservations} courses={courses} options={options} onClose={() => setNewOpen(false)} onCreate={(r) => setReservations((prev) => [...prev, r])} />}
+      {newOpen && <NewReservationModal casts={casts} drivers={drivers} reservations={reservations} courses={courses} options={options} hotels={hotels} onClose={() => setNewOpen(false)} onCreate={(r) => setReservations((prev) => [...prev, r])} />}
     </div>
   );
 }
@@ -1828,14 +1828,23 @@ function HotelForm({ hotels, setHotels, office, setOffice }) {
 const SETTINGS_SUBTABS = [
   { key: "cast", label: "キャスト登録" }, { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "項目登録" }, { key: "security", label: "セキュリティ" },
 ];
-function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, syncMsg }) {
+function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, setReservations, syncMsg }) {
   const [sub, setSub] = useState("cast");
+  const resetDemoData = () => {
+    if (!window.confirm("キャスト一覧と予約を初期デモデータで上書きします。よろしいですか？(保存済みの内容は失われます)")) return;
+    const freshCasts = generateCasts();
+    setCasts(freshCasts);
+    setReservations(generateReservations(freshCasts));
+  };
   return (
     <div>
       <SectionTitle sub="キャスト・ドライバー・ホテル・スタッフ・項目・セキュリティの管理">設定</SectionTitle>
       {syncMsg && <div style={{ marginBottom: 12, fontSize: 12, color: COLORS.red, background: "#FBEAE5", padding: "8px 12px", borderRadius: 8 }}>{syncMsg}</div>}
-      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
-        {SETTINGS_SUBTABS.map((t) => <button key={t.key} onClick={() => setSub(t.key)} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${sub === t.key ? COLORS.accent : COLORS.border}`, background: sub === t.key ? COLORS.accent : "#FFF", color: sub === t.key ? "#FFF" : COLORS.textMain, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.label}</button>)}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {SETTINGS_SUBTABS.map((t) => <button key={t.key} onClick={() => setSub(t.key)} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${sub === t.key ? COLORS.accent : COLORS.border}`, background: sub === t.key ? COLORS.accent : "#FFF", color: sub === t.key ? "#FFF" : COLORS.textMain, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.label}</button>)}
+        </div>
+        <button onClick={resetDemoData} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>キャスト・予約を初期デモデータにリセット</button>
       </div>
       {sub === "cast" && <CastRegisterForm setCasts={setCasts} />}
       {sub === "driver" && <DriverRegisterForm setDrivers={setDrivers} />}
@@ -2070,7 +2079,7 @@ export default function KanriApp() {
           {tab === "timetable" && <Timetable reservations={reservations} casts={casts} setCasts={setCasts} drivers={drivers} courses={courses} options={options} onOpenReservation={setOpenReservation} />}
           {tab === "shift" && <ShiftManagement casts={casts} setCasts={setCasts} />}
           {tab === "castlist" && <CastList casts={casts} setCasts={setCasts} />}
-          {tab === "reservation" && <ReservationManagement reservations={reservations} setReservations={setReservations} casts={casts} drivers={drivers} courses={courses} options={options} />}
+          {tab === "reservation" && <ReservationManagement reservations={reservations} setReservations={setReservations} casts={casts} drivers={drivers} courses={courses} options={options} hotels={hotels} />}
           {tab === "dispatch" && <DispatchMap drivers={drivers} reservations={reservations} casts={casts} hotels={hotels} office={office} />}
           {tab === "customer" && <CustomerManagement customers={customers} setCustomers={setCustomers} onQuote={startQuote} />}
           {tab === "media" && <MediaTab casts={casts} setCasts={setCasts} />}
@@ -2080,12 +2089,12 @@ export default function KanriApp() {
           {tab === "driverpage" && <DriverPage reservations={reservations} casts={casts} drivers={drivers} />}
           {tab === "mypage" && <CastMyPage casts={casts} reservations={reservations} />}
           {tab === "std" && <StdManagement casts={casts} />}
-          {tab === "settings" && <SettingsTab setCasts={setCasts} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} staff={staff} setStaff={setStaff} courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} syncMsg={syncMsg} />}
+          {tab === "settings" && <SettingsTab setCasts={setCasts} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} staff={staff} setStaff={setStaff} courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} setReservations={setReservations} syncMsg={syncMsg} />}
         </div>
       </div>
 
       {ctiCustomer && <CtiPopup customer={ctiCustomer} onClose={() => setCtiCustomer(null)} onReserve={startQuote} />}
-      {quoteCustomer && <NewReservationModal prefillCustomer={quoteCustomer} casts={casts} drivers={drivers} reservations={reservations} courses={courses} options={options} onClose={() => setQuoteCustomer(null)} onCreate={(r) => { setReservations((prev) => [...prev, r]); setTab("reservation"); }} />}
+      {quoteCustomer && <NewReservationModal prefillCustomer={quoteCustomer} casts={casts} drivers={drivers} reservations={reservations} courses={courses} options={options} hotels={hotels} onClose={() => setQuoteCustomer(null)} onCreate={(r) => { setReservations((prev) => [...prev, r]); setTab("reservation"); }} />}
       {openReservation && <NewReservationModal editReservation={openReservation} casts={casts} drivers={drivers} reservations={reservations} courses={courses} options={options}
         onClose={() => setOpenReservation(null)}
         onCreate={(u) => setReservations((prev) => prev.map((x) => x.id === u.id ? u : x))}

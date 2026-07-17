@@ -288,10 +288,10 @@ const INITIAL_CASTS = applyDay0State(INITIAL_CASTS_BASE, ALL_RESERVATIONS_10D);
 const INITIAL_RESERVATIONS = ALL_RESERVATIONS_10D; // 本日〜10日後、日付(date)付きで全件保持
 
 const INITIAL_DRIVERS = [
-  { id: "d1", name: "佃", car: "1号車", status: "dispatch", pos: { x: 32, y: 38 }, latlng: { lat: 33.5914, lng: 130.3990 }, dest: "天神プラザホテル", note: "田中様を天神プラザホテルへ送迎中", wage: 1300, hours: 7 },
-  { id: "d2", name: "森", car: "2号車", status: "arrived", pos: { x: 68, y: 55 }, latlng: { lat: 33.6050, lng: 130.4100 }, dest: "博多ベイサイドホテル", note: "佐藤様を博多ベイサイドホテルへ送迎(到着済)", wage: 1300, hours: 6 },
-  { id: "d3", name: "野口", car: "3号車", status: "waiting", pos: { x: 45, y: 20 }, latlng: { lat: 33.5896, lng: 130.4050 }, dest: null, note: "中央区エリアで待機中", wage: 1250, hours: 8 },
-  { id: "d4", name: "堤", car: "4号車", status: "returning", pos: { x: 20, y: 70 }, latlng: { lat: 33.5700, lng: 130.4200 }, dest: "営業所", note: "南区より営業所へ戻り中", wage: 1250, hours: 5 },
+  { id: "d1", name: "佃", car: "1号車", status: "dispatch", pos: { x: 32, y: 38 }, latlng: { lat: 33.5914, lng: 130.3990 }, dest: "天神プラザホテル", note: "田中様を天神プラザホテルへ送迎中", wage: 1300, hours: 7, loginId: "tsukuda", password: "pass1234" },
+  { id: "d2", name: "森", car: "2号車", status: "arrived", pos: { x: 68, y: 55 }, latlng: { lat: 33.6050, lng: 130.4100 }, dest: "博多ベイサイドホテル", note: "佐藤様を博多ベイサイドホテルへ送迎(到着済)", wage: 1300, hours: 6, loginId: "mori", password: "pass1234" },
+  { id: "d3", name: "野口", car: "3号車", status: "waiting", pos: { x: 45, y: 20 }, latlng: { lat: 33.5896, lng: 130.4050 }, dest: null, note: "中央区エリアで待機中", wage: 1250, hours: 8, loginId: "noguchi", password: "pass1234" },
+  { id: "d4", name: "堤", car: "4号車", status: "returning", pos: { x: 20, y: 70 }, latlng: { lat: 33.5700, lng: 130.4200 }, dest: "営業所", note: "南区より営業所へ戻り中", wage: 1250, hours: 5, loginId: "tsutsumi", password: "pass1234" },
 ];
 
 const INITIAL_CUSTOMERS = [
@@ -325,9 +325,9 @@ const INITIAL_CUSTOMERS = [
 ];
 
 const INITIAL_STAFF = [
-  { id: "s1", name: "近藤", role: "オーナー" },
-  { id: "s2", name: "白石", role: "店長" },
-  { id: "s3", name: "大西", role: "内勤スタッフ" },
+  { id: "s1", name: "近藤", role: "オーナー", loginId: "kondo", password: "pass1234" },
+  { id: "s2", name: "白石", role: "店長", loginId: "shiraishi", password: "pass1234" },
+  { id: "s3", name: "大西", role: "内勤スタッフ", loginId: "onishi", password: "pass1234" },
 ];
 
 const INITIAL_EXPENSES = [
@@ -1686,38 +1686,14 @@ function CastMyPage({ casts, reservations }) {
 // ============================================================
 // 設定
 // ============================================================
-function CastRegisterForm({ setCasts }) {
-  const [sei, setSei] = useState(""); const [name, setName] = useState(""); const [age, setAge] = useState(""); const [honmyo, setHonmyo] = useState("");
-  const [rate, setRate] = useState("55"); const [msg, setMsg] = useState("");
-  const submit = () => {
-    if (!name.trim()) { setMsg("源氏名(名)を入力してください"); return; }
-    setCasts((prev) => [...prev, { id: `c${prev.length + 1}`, sei: sei.trim() || "新人", name: name.trim(), honmyo, age: Number(age) || 20, birthday: "-", status: "before_shift", phone: "090-0000-0000", address: "-", idType: "運転免許証", idNo: "-", joinDate: "2026-07-01", shiftStart: "18:00", shiftEnd: "24:00", hotel: null, todayCount: 0, todaySales: 0, itakuRate: (Number(rate) || 55) / 100, idVerified: false, stdLast: "2026-06-01", okOptions: ["指名"], comment: "" }]);
-    setMsg(`${sei} ${name} を登録しました`); setSei(""); setName(""); setAge(""); setHonmyo("");
-  };
-  return (
-    <Card>
-      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 14 }}>キャスト登録</div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}><TextField label="源氏名(姓)" value={sei} onChange={setSei} placeholder="例: 白石" /></div>
-        <div style={{ flex: 1 }}><TextField label="源氏名(名)" value={name} onChange={setName} placeholder="例: みさき" /></div>
-      </div>
-      <TextField label="本名(名簿用)" value={honmyo} onChange={setHonmyo} placeholder="例: 山田 花子" />
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}><TextField label="年齢" value={age} onChange={setAge} placeholder="24" type="number" /></div>
-        <div style={{ flex: 1 }}><TextField label="委託率(%)" value={rate} onChange={setRate} type="number" /></div>
-      </div>
-      <PrimaryButton onClick={submit}>登録する</PrimaryButton>
-      {msg && <div style={{ marginTop: 10, fontSize: 12, color: COLORS.green }}>{msg}</div>}
-      <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 8 }}>生年月日・住所・免許証などの詳細はキャスト一覧の「詳細」から編集できます。</div>
-    </Card>
-  );
-}
 function DriverRegisterForm({ setDrivers }) {
-  const [name, setName] = useState(""); const [car, setCar] = useState(""); const [wage, setWage] = useState("1300"); const [msg, setMsg] = useState("");
+  const [name, setName] = useState(""); const [car, setCar] = useState(""); const [wage, setWage] = useState("1300");
+  const [loginId, setLoginId] = useState(""); const [password, setPassword] = useState(""); const [msg, setMsg] = useState("");
   const submit = () => {
     if (!name.trim() || !car.trim()) { setMsg("名前と車両番号を入力してください"); return; }
-    setDrivers((prev) => [...prev, { id: `d${prev.length + 1}`, name: name.trim(), car: car.trim(), status: "waiting", pos: { x: 50, y: 50 }, note: "待機中", wage: Number(wage) || 1300, hours: 0 }]);
-    setMsg(`${name}(${car}) を登録しました`); setName(""); setCar("");
+    if (!loginId.trim() || !password.trim()) { setMsg("ログインID・パスワードを入力してください(ドライバーアプリのログインに使用します)"); return; }
+    setDrivers((prev) => [...prev, { id: `d${prev.length + 1}`, name: name.trim(), car: car.trim(), status: "waiting", pos: { x: 50, y: 50 }, note: "待機中", wage: Number(wage) || 1300, hours: 0, loginId: loginId.trim(), password: password.trim() }]);
+    setMsg(`${name}(${car}) を登録しました`); setName(""); setCar(""); setLoginId(""); setPassword("");
   };
   return (
     <Card>
@@ -1727,14 +1703,26 @@ function DriverRegisterForm({ setDrivers }) {
         <div style={{ flex: 1 }}><TextField label="車両番号" value={car} onChange={setCar} placeholder="例: 5号車" /></div>
         <div style={{ flex: 1 }}><TextField label="時給(円)" value={wage} onChange={setWage} type="number" /></div>
       </div>
+      <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>ドライバーアプリ ログイン情報</div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}><TextField label="ログインID" value={loginId} onChange={setLoginId} placeholder="例: yamada" /></div>
+        <div style={{ flex: 1 }}><TextField label="パスワード" value={password} onChange={setPassword} placeholder="半角英数字" type="password" /></div>
+      </div>
       <PrimaryButton onClick={submit}>登録する</PrimaryButton>
       {msg && <div style={{ marginTop: 10, fontSize: 12, color: COLORS.green }}>{msg}</div>}
+      <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 8 }}>※このID・パスワードは今後ドライバーアプリのログインに使用する想定です(現在アプリ側は仮ログインのままです)。</div>
     </Card>
   );
 }
 function StaffRegisterForm({ staff, setStaff }) {
   const [name, setName] = useState(""); const [role, setRole] = useState(ROLES[0]);
-  const add = () => { if (!name.trim()) return; setStaff((prev) => [...prev, { id: `s${prev.length + 1}`, name: name.trim(), role }]); setName(""); };
+  const [loginId, setLoginId] = useState(""); const [password, setPassword] = useState(""); const [msg, setMsg] = useState("");
+  const add = () => {
+    if (!name.trim()) return;
+    if (!loginId.trim() || !password.trim()) { setMsg("ログインID・パスワードを入力してください(管理システムのログインに使用します)"); return; }
+    setStaff((prev) => [...prev, { id: `s${prev.length + 1}`, name: name.trim(), role, loginId: loginId.trim(), password: password.trim() }]);
+    setName(""); setLoginId(""); setPassword(""); setMsg(`${name}を登録しました`);
+  };
   return (
     <Card>
       <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 14 }}>スタッフ登録(役職別)</div>
@@ -1743,7 +1731,14 @@ function StaffRegisterForm({ staff, setStaff }) {
       </div>
       <TextField label="氏名" value={name} onChange={setName} placeholder="例: 田中" />
       <SelectField label="役職" value={role} onChange={setRole} options={ROLES} />
+      <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>管理システム ログイン情報</div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}><TextField label="ログインID" value={loginId} onChange={setLoginId} placeholder="例: tanaka" /></div>
+        <div style={{ flex: 1 }}><TextField label="パスワード" value={password} onChange={setPassword} placeholder="半角英数字" type="password" /></div>
+      </div>
       <PrimaryButton onClick={add}>スタッフを追加</PrimaryButton>
+      {msg && <div style={{ marginTop: 10, fontSize: 12, color: COLORS.green }}>{msg}</div>}
+      <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 8 }}>※このID・パスワードは今後スタッフごとのログインに使用する想定です(現在は仮の管理画面のままログイン不要です)。</div>
     </Card>
   );
 }
@@ -1936,10 +1931,10 @@ function HotelForm({ hotels, setHotels, office, setOffice }) {
 }
 
 const SETTINGS_SUBTABS = [
-  { key: "cast", label: "キャスト登録" }, { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "項目登録" }, { key: "security", label: "セキュリティ" },
+  { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "項目登録" }, { key: "security", label: "セキュリティ" },
 ];
 function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, setReservations, syncMsg }) {
-  const [sub, setSub] = useState("cast");
+  const [sub, setSub] = useState("driver");
   const resetDemoData = () => {
     if (!window.confirm("キャスト一覧と予約(本日〜10日後まで)を初期デモデータで上書きします。よろしいですか？(保存済みの内容は失われます)")) return;
     const freshBase = generateCasts();
@@ -1950,7 +1945,7 @@ function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffic
   };
   return (
     <div>
-      <SectionTitle sub="キャスト・ドライバー・ホテル・スタッフ・項目・セキュリティの管理">設定</SectionTitle>
+      <SectionTitle sub="ドライバー・ホテル・スタッフ・項目・セキュリティの管理。キャスト登録はキャスト一覧から行います">設定</SectionTitle>
       {syncMsg && <div style={{ marginBottom: 12, fontSize: 12, color: COLORS.red, background: "#FBEAE5", padding: "8px 12px", borderRadius: 8 }}>{syncMsg}</div>}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1958,7 +1953,6 @@ function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffic
         </div>
         <button onClick={resetDemoData} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>キャスト・予約を初期デモデータにリセット</button>
       </div>
-      {sub === "cast" && <CastRegisterForm setCasts={setCasts} />}
       {sub === "driver" && <DriverRegisterForm setDrivers={setDrivers} />}
       {sub === "hotel" && <HotelForm hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} />}
       {sub === "staff" && <StaffRegisterForm staff={staff} setStaff={setStaff} />}
@@ -2011,14 +2005,73 @@ function CastDetailModal({ cast, onClose, onSave }) {
   );
 }
 
+function CastRegisterModal({ onClose, onCreate }) {
+  const [f, setF] = useState({
+    sei: "", name: "", honmyo: "", birthday: "", age: "20", phone: "", address: "",
+    idType: "運転免許証", idNo: "", joinDate: isoDate(new Date()), ratePct: "55", okText: "指名", idVerified: false,
+  });
+  const [msg, setMsg] = useState("");
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const submit = () => {
+    if (!f.name.trim()) { setMsg("源氏名(名)を入力してください"); return; }
+    onCreate({
+      id: `c${Date.now()}`, sei: f.sei.trim(), name: f.name.trim(), honmyo: f.honmyo.trim(),
+      age: Number(f.age) || 20, birthday: f.birthday || "-", status: "before_shift",
+      phone: f.phone || "090-0000-0000", address: f.address || "-",
+      idType: f.idType, idNo: f.idNo || "-", joinDate: f.joinDate,
+      shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0,
+      itakuRate: (Number(f.ratePct) || 55) / 100, idVerified: f.idVerified,
+      stdLast: isoDate(new Date()), okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), comment: "",
+    });
+    onClose();
+  };
+  return (
+    <Modal title="キャスト新規登録" onClose={onClose} wide>
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}><TextField label="源氏名(姓)" value={f.sei} onChange={(v) => set("sei", v)} placeholder="任意(姓なしも可)" /></div>
+        <div style={{ flex: 1 }}><TextField label="源氏名(名)" value={f.name} onChange={(v) => set("name", v)} placeholder="例: みさき" /></div>
+      </div>
+      <TextField label="本名" value={f.honmyo} onChange={(v) => set("honmyo", v)} placeholder="例: 山田 花子" />
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}><TextField label="生年月日" value={f.birthday} onChange={(v) => set("birthday", v)} placeholder="2000-01-01" /></div>
+        <div style={{ flex: 1 }}><TextField label="年齢" value={f.age} onChange={(v) => set("age", v)} type="number" /></div>
+      </div>
+      <TextField label="電話番号" value={f.phone} onChange={(v) => set("phone", v)} placeholder="090-0000-0000" />
+      <TextField label="住所" value={f.address} onChange={(v) => set("address", v)} />
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}><SelectField label="身分証の種類" value={f.idType} onChange={(v) => set("idType", v)} options={["運転免許証", "マイナンバーカード", "パスポート", "健康保険証"]} /></div>
+        <div style={{ flex: 1 }}><TextField label="身分証番号" value={f.idNo} onChange={(v) => set("idNo", v)} /></div>
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}><TextField label="入店日" value={f.joinDate} onChange={(v) => set("joinDate", v)} /></div>
+        <div style={{ flex: 1 }}><TextField label="委託率(%)" value={f.ratePct} onChange={(v) => set("ratePct", v)} type="number" /></div>
+      </div>
+      <TextField label="対応可能オプション(、区切り)" value={f.okText} onChange={(v) => set("okText", v)} placeholder="指名、本指名、延長30分" />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "6px 0 14px" }}>
+        <span style={{ fontSize: 13, color: COLORS.textMain }}>身分証の確認</span>
+        <button onClick={() => set("idVerified", !f.idVerified)} style={{ width: 46, height: 26, borderRadius: 999, border: "none", background: f.idVerified ? COLORS.accent : "#C7D0DB", position: "relative", cursor: "pointer" }}>
+          <span style={{ position: "absolute", top: 3, left: f.idVerified ? 23 : 3, width: 20, height: 20, borderRadius: "50%", background: "#FFF" }} />
+        </button>
+      </div>
+      {msg && <div style={{ color: COLORS.red, fontSize: 12.5, marginBottom: 8 }}>{msg}</div>}
+      <PrimaryButton onClick={submit} style={{ width: "100%" }}>登録する</PrimaryButton>
+      <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 8 }}>登録直後は「出勤前」状態になります。シフト・状態は出勤管理・タイムテーブルから設定してください。</div>
+    </Modal>
+  );
+}
+
 function CastList({ casts, setCasts }) {
   const [query, setQuery] = useState("");
   const [detailId, setDetailId] = useState(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
   const rows = casts.filter((c) => castFullName(c).includes(query) || c.honmyo.includes(query));
   const detailCast = casts.find((c) => c.id === detailId);
   return (
     <div>
-      <SectionTitle sub={`在籍キャストの名簿。詳細ボタンで個人情報の確認・編集(全${casts.length}名)`}>キャスト一覧</SectionTitle>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+        <SectionTitle sub={`在籍キャストの名簿。詳細ボタンで個人情報の確認・編集(全${casts.length}名)`}>キャスト一覧</SectionTitle>
+        <PrimaryButton onClick={() => setRegisterOpen(true)}>＋ 新規登録</PrimaryButton>
+      </div>
       <input placeholder="源氏名・本名で検索" value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#FFFFFF", color: COLORS.textMain, fontSize: 14, marginBottom: 16, boxSizing: "border-box" }} />
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">
@@ -2047,6 +2100,7 @@ function CastList({ casts, setCasts }) {
       </Card>
       <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 10 }}>※本名・生年月日・住所・身分証は個人情報です。役職に応じた操作制限(設定→セキュリティ)の対象です。</div>
       {detailCast && <CastDetailModal cast={detailCast} onClose={() => setDetailId(null)} onSave={(u) => setCasts((prev) => prev.map((x) => x.id === u.id ? u : x))} />}
+      {registerOpen && <CastRegisterModal onClose={() => setRegisterOpen(false)} onCreate={(newCast) => setCasts((prev) => [...prev, newCast])} />}
     </div>
   );
 }

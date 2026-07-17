@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   AreaHotel, COLORS, Card, DRIVER_STATUS, JOB_STATUS, SectionTitle,
-  buildDispatchJobs, driverQueue, applyJobAssignment, coordForHotelName,
+  buildDispatchJobs, driverQueue, driverLocationLabel, applyJobAssignment, coordForHotelName,
   castFullName, fmtHour, isoDate,
 } from "../shared.jsx";
 import { loadGoogleMaps, HOTEL_COORDS } from "../mapsLoader.js";
@@ -145,7 +145,7 @@ export function DriverMap({ drivers, hotels, office, jobs, onJobClick }) {
 // ============================================================
 // 割当ポップアップ(地図ピンクリック時)
 // ============================================================
-function AssignPopover({ job, drivers, onAssign, onClose }) {
+function AssignPopover({ job, drivers, jobs, onAssign, onClose }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,35,0.4)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 14, width: "100%", maxWidth: 360, padding: 18, boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}>
@@ -155,9 +155,12 @@ function AssignPopover({ job, drivers, onAssign, onClose }) {
         <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>{fmtHour(job.time)} ・ {job.customer} ・ {job.hotel}{job.room ? ` ${job.room}` : ""}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
           {drivers.map((d) => (
-            <button key={d.id} onClick={() => onAssign(d.car)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#FFF", cursor: "pointer", textAlign: "left" }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain }}>{d.car} ・ {d.name}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: DRIVER_STATUS[d.status]?.color, background: `${DRIVER_STATUS[d.status]?.color}1F`, padding: "2px 8px", borderRadius: 999 }}>{DRIVER_STATUS[d.status]?.label}</span>
+            <button key={d.id} onClick={() => onAssign(d.car)} style={{ display: "flex", flexDirection: "column", gap: 2, padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#FFF", cursor: "pointer", textAlign: "left" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain }}>{d.car} ・ {d.name}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: DRIVER_STATUS[d.status]?.color, background: `${DRIVER_STATUS[d.status]?.color}1F`, padding: "2px 8px", borderRadius: 999 }}>{DRIVER_STATUS[d.status]?.label}</span>
+              </div>
+              <span style={{ fontSize: 11, color: COLORS.textSub }}>{driverLocationLabel(d, jobs || [])}</span>
             </button>
           ))}
         </div>
@@ -180,12 +183,20 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
   const nowHour = now.getHours() + now.getMinutes() / 60;
 
   const allJobs = buildDispatchJobs(reservations, todayStr);
-  // 直近2時間(30分前〜2時間先)のジョブだけを配車対象として一覧・地図に出す
-  const windowJobs = allJobs.filter((j) => j.time >= nowHour - 0.5 && j.time <= nowHour + 2);
-  const overdueUnassigned = allJobs.filter((j) => j.jobStatus === "unassigned" && j.time < nowHour - 0.5);
-  const listJobs = [...overdueUnassigned, ...windowJobs].sort((a, b) => a.time - b.time);
+  // 今の時間から2時間先までのジョブだけを配車対象として一覧・地図に出す
+  const listJobs = allJobs.filter((j) => j.time >= nowHour && j.time <= nowHour + 2).sort((a, b) => a.time - b.time);
 
-  const assign = (job, driverCar) => setReservations(applyJobAssignment(job.reservationId, job.kind, driverCar === "未定" ? null : driverCar));
+  const assign = (job, driverCar) => {
+    if (driverCar === "未定") {
+      setReservations(applyJobAssignment(job.reservationId, job.kind, null));
+      return;
+    }
+    const d = drivers.find((x) => x.car === driverCar);
+    const label = d ? `${d.car}・${d.name}` : driverCar;
+    const kindLabel = job.kind === "send" ? "送り" : "迎え";
+    if (!window.confirm(`${label}さんへ${fmtHour(job.time)} ${job.hotel}の${kindLabel}を割り当てますか？`)) return;
+    setReservations(applyJobAssignment(job.reservationId, job.kind, driverCar));
+  };
 
   return (
     <div>
@@ -200,14 +211,13 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
         </Card>
 
         <Card>
-          <div style={{ color: COLORS.textSub, fontSize: 12, marginBottom: 12 }}>未割当・直近の送り迎え(全{listJobs.length}件)</div>
+          <div style={{ color: COLORS.textSub, fontSize: 12, marginBottom: 12 }}>未割当・直近の送り迎え(今から2時間以内・全{listJobs.length}件)</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 340, overflowY: "auto", marginBottom: 18 }}>
             {listJobs.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub }}>直近2時間に対象のジョブはありません。</div>}
             {listJobs.map((j) => {
-              const overdue = j.jobStatus === "unassigned" && j.time < nowHour;
               const st = JOB_STATUS[j.jobStatus] || JOB_STATUS.unassigned;
               return (
-                <div key={j.id} style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${overdue ? COLORS.red : COLORS.border}`, background: overdue ? "#FBEAE5" : "#FAFBFD" }}>
+                <div key={j.id} style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#FAFBFD" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.textMain }}>
                       {fmtHour(j.time)}
@@ -218,7 +228,7 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
                   <div style={{ fontSize: 12, color: COLORS.textMain, marginBottom: 6 }}>{castName(j.castId)} ・ {j.customer} ・ {j.hotel}{j.room ? ` ${j.room}` : ""}</div>
                   <select value={j.driverCar} onChange={(e) => assign(j, e.target.value)} style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }}>
                     <option value="未定">未割当</option>
-                    {drivers.map((d) => <option key={d.id} value={d.car}>{d.car} ・ {d.name}</option>)}
+                    {drivers.map((d) => <option key={d.id} value={d.car}>{d.car} ・ {d.name}（{driverLocationLabel(d, allJobs)}）</option>)}
                   </select>
                 </div>
               );
@@ -232,7 +242,10 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
               return (
                 <div key={d.id} style={{ padding: "10px 0", borderBottom: `1px solid ${COLORS.border}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ color: COLORS.textMain, fontSize: 14, fontWeight: 600 }}>{d.car} ・ {d.name}</div>
+                    <div style={{ color: COLORS.textMain, fontSize: 14, fontWeight: 600 }}>
+                      {d.car} ・ {d.name}
+                      <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 500, color: COLORS.textSub }}>{driverLocationLabel(d, allJobs)}</span>
+                    </div>
                     <span style={{ fontSize: 11, fontWeight: 700, color: DRIVER_STATUS[d.status].color, background: `${DRIVER_STATUS[d.status].color}1F`, padding: "2px 8px", borderRadius: 999 }}>{DRIVER_STATUS[d.status].label}</span>
                   </div>
                   <div style={{ color: COLORS.textSub, fontSize: 12, marginTop: 4 }}>
@@ -246,7 +259,7 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
       </div>
 
       {popoverJob && (
-        <AssignPopover job={popoverJob} drivers={drivers}
+        <AssignPopover job={popoverJob} drivers={drivers} jobs={allJobs}
           onAssign={(car) => { assign(popoverJob, car); setPopoverJob(null); }}
           onClose={() => setPopoverJob(null)}
         />

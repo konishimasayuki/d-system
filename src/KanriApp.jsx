@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import SenzaiMaker from "./SenzaiMaker.jsx";
+import { loadGoogleMaps, HOTEL_COORDS } from "./mapsLoader.js";
 
 // ============================================================
 // デザイントークン
@@ -117,10 +118,10 @@ function generateCasts() {
 const INITIAL_CASTS = generateCasts();
 
 const INITIAL_DRIVERS = [
-  { id: "d1", name: "佃", car: "1号車", status: "dispatch", pos: { x: 32, y: 38 }, note: "田中様を天神プラザホテルへ送迎中", wage: 1300, hours: 7 },
-  { id: "d2", name: "森", car: "2号車", status: "dispatch", pos: { x: 68, y: 55 }, note: "佐藤様を博多ベイサイドホテルへ送迎中", wage: 1300, hours: 6 },
-  { id: "d3", name: "野口", car: "3号車", status: "waiting", pos: { x: 45, y: 20 }, note: "中央区エリアで待機中", wage: 1250, hours: 8 },
-  { id: "d4", name: "堤", car: "4号車", status: "returning", pos: { x: 20, y: 70 }, note: "南区より営業所へ戻り中", wage: 1250, hours: 5 },
+  { id: "d1", name: "佃", car: "1号車", status: "dispatch", pos: { x: 32, y: 38 }, latlng: { lat: 33.5914, lng: 130.3990 }, note: "田中様を天神プラザホテルへ送迎中", wage: 1300, hours: 7 },
+  { id: "d2", name: "森", car: "2号車", status: "dispatch", pos: { x: 68, y: 55 }, latlng: { lat: 33.6050, lng: 130.4100 }, note: "佐藤様を博多ベイサイドホテルへ送迎中", wage: 1300, hours: 6 },
+  { id: "d3", name: "野口", car: "3号車", status: "waiting", pos: { x: 45, y: 20 }, latlng: { lat: 33.5896, lng: 130.4050 }, note: "中央区エリアで待機中", wage: 1250, hours: 8 },
+  { id: "d4", name: "堤", car: "4号車", status: "returning", pos: { x: 20, y: 70 }, latlng: { lat: 33.5700, lng: 130.4200 }, note: "南区より営業所へ戻り中", wage: 1250, hours: 5 },
 ];
 
 const INITIAL_RESERVATIONS = [
@@ -601,6 +602,53 @@ function ReservationManagement({ reservations, setReservations, casts, drivers, 
 // ============================================================
 // 配車管理(マップ)
 // ============================================================
+function DriverMap({ drivers }) {
+  const ref = useRef(null);
+  const mapRef = useRef(null);
+  const markersRef = useRef([]);
+  const [err, setErr] = useState("");
+
+  const renderMarkers = (maps) => {
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
+    drivers.forEach((d) => {
+      if (!d.latlng) return;
+      const m = new maps.Marker({
+        position: d.latlng, map: mapRef.current, title: `${d.car} ${d.name}`,
+        label: { text: d.car[0], color: "#fff", fontSize: "12px", fontWeight: "700" },
+        icon: { path: maps.SymbolPath.CIRCLE, scale: 14, fillColor: DRIVER_STATUS[d.status].color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 },
+      });
+      markersRef.current.push(m);
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    loadGoogleMaps().then((maps) => {
+      if (cancelled || !ref.current) return;
+      mapRef.current = new maps.Map(ref.current, {
+        center: { lat: 33.5902, lng: 130.4017 }, zoom: 12,
+        mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
+      });
+      renderMarkers(maps);
+    }).catch((e) => {
+      setErr(e.message === "no-key"
+        ? "地図APIキーが未設定です（VITE_GOOGLE_MAPS_API_KEY）。"
+        : "地図の読み込みに失敗しました。ネットワークまたはキー制限をご確認ください。");
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (window.google && window.google.maps && mapRef.current) renderMarkers(window.google.maps);
+  }, [drivers]);
+
+  if (err) {
+    return <div style={{ width: "100%", aspectRatio: "4 / 3", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#F2F5F9", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, textAlign: "center", color: COLORS.red, fontSize: 13 }}>{err}</div>;
+  }
+  return <div ref={ref} style={{ width: "100%", aspectRatio: "4 / 3", borderRadius: 10, border: `1px solid ${COLORS.border}`, overflow: "hidden" }} />;
+}
+
 function DispatchMap({ drivers, reservations, casts }) {
   const castName = (id) => casts.find((c) => c.id === id) ? castFullName(casts.find((x) => x.id === id)) : "-";
   return (
@@ -608,20 +656,7 @@ function DispatchMap({ drivers, reservations, casts }) {
       <SectionTitle sub="ドライバーの現在位置と送迎状況を確認">配車管理</SectionTitle>
       <div className="grid-2">
         <Card style={{ padding: 12 }}>
-          <div style={{ position: "relative", width: "100%", aspectRatio: "4 / 3", borderRadius: 10, overflow: "hidden", background: "repeating-linear-gradient(0deg, #EDF2F8 0 38px, #DDE4EC 38px 39px), repeating-linear-gradient(90deg, #EDF2F8 0 38px, #DDE4EC 38px 39px)", border: `1px solid ${COLORS.border}` }}>
-            <div style={{ position: "absolute", top: 10, left: 12, fontSize: 11, color: COLORS.textSub, fontWeight: 600 }}>中央区</div>
-            <div style={{ position: "absolute", top: 10, right: 12, fontSize: 11, color: COLORS.textSub, fontWeight: 600 }}>東区</div>
-            <div style={{ position: "absolute", bottom: 10, left: 12, fontSize: 11, color: COLORS.textSub, fontWeight: 600 }}>南区</div>
-            <div style={{ position: "absolute", bottom: 10, right: 12, fontSize: 11, color: COLORS.textSub, fontWeight: 600 }}>博多区</div>
-            {drivers.map((d) => (
-              <div key={d.id} style={{ position: "absolute", left: `${d.pos.x}%`, top: `${d.pos.y}%`, transform: "translate(-50%, -100%)" }}>
-                <div style={{ width: 30, height: 30, borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", background: DRIVER_STATUS[d.status].color, boxShadow: "0 2px 6px rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ transform: "rotate(45deg)", color: "#FFF", fontSize: 11, fontWeight: 700 }}>{d.car[0]}</span>
-                </div>
-                <div style={{ marginTop: 2, fontSize: 10, color: COLORS.textMain, background: "#FFFFFFDD", padding: "1px 6px", borderRadius: 6, textAlign: "center", whiteSpace: "nowrap" }}>{d.name}</div>
-              </div>
-            ))}
-          </div>
+          <DriverMap drivers={drivers} />
           <div style={{ display: "flex", gap: 14, marginTop: 12, flexWrap: "wrap" }}>
             {Object.entries(DRIVER_STATUS).map(([key, v]) => <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textSub }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: v.color }} />{v.label}</div>)}
           </div>

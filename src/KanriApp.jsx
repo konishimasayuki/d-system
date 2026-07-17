@@ -433,6 +433,14 @@ function parseTimeToHour(t) {
   if (!m) return null;
   return Number(m[1]) + Number(m[2]) / 60;
 }
+// 小数時間(例: 1.6666...)を "1:40" のような表示用文字列に変換
+function fmtHour(h) {
+  if (h == null || isNaN(h)) return "-";
+  const total = Math.round(h * 60);
+  const hh = Math.floor(total / 60) % 24;
+  const mm = total % 60;
+  return `${hh}:${String(mm).padStart(2, "0")}`;
+}
 // 10分単位の時間選択肢(12:00〜翌4:50)を生成
 function buildTimeOptions(startHour, endHour) {
   const list = [];
@@ -1000,7 +1008,7 @@ function NewReservationModal({ prefillCustomer, editReservation, casts, drivers,
               <span style={{ fontSize: 20, fontWeight: 800, color: COLORS.accentDark }}><Yen value={total} /></span>
             </div>
           </div>
-          {conflict && <div style={{ color: COLORS.red, fontSize: 12.5, fontWeight: 700, marginTop: 10 }}>⚠ バッティング警告: {castName}は{conflict.start}:00に既に予約があります</div>}
+          {conflict && <div style={{ color: COLORS.red, fontSize: 12.5, fontWeight: 700, marginTop: 10 }}>⚠ バッティング警告: {castName}は{fmtHour(conflict.start)}に既に予約があります</div>}
           {driverConflict && <div style={{ color: "#B58A1F", fontSize: 12, marginTop: 6 }}>⚠ {sendDriver}は同時間帯に別の送迎があります</div>}
           {isEdit && <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 10 }}>※交通費・その他・割引・宿泊人数は編集時0からの再入力になります(前回の内訳はメモ欄に記録済み)。</div>}
         </div>
@@ -1023,7 +1031,7 @@ function WorkMailModal({ reservation, castName, onClose }) {
   const body = `【予約連絡】
 キャスト: ${castName}
 お客様: ${reservation.customer}
-時間: ${reservation.start}:00〜(${reservation.course})
+時間: ${fmtHour(reservation.start)}〜(${reservation.course})
 場所: ${reservation.area} ${reservation.hotel}
 送りドライバー: ${reservation.sendDriver}
 迎えドライバー: ${reservation.pickDriver}
@@ -1055,7 +1063,7 @@ function ReservationManagement({ reservations, setReservations, casts, drivers, 
         {reservations.map((r) => (
           <Card key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
             <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, color: COLORS.textMain, minWidth: 56 }}>{r.start}:00</div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, color: COLORS.textMain, minWidth: 56 }}>{fmtHour(r.start)}</div>
               <div>
                 <div style={{ color: COLORS.textMain, fontSize: 15 }}>{r.customer}<span style={{ color: COLORS.textSub, fontSize: 12 }}> ・ {r.course}</span></div>
                 <div style={{ color: COLORS.textSub, fontSize: 12, marginTop: 2 }}><AreaHotel area={r.area} hotel={r.hotel} /> / 担当: {castName(r.castId)} / 送:{r.sendDriver} 迎:{r.pickDriver}</div>
@@ -1203,7 +1211,7 @@ function DispatchMap({ drivers, reservations, casts, hotels, office }) {
           </div>
           <div style={{ color: COLORS.textSub, fontSize: 12, margin: "18px 0 12px" }}>送迎対応中の予約</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {reservations.filter((r) => r.status === "接客中" || r.status === "移動中").map((r) => <div key={r.id} style={{ fontSize: 12, color: COLORS.textMain }}>{r.start}:00 {r.customer} → {castName(r.castId)} / <AreaHotel area={r.area} hotel={r.hotel} /></div>)}
+            {reservations.filter((r) => r.status === "接客中" || r.status === "移動中").map((r) => <div key={r.id} style={{ fontSize: 12, color: COLORS.textMain }}>{fmtHour(r.start)} {r.customer} → {castName(r.castId)} / <AreaHotel area={r.area} hotel={r.hotel} /></div>)}
           </div>
         </Card>
       </div>
@@ -1230,7 +1238,7 @@ function DriverPage({ reservations, casts, drivers }) {
           <Card key={r.id}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
               <div>
-                <div style={{ fontSize: 15, color: COLORS.textMain, fontWeight: 600 }}>{r.start}:00 {castName(r.castId)} 担当</div>
+                <div style={{ fontSize: 15, color: COLORS.textMain, fontWeight: 600 }}>{fmtHour(r.start)} {castName(r.castId)} 担当</div>
                 <div style={{ fontSize: 12, color: COLORS.textSub, marginTop: 2 }}>{r.customer} / <AreaHotel area={r.area} hotel={r.hotel} /></div>
                 <div style={{ fontSize: 12, color: COLORS.textSub, marginTop: 2 }}>送:{r.sendDriver} 迎:{r.pickDriver}</div>
               </div>
@@ -1665,7 +1673,7 @@ function CastMyPage({ casts, reservations }) {
           <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.textMain, marginBottom: 12 }}>本日のスケジュール・予約</div>
           <div style={{ fontSize: 13, color: COLORS.textMain, marginBottom: 10 }}>シフト: {me.shiftStart}〜{me.shiftEnd}</div>
           {myRes.length === 0 ? <div style={{ fontSize: 12, color: COLORS.textSub }}>本日の予約はありません</div> : myRes.map((r) => (
-            <div key={r.id} style={{ padding: "8px 0", borderBottom: `1px solid ${COLORS.border}`, fontSize: 13, color: COLORS.textMain }}>{r.start}:00 {r.customer} / {r.course} / {r.hotel}</div>
+            <div key={r.id} style={{ padding: "8px 0", borderBottom: `1px solid ${COLORS.border}`, fontSize: 13, color: COLORS.textMain }}>{fmtHour(r.start)} {r.customer} / {r.course} / {r.hotel}</div>
           ))}
           <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.textMain, margin: "18px 0 10px" }}>委託費明細</div>
           <div style={{ fontSize: 13, color: COLORS.textSub }}>本日 <Yen value={itaku} />(委託率{Math.round(me.itakuRate * 100)}%)/ 清算: 事務所渡し</div>

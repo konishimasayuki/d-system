@@ -84,6 +84,8 @@ const INITIAL_OPTIONS = [
   { id: "op1", name: "指名", price: 2000 },
   { id: "op2", name: "本指名", price: 3000 },
   { id: "op3", name: "延長30分", price: 9000 },
+  { id: "op4", name: "コスプレ", price: 3000 },
+  { id: "op5", name: "ロングコース", price: 5000 },
 ];
 
 const CAST_NAMES = [
@@ -319,10 +321,10 @@ function SelectField({ label, value, onChange, options }) {
     </div>
   );
 }
-function Modal({ title, onClose, children, wide }) {
+function Modal({ title, onClose, children, wide, maxwidth }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,35,0.45)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: 16, width: "100%", maxWidth: wide ? 560 : 460, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: 16, width: "100%", maxWidth: maxwidth || (wide ? 560 : 460), maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${COLORS.border}`, position: "sticky", top: 0, background: "#FFF" }}>
           <div style={{ fontFamily: "'Zen Old Mincho', serif", fontSize: 18, color: COLORS.textMain }}>{title}</div>
           <button onClick={onClose} style={{ border: "none", background: "transparent", fontSize: 22, color: COLORS.textSub, cursor: "pointer", lineHeight: 1 }}>×</button>
@@ -677,75 +679,209 @@ function ShiftManagement({ casts, setCasts }) {
 // ============================================================
 // 新規予約モーダル(顧客履歴引用 + バッティング防止)
 // ============================================================
-function NewReservationModal({ prefillCustomer, casts, drivers, reservations, courses, onClose, onCreate }) {
+function TimeBadge({ label, value, color }) {
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div style={{ fontSize: 10, color: COLORS.textSub, fontWeight: 600, marginBottom: 3 }}>{label}</div>
+      <div style={{ background: color, color: "#FFF", borderRadius: 8, padding: "6px 10px", fontSize: 15, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{value}</div>
+    </div>
+  );
+}
+
+function NewReservationModal({ prefillCustomer, casts, drivers, reservations, courses, options, onClose, onCreate }) {
   const last = prefillCustomer?.history?.[0];
   const prefillCast = last ? findCast(casts, last.cast) : null;
-  const [customer, setCustomer] = useState(prefillCustomer?.name || "");
+
+  // 受付情報
   const [phone, setPhone] = useState(prefillCustomer?.phones?.[0] || "");
+  const [memberNo, setMemberNo] = useState("");
+  const [visitType, setVisitType] = useState("一般");
+  const [customer, setCustomer] = useState(prefillCustomer?.name || "");
+  const [kana, setKana] = useState("");
+  const visitCount = prefillCustomer?.visits ?? 0;
+
+  // 受付内容
   const [castName, setCastName] = useState(prefillCast ? castFullName(prefillCast) : (casts[0] ? castFullName(casts[0]) : ""));
-  const [course, setCourse] = useState(last?.course || courses[0]?.name || "");
   const [hotel, setHotel] = useState(last?.hotel || ALL_HOTELS[0]);
   const [room, setRoom] = useState("");
+  const [course, setCourse] = useState(last?.course || courses[0]?.name || "");
+  const [shimei, setShimei] = useState("フリー"); // フリー/指名/本指名
+  const [extension, setExtension] = useState(false); // 延長30分
+  const [extraOptions, setExtraOptions] = useState([]); // コスプレ・ロングコース等
   const [start, setStart] = useState("21");
   const [sendDriver, setSendDriver] = useState(drivers[0]?.car || "未定");
-  const [selectedOptions, setSelectedOptions] = useState([]);
-  const toggleOption = (opt) => setSelectedOptions((prev) => prev.some((o) => o.name === opt.name) ? prev.filter((o) => o.name !== opt.name) : [...prev, opt]);
+
+  // 料金その他
+  const [transportFee, setTransportFee] = useState("0");
+  const [miscFee, setMiscFee] = useState("0");
+  const [happyDiscount, setHappyDiscount] = useState("0");
+  const [guestCount, setGuestCount] = useState("1");
+  const [note, setNote] = useState("");
+
+  const shimeiOpt = options.find((o) => o.name === "指名");
+  const honShimeiOpt = options.find((o) => o.name === "本指名");
+  const extOpt = options.find((o) => o.name === "延長30分");
+  const extraMaster = options.filter((o) => !["指名", "本指名", "延長30分"].includes(o.name));
+  const toggleExtra = (opt) => setExtraOptions((prev) => prev.some((o) => o.name === opt.name) ? prev.filter((o) => o.name !== opt.name) : [...prev, opt]);
 
   const selectedCast = findCast(casts, castName);
   const startNum = Number(start);
-  const conflict = reservations.find((r) => {
-    if (r.castId !== selectedCast?.id) return false;
-    return Math.abs(r.start - startNum) < 1.5;
-  });
+  const baseDur = course.includes("120") ? 2 : course.includes("90") ? 1.5 : 1;
+  const dur = baseDur + (extension ? 0.5 : 0);
+  const endNum = startNum + dur;
+  const fmtHM = (h) => `${Math.floor(h)}時${String(Math.round((h % 1) * 60)).padStart(2, "0")}分`;
+
+  const conflict = reservations.find((r) => r.castId === selectedCast?.id && Math.abs(r.start - startNum) < 1.5);
   const driverConflict = reservations.find((r) => r.sendDriver === sendDriver && sendDriver !== "未定" && Math.abs(r.start - startNum) < 1);
-  const coursePrice = courses.find((c) => c.name === course)?.price || 0;
-  const optionsTotal = selectedOptions.reduce((a, o) => a + o.price, 0);
+
+  const basePrice = courses.find((c) => c.name === course)?.price || 0;
+  const shimeiPrice = shimei === "指名" ? (shimeiOpt?.price || 0) : shimei === "本指名" ? (honShimeiOpt?.price || 0) : 0;
+  const extPrice = extension ? (extOpt?.price || 0) : 0;
+  const extraTotal = extraOptions.reduce((a, o) => a + o.price, 0);
+  const otherTotal = (Number(transportFee) || 0) + (Number(miscFee) || 0);
+  const discount = Number(happyDiscount) || 0;
+  const total = basePrice + shimeiPrice + extPrice + extraTotal + otherTotal - discount;
+
+  const optionsForSave = [
+    ...(shimei !== "フリー" ? [{ name: shimei, price: shimeiPrice }] : []),
+    ...(extension ? [{ name: "延長30分", price: extPrice }] : []),
+    ...extraOptions,
+  ];
 
   const create = () => {
     onCreate({
-      id: `r${reservations.length + 1}`, start: startNum, dur: course.includes("120") ? 2 : course.includes("90") ? 1.5 : 1,
-      customer, phone, castId: selectedCast?.id || null, area: hotelArea(hotel), hotel, room, course, options: selectedOptions, price: coursePrice + optionsTotal, status: "受付済", sendDriver, pickDriver: "未定", note: "",
+      id: `r${reservations.length + 1}`, start: startNum, dur,
+      customer, phone, castId: selectedCast?.id || null, area: hotelArea(hotel), hotel, room,
+      course, options: optionsForSave, price: total, status: "受付済", sendDriver, pickDriver: "未定",
+      note: [note, otherTotal > 0 ? `交通費/その他:¥${otherTotal.toLocaleString()}` : "", discount > 0 ? `ハッピーチケット:-¥${discount.toLocaleString()}` : "", guestCount && guestCount !== "1" ? `宿泊人数:${guestCount}名` : ""].filter(Boolean).join(" / "),
     });
     onClose();
   };
 
+  const fieldSm = { padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, width: "100%", boxSizing: "border-box" };
+  const labelSm = { fontSize: 11, color: COLORS.textSub, fontWeight: 600, marginBottom: 4, display: "block" };
+
   return (
-    <Modal title="新規予約 受付" onClose={onClose} wide>
+    <Modal title="新規予約 受付" onClose={onClose} maxwidth={760}>
       {prefillCustomer && last && (
         <div style={{ background: COLORS.accentBg, borderRadius: 10, padding: 12, marginBottom: 14, fontSize: 12, color: COLORS.accentDark }}>
           📋 {prefillCustomer.name}の前回利用を引用: {last.cast} / {last.course} / {last.option} / {last.hotel}
         </div>
       )}
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 2 }}><TextField label="顧客名" value={customer} onChange={setCustomer} placeholder="例: 田中様" /></div>
-        <div style={{ flex: 2 }}><TextField label="電話番号" value={phone} onChange={setPhone} placeholder="090-XXXX-XXXX" /></div>
-      </div>
-      <SelectField label="指名キャスト" value={castName} onChange={setCastName} options={casts.map((c) => castFullName(c))} />
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 2 }}><SelectField label="ホテル" value={hotel} onChange={setHotel} options={ALL_HOTELS} /></div>
-        <div style={{ flex: 1 }}><TextField label="号室" value={room} onChange={setRoom} placeholder="例: 802号室" /></div>
-      </div>
-      <SelectField label="コース" value={course} onChange={setCourse} options={courses.map((c) => c.name)} />
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 6, fontWeight: 600 }}>オプション</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {OPTION_POOL.map((name) => {
-            const price = INITIAL_OPTIONS.find((o) => o.name === name)?.price ?? 2000;
-            const on = selectedOptions.some((o) => o.name === name);
-            return (
-              <button key={name} onClick={() => toggleOption({ name, price })} style={{ padding: "6px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${on ? COLORS.accent : COLORS.border}`, background: on ? COLORS.accent : "#FFF", color: on ? "#FFF" : COLORS.textMain }}>{name}</button>
-            );
-          })}
+
+      {/* 受付ヘッダー：電話番号・会員情報 */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+        <div style={{ flex: 2 }}>
+          <label style={labelSm}>電話番号</label>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="090-XXXX-XXXX" style={fieldSm} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={labelSm}>会員番号</label>
+          <input value={memberNo} onChange={(e) => setMemberNo(e.target.value)} placeholder="任意" style={fieldSm} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={labelSm}>来店区分</label>
+          <select value={visitType} onChange={(e) => setVisitType(e.target.value)} style={fieldSm}>
+            <option value="一般">一般</option><option value="会員">会員</option>
+          </select>
+        </div>
+        <div style={{ flex: 1, textAlign: "center" }}>
+          <label style={labelSm}>来店回数</label>
+          <div style={{ padding: "8px 0", fontSize: 15, fontWeight: 700, color: COLORS.accentDark }}>{visitCount}回</div>
         </div>
       </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}><SelectField label="開始時刻" value={start} onChange={setStart} options={["18", "19", "20", "21", "22", "23", "24"]} /></div>
-        <div style={{ flex: 1 }}><SelectField label="送りドライバー" value={sendDriver} onChange={setSendDriver} options={[...drivers.map((d) => d.car), "未定"]} /></div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        <div style={{ flex: 2 }}>
+          <label style={labelSm}>名前</label>
+          <input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="例: 田中様" style={fieldSm} />
+        </div>
+        <div style={{ flex: 2 }}>
+          <label style={labelSm}>フリガナ</label>
+          <input value={kana} onChange={(e) => setKana(e.target.value)} placeholder="タナカ" style={fieldSm} />
+        </div>
       </div>
-      <div style={{ fontSize: 13, color: COLORS.textSub, marginBottom: 8 }}>合計金額目安：<span style={{ color: COLORS.textMain, fontWeight: 700 }}><Yen value={coursePrice + optionsTotal} /></span>（コース<Yen value={coursePrice} />{optionsTotal > 0 && <> + オプション<Yen value={optionsTotal} /></>}）</div>
-      {conflict && <div style={{ color: COLORS.red, fontSize: 13, fontWeight: 700, marginBottom: 8 }}>⚠ バッティング警告: {castName}は{conflict.start}:00に既に予約があります</div>}
-      {driverConflict && <div style={{ color: "#B58A1F", fontSize: 12, marginBottom: 8 }}>⚠ {sendDriver}は同時間帯に別の送迎があります</div>}
-      <PrimaryButton onClick={create} disabled={!!conflict} style={{ width: "100%", marginTop: 6 }}>{conflict ? "重複のため受付不可" : "この内容で予約受付"}</PrimaryButton>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 18 }} className="rsv-grid">
+        {/* 左：受付内容 */}
+        <div>
+          <SelectField label="女の子選択(指名キャスト)" value={castName} onChange={setCastName} options={casts.map((c) => castFullName(c))} />
+          <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ flex: 2 }}><SelectField label="ホテル選択" value={hotel} onChange={setHotel} options={ALL_HOTELS} /></div>
+            <div style={{ flex: 1 }}><TextField label="号室" value={room} onChange={setRoom} placeholder="802" /></div>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ flex: 1 }}><SelectField label="基本(コース)" value={course} onChange={setCourse} options={courses.map((c) => c.name)} /></div>
+            <div style={{ flex: 1 }}><SelectField label="指名区分" value={shimei} onChange={setShimei} options={["フリー", "指名", "本指名"]} /></div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={labelSm}>延長</label>
+            <button onClick={() => setExtension((v) => !v)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: `1px solid ${extension ? COLORS.accent : COLORS.border}`, background: extension ? COLORS.accent : "#FFF", color: extension ? "#FFF" : COLORS.textMain }}>
+              延長30分 {extOpt ? <Yen value={extOpt.price} /> : ""}
+            </button>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={labelSm}>オプション</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {extraMaster.map((o) => {
+                const on = extraOptions.some((x) => x.name === o.name);
+                return (
+                  <button key={o.id} onClick={() => toggleExtra(o)} style={{ padding: "6px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${on ? COLORS.accent : COLORS.border}`, background: on ? COLORS.accent : "#FFF", color: on ? "#FFF" : COLORS.textMain }}>{o.name}（<Yen value={o.price} />）</button>
+                );
+              })}
+              {extraMaster.length === 0 && <span style={{ fontSize: 12, color: COLORS.textSub }}>設定→項目登録でオプションを追加できます</span>}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", marginBottom: 12 }}>
+            <div style={{ flex: 1 }}><SelectField label="開始時刻" value={start} onChange={setStart} options={["18", "19", "20", "21", "22", "23", "24"]} /></div>
+            <TimeBadge label="開始" value={fmtHM(startNum)} color="#E08A1E" />
+            <TimeBadge label="終了予定" value={fmtHM(endNum)} color="#2F9E8F" />
+          </div>
+          <SelectField label="送りドライバー" value={sendDriver} onChange={setSendDriver} options={[...drivers.map((d) => d.car), "未定"]} />
+          <label style={labelSm}>メモ・NG情報など</label>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="対応時の注意事項があれば入力" style={{ ...fieldSm, resize: "vertical", fontFamily: "inherit" }} />
+        </div>
+
+        {/* 右：料金 */}
+        <div>
+          <div style={{ background: "#EDF3FA", borderRadius: 12, padding: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMain, marginBottom: 10 }}>料金</div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: COLORS.textMain, marginBottom: 6 }}><span>基本料金</span><Yen value={basePrice} /></div>
+            {shimeiPrice > 0 && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: COLORS.textSub, marginBottom: 6 }}><span>{shimei}</span><Yen value={shimeiPrice} /></div>}
+            {extPrice > 0 && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: COLORS.textSub, marginBottom: 6 }}><span>延長30分</span><Yen value={extPrice} /></div>}
+            {extraOptions.map((o) => <div key={o.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: COLORS.textSub, marginBottom: 6 }}><span>{o.name}</span><Yen value={o.price} /></div>)}
+
+            <div style={{ borderTop: `1px solid ${COLORS.border}`, margin: "8px 0" }} />
+            <div style={{ marginBottom: 8 }}>
+              <label style={labelSm}>交通費</label>
+              <input value={transportFee} onChange={(e) => setTransportFee(e.target.value)} type="number" style={fieldSm} />
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <label style={labelSm}>その他(苦情対応費等)</label>
+              <input value={miscFee} onChange={(e) => setMiscFee(e.target.value)} type="number" style={fieldSm} />
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <label style={labelSm}>ハッピーチケット(割引)</label>
+              <input value={happyDiscount} onChange={(e) => setHappyDiscount(e.target.value)} type="number" style={fieldSm} />
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={labelSm}>宿泊人数</label>
+              <input value={guestCount} onChange={(e) => setGuestCount(e.target.value)} type="number" min="1" style={fieldSm} />
+            </div>
+            <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.textMain }}>合計金額</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: COLORS.accentDark }}><Yen value={total} /></span>
+            </div>
+          </div>
+          {conflict && <div style={{ color: COLORS.red, fontSize: 12.5, fontWeight: 700, marginTop: 10 }}>⚠ バッティング警告: {castName}は{conflict.start}:00に既に予約があります</div>}
+          {driverConflict && <div style={{ color: "#B58A1F", fontSize: 12, marginTop: 6 }}>⚠ {sendDriver}は同時間帯に別の送迎があります</div>}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+        <button onClick={onClose} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#FFF", color: COLORS.textMain, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>閉じる</button>
+        <PrimaryButton onClick={create} disabled={!!conflict} style={{ flex: 2 }}>{conflict ? "重複のため受付不可" : "この内容で予約受付"}</PrimaryButton>
+      </div>
+      <style>{`@media (max-width: 640px){ .rsv-grid{ grid-template-columns: 1fr !important; } }`}</style>
     </Modal>
   );
 }
@@ -774,7 +910,7 @@ function WorkMailModal({ reservation, castName, onClose }) {
 // ============================================================
 // 予約管理
 // ============================================================
-function ReservationManagement({ reservations, setReservations, casts, drivers, courses }) {
+function ReservationManagement({ reservations, setReservations, casts, drivers, courses, options }) {
   const [mailFor, setMailFor] = useState(null);
   const [newOpen, setNewOpen] = useState(false);
   const castName = (id) => castFullName(casts.find((c) => c.id === id));
@@ -804,7 +940,7 @@ function ReservationManagement({ reservations, setReservations, casts, drivers, 
         ))}
       </div>
       {mailFor && <WorkMailModal reservation={mailFor} castName={castName(mailFor.castId)} onClose={() => setMailFor(null)} />}
-      {newOpen && <NewReservationModal casts={casts} drivers={drivers} reservations={reservations} courses={courses} onClose={() => setNewOpen(false)} onCreate={(r) => setReservations((prev) => [...prev, r])} />}
+      {newOpen && <NewReservationModal casts={casts} drivers={drivers} reservations={reservations} courses={courses} options={options} onClose={() => setNewOpen(false)} onCreate={(r) => setReservations((prev) => [...prev, r])} />}
     </div>
   );
 }
@@ -1914,7 +2050,7 @@ export default function KanriApp() {
           {tab === "timetable" && <Timetable reservations={reservations} casts={casts} setCasts={setCasts} onOpenReservation={setOpenReservation} />}
           {tab === "shift" && <ShiftManagement casts={casts} setCasts={setCasts} />}
           {tab === "castlist" && <CastList casts={casts} setCasts={setCasts} />}
-          {tab === "reservation" && <ReservationManagement reservations={reservations} setReservations={setReservations} casts={casts} drivers={drivers} courses={INITIAL_COURSES} />}
+          {tab === "reservation" && <ReservationManagement reservations={reservations} setReservations={setReservations} casts={casts} drivers={drivers} courses={courses} options={options} />}
           {tab === "dispatch" && <DispatchMap drivers={drivers} reservations={reservations} casts={casts} hotels={hotels} office={office} />}
           {tab === "customer" && <CustomerManagement customers={customers} setCustomers={setCustomers} onQuote={startQuote} />}
           {tab === "media" && <MediaTab casts={casts} setCasts={setCasts} />}
@@ -1929,7 +2065,7 @@ export default function KanriApp() {
       </div>
 
       {ctiCustomer && <CtiPopup customer={ctiCustomer} onClose={() => setCtiCustomer(null)} onReserve={startQuote} />}
-      {quoteCustomer && <NewReservationModal prefillCustomer={quoteCustomer} casts={casts} drivers={drivers} reservations={reservations} courses={INITIAL_COURSES} onClose={() => setQuoteCustomer(null)} onCreate={(r) => { setReservations((prev) => [...prev, r]); setTab("reservation"); }} />}
+      {quoteCustomer && <NewReservationModal prefillCustomer={quoteCustomer} casts={casts} drivers={drivers} reservations={reservations} courses={courses} options={options} onClose={() => setQuoteCustomer(null)} onCreate={(r) => { setReservations((prev) => [...prev, r]); setTab("reservation"); }} />}
       {openReservation && <ReservationDetailModal reservation={openReservation} casts={casts} onClose={() => setOpenReservation(null)} onUpdate={(u) => setReservations((prev) => prev.map((x) => x.id === u.id ? u : x))} />}
     </div>
   );

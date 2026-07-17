@@ -161,7 +161,7 @@ export default function KanriApp() {
           {tab === "shift" && <ShiftManagement casts={casts} setCasts={setCasts} />}
           {tab === "castlist" && <CastList casts={casts} setCasts={setCasts} />}
           {tab === "reservation" && <ReservationManagement reservations={reservations} setReservations={setReservations} casts={casts} drivers={drivers} courses={courses} options={options} hotels={hotels} />}
-          {tab === "dispatch" && <DispatchMap drivers={drivers} reservations={reservations} casts={casts} hotels={hotels} office={office} />}
+          {tab === "dispatch" && <DispatchMap drivers={drivers} reservations={reservations} setReservations={setReservations} casts={casts} hotels={hotels} office={office} />}
           {tab === "customer" && <CustomerManagement customers={customers} setCustomers={setCustomers} onQuote={startQuote} />}
           {tab === "media" && <MediaTab casts={casts} setCasts={setCasts} />}
           {tab === "report" && <Report />}

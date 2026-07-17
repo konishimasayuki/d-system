@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
@@ -284,9 +284,11 @@ export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, 
     const freshBase = generateCasts();
     const freshReservations = generateAllReservations(freshBase);
     const freshCasts = applyDay0State(freshBase, freshReservations);
+    const freshDrivers = generateDrivers();
+    const seeded = seedDemoDispatch(freshDrivers, freshReservations, isoDate(DAY_DATES[0]));
     setCasts(freshCasts);
-    setReservations(freshReservations);
-    setDrivers(generateDrivers());
+    setReservations(seeded.reservations);
+    setDrivers(seeded.drivers);
   };
   return (
     <div>

@@ -7,30 +7,37 @@ import {
 import { loadGoogleMaps, HOTEL_COORDS } from "../mapsLoader.js";
 
 // ============================================================
-// ドライバーピン(車番・状態ラベル付き)
+// ドライバーピン(車マーク・状態ラベル付き)
 // ============================================================
 export function driverPinSvg(car, label, color) {
   const num = String(car || "").replace(/[^0-9]/g, "") || "?";
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='96' height='66' viewBox='0 0 96 66'>
-    <rect x='6' y='2' rx='8' ry='8' width='84' height='22' fill='${color}'/>
-    <text x='48' y='17' font-size='13' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${label}</text>
-    <circle cx='48' cy='42' r='14' fill='${color}' stroke='#ffffff' stroke-width='2.5'/>
-    <text x='48' y='47' font-size='14' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${num}</text>
-    <path d='M48 58 l-7 -8 h14 z' fill='${color}'/>
+  // 車のシルエット + 車番 + 状態ラベル
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='104' height='74' viewBox='0 0 104 74'>
+    <rect x='8' y='2' rx='8' ry='8' width='88' height='20' fill='${color}'/>
+    <text x='52' y='16' font-size='12' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${label}</text>
+    <g transform='translate(28,28)'>
+      <rect x='2' y='14' width='44' height='16' rx='4' fill='${color}' stroke='#ffffff' stroke-width='1.5'/>
+      <path d='M8 14 L14 5 L34 5 L40 14 Z' fill='${color}' stroke='#ffffff' stroke-width='1.5'/>
+      <rect x='15' y='7' width='8' height='6' fill='#ffffff' opacity='0.85'/>
+      <rect x='25' y='7' width='8' height='6' fill='#ffffff' opacity='0.85'/>
+      <circle cx='13' cy='31' r='5' fill='#20262E' stroke='#ffffff' stroke-width='1.5'/>
+      <circle cx='35' cy='31' r='5' fill='#20262E' stroke='#ffffff' stroke-width='1.5'/>
+      <text x='24' y='27' font-size='11' font-family='sans-serif' font-weight='800' fill='#ffffff' text-anchor='middle'>${num}</text>
+    </g>
   </svg>`;
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
 }
 
-// 未割当ジョブのピン(送り/迎え・時刻表示)
+// 未割当ジョブのピン(送り=青系/迎え=緑系で見分け)
 function jobPinSvg(kind, timeLabel) {
   const label = kind === "send" ? "送" : "迎";
-  const color = "#C0492B";
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='76' height='60' viewBox='0 0 76 60'>
-    <rect x='4' y='2' rx='7' ry='7' width='68' height='20' fill='${color}'/>
-    <text x='38' y='16' font-size='12' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${timeLabel}</text>
-    <circle cx='38' cy='38' r='13' fill='${color}' stroke='#ffffff' stroke-width='2.5'/>
-    <text x='38' y='43' font-size='13' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${label}</text>
-    <path d='M38 53 l-6 -7 h12 z' fill='${color}'/>
+  const color = kind === "send" ? "#2F6DB5" : "#3E9C74";
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='80' height='62' viewBox='0 0 80 62'>
+    <rect x='4' y='2' rx='7' ry='7' width='72' height='20' fill='${color}'/>
+    <text x='40' y='16' font-size='12' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${timeLabel}</text>
+    <circle cx='40' cy='40' r='13' fill='${color}' stroke='#ffffff' stroke-width='2.5'/>
+    <text x='40' y='45' font-size='13' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${label}</text>
+    <path d='M40 55 l-6 -7 h12 z' fill='${color}'/>
   </svg>`;
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
 }
@@ -38,7 +45,7 @@ function jobPinSvg(kind, timeLabel) {
 // ============================================================
 // 地図(ドライバー位置・未割当ジョブ・ドライバーごとの経路線)
 // ============================================================
-export function DriverMap({ drivers, hotels, office, jobs, onJobClick }) {
+export function DriverMap({ drivers, hotels, office, jobs, pinJobs, onJobClick }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -47,6 +54,20 @@ export function DriverMap({ drivers, hotels, office, jobs, onJobClick }) {
   const [err, setErr] = useState("");
 
   const coordFor = (name) => coordForHotelName(name, hotels, office, HOTEL_COORDS);
+  const officePos = office && office.lat != null ? { lat: office.lat, lng: office.lng } : null;
+
+  const drawRoute = (maps, origin, dest, color) => {
+    if (!origin || !dest) return;
+    const renderer = new maps.DirectionsRenderer({
+      map: mapRef.current, suppressMarkers: true, preserveViewport: true,
+      polylineOptions: { strokeColor: color, strokeWeight: 5, strokeOpacity: 0.8 },
+    });
+    const service = new maps.DirectionsService();
+    service.route({ origin, destination: dest, travelMode: maps.TravelMode.DRIVING }, (res, status) => {
+      if (status === "OK") renderer.setDirections(res);
+    });
+    routesRef.current.push(renderer);
+  };
 
   const renderAll = (maps) => {
     markersRef.current.forEach((m) => m.setMap(null));
@@ -55,61 +76,65 @@ export function DriverMap({ drivers, hotels, office, jobs, onJobClick }) {
     routesRef.current = [];
 
     // 営業所マーカー
-    if (office && office.lat != null) {
+    if (officePos) {
       if (officeMarkerRef.current) officeMarkerRef.current.setMap(null);
       officeMarkerRef.current = new maps.Marker({
-        position: { lat: office.lat, lng: office.lng }, map: mapRef.current, title: "営業所(出発・戻り)",
+        position: officePos, map: mapRef.current, title: "営業所(出発・戻り)",
         label: { text: "営", color: "#fff", fontSize: "12px", fontWeight: "700" },
         icon: { path: maps.SymbolPath.CIRCLE, scale: 12, fillColor: "#20262E", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 },
       });
     }
 
-    // ドライバーピン
+    // ドライバーピン(車マーク)
     (drivers || []).forEach((d) => {
       if (!d.latlng) return;
       const st = DRIVER_STATUS[d.status] || { label: "-", color: "#7A8798" };
       const m = new maps.Marker({
         position: d.latlng, map: mapRef.current, title: `${d.car} ${d.name}(${st.label})`,
-        icon: { url: driverPinSvg(d.car, st.label, st.color), anchor: new maps.Point(48, 58), scaledSize: new maps.Size(96, 66) },
+        icon: { url: driverPinSvg(d.car, st.label, st.color), anchor: new maps.Point(52, 66), scaledSize: new maps.Size(104, 74) },
         zIndex: 10,
       });
       markersRef.current.push(m);
     });
 
-    // 未割当ジョブのピン(クリックで割当)
-    (jobs || []).filter((j) => j.jobStatus === "unassigned").forEach((j) => {
+    // 未割当ジョブのピン(直近2時間ぶんのみ・クリックで割当)
+    (pinJobs || []).filter((j) => j.jobStatus === "unassigned").forEach((j) => {
       const pos = coordFor(j.hotel);
       if (!pos) return;
       const m = new maps.Marker({
         position: pos, map: mapRef.current, title: `${j.kind === "send" ? "送り" : "迎え"} ${fmtHour(j.time)} ${j.customer}`,
-        icon: { url: jobPinSvg(j.kind, fmtHour(j.time)), anchor: new maps.Point(38, 53), scaledSize: new maps.Size(76, 60) },
+        icon: { url: jobPinSvg(j.kind, fmtHour(j.time)), anchor: new maps.Point(40, 55), scaledSize: new maps.Size(80, 62) },
         zIndex: 20,
       });
       m.addListener("click", () => onJobClick && onJobClick(j));
       markersRef.current.push(m);
     });
 
-    // ドライバーごとの経路(現在地→次の予定地→その次…を連続した線で)
+    // ドライバーごとの経路
     (drivers || []).forEach((d) => {
       if (!d.latlng) return;
-      const queue = driverQueue(jobs || [], d.car);
-      let originPos = d.latlng;
       const st = DRIVER_STATUS[d.status] || { color: "#2F6DB5" };
-      queue.forEach((j) => {
-        const destPos = coordFor(j.hotel);
-        if (destPos && originPos) {
-          const renderer = new maps.DirectionsRenderer({
-            map: mapRef.current, suppressMarkers: true, preserveViewport: true,
-            polylineOptions: { strokeColor: st.color, strokeWeight: 4, strokeOpacity: 0.75 },
-          });
-          const service = new maps.DirectionsService();
-          service.route({ origin: originPos, destination: destPos, travelMode: maps.TravelMode.DRIVING }, (res, status) => {
-            if (status === "OK") renderer.setDirections(res);
-          });
-          routesRef.current.push(renderer);
-        }
-        originPos = destPos || originPos;
-      });
+      if (d.status === "returning") {
+        // 戻り中：現在地 → 営業所
+        drawRoute(maps, d.latlng, officePos, st.color);
+        return;
+      }
+      if (d.status === "arrived") {
+        // 到着済み：次の担当がなければ営業所へ戻る線
+        const queue = driverQueue(jobs || [], d.car);
+        if (queue.length === 0) { drawRoute(maps, d.latlng, officePos, st.color); return; }
+        let originPos = d.latlng;
+        queue.forEach((j) => { const destPos = coordFor(j.hotel); drawRoute(maps, originPos, destPos, st.color); originPos = destPos || originPos; });
+        return;
+      }
+      if (d.status === "dispatch") {
+        // 送迎中：現在地 → 次の予定地 → その次…
+        const queue = driverQueue(jobs || [], d.car);
+        let originPos = d.latlng;
+        queue.forEach((j) => { const destPos = coordFor(j.hotel); drawRoute(maps, originPos, destPos, st.color); originPos = destPos || originPos; });
+        return;
+      }
+      // waiting は線なし
     });
   };
 
@@ -134,7 +159,7 @@ export function DriverMap({ drivers, hotels, office, jobs, onJobClick }) {
   useEffect(() => {
     if (window.google && window.google.maps && mapRef.current) renderAll(window.google.maps);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drivers, hotels, office, jobs]);
+  }, [drivers, hotels, office, jobs, pinJobs]);
 
   if (err) {
     return <div style={{ width: "100%", aspectRatio: "4 / 3", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#F2F5F9", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, textAlign: "center", color: COLORS.red, fontSize: 13 }}>{err}</div>;
@@ -203,10 +228,11 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
       <SectionTitle sub="直近2時間の送り・迎えを一覧/地図から割り当て。未割当ピンをクリックしてドライバーを選べます">配車管理</SectionTitle>
       <div className="grid-2">
         <Card style={{ padding: 12 }}>
-          <DriverMap drivers={drivers} hotels={hotels} office={office} jobs={allJobs} onJobClick={setPopoverJob} />
+          <DriverMap drivers={drivers} hotels={hotels} office={office} jobs={allJobs} pinJobs={listJobs} onJobClick={setPopoverJob} />
           <div style={{ display: "flex", gap: 14, marginTop: 12, flexWrap: "wrap" }}>
             {Object.entries(DRIVER_STATUS).map(([key, v]) => <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textSub }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: v.color }} />{v.label}</div>)}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textSub }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#C0492B" }} />未割当ジョブ(クリックで割当)</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textSub }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2F6DB5" }} />送り</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textSub }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#3E9C74" }} />迎え(クリックで割当)</div>
           </div>
         </Card>
 

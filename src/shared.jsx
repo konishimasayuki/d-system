@@ -296,7 +296,7 @@ const DRIVER_SPOTS = [
   { lat: 33.6000, lng: 130.4250 }, { lat: 33.5830, lng: 130.4100 }, { lat: 33.5650, lng: 130.4050 }, { lat: 33.5980, lng: 130.3980 },
 ];
 const DRIVER_AREAS = ["中央区", "東区", "博多区", "南区", "中央区", "博多区", "中央区", "東区", "南区", "博多区", "中央区", "博多区", "南区", "博多区", "博多区", "早良区", "東区", "中央区", "南区", "早良区"];
-function generateDrivers() {
+export function generateDrivers() {
   const statusCycle = ["waiting", "dispatch", "waiting", "arrived", "waiting", "returning"];
   return DRIVER_NAME_POOL.map((name, i) => {
     const status = statusCycle[i % statusCycle.length];

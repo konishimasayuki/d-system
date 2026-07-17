@@ -242,7 +242,7 @@ export function generateAllReservations(casts) {
           castId: cast.id, area: hotelArea(hotel), hotel, room: `${300 + ((entry.castIndex * 5 + k * 11 + d * 3) % 600)}号室`,
           course: course.name, options: withShimei ? [{ name: "指名", price: 2000 }] : [],
           price: course.price + (withShimei ? 2000 : 0), status,
-          sendDriver: "未定", pickDriver: "未定", note: "", date: dateStr,
+          sendDriver: "未定", pickDriver: "未定", sendStatus: "unassigned", pickStatus: "unassigned", note: "", date: dateStr,
         });
         idx++;
       }
@@ -285,12 +285,30 @@ export const ALL_RESERVATIONS_10D = generateAllReservations(INITIAL_CASTS_BASE);
 export const INITIAL_CASTS = applyDay0State(INITIAL_CASTS_BASE, ALL_RESERVATIONS_10D);
 export const INITIAL_RESERVATIONS = ALL_RESERVATIONS_10D; // 本日〜10日後、日付(date)付きで全件保持
 
-export const INITIAL_DRIVERS = [
-  { id: "d1", name: "佃", car: "1号車", status: "dispatch", pos: { x: 32, y: 38 }, latlng: { lat: 33.5914, lng: 130.3990 }, dest: "天神プラザホテル", note: "田中様を天神プラザホテルへ送迎中", wage: 1300, hours: 7, loginId: "tsukuda", password: "pass1234" },
-  { id: "d2", name: "森", car: "2号車", status: "arrived", pos: { x: 68, y: 55 }, latlng: { lat: 33.6050, lng: 130.4100 }, dest: "博多ベイサイドホテル", note: "佐藤様を博多ベイサイドホテルへ送迎(到着済)", wage: 1300, hours: 6, loginId: "mori", password: "pass1234" },
-  { id: "d3", name: "野口", car: "3号車", status: "waiting", pos: { x: 45, y: 20 }, latlng: { lat: 33.5896, lng: 130.4050 }, dest: null, note: "中央区エリアで待機中", wage: 1250, hours: 8, loginId: "noguchi", password: "pass1234" },
-  { id: "d4", name: "堤", car: "4号車", status: "returning", pos: { x: 20, y: 70 }, latlng: { lat: 33.5700, lng: 130.4200 }, dest: "営業所", note: "南区より営業所へ戻り中", wage: 1250, hours: 5, loginId: "tsutsumi", password: "pass1234" },
+const DRIVER_NAME_POOL = ["佃", "森", "野口", "堤", "本田", "川島", "浜田", "秋山", "宮下", "北村", "西田", "岡崎", "藤井", "村上", "松岡"];
+const DRIVER_LOGIN_POOL = ["tsukuda", "mori", "noguchi", "tsutsumi", "honda", "kawashima", "hamada", "akiyama", "miyashita", "kitamura", "nishida", "okazaki", "fujii", "murakami", "matsuoka"];
+// 福岡市内に大まかに散らした待機座標(営業所周辺〜各区)
+const DRIVER_SPOTS = [
+  { lat: 33.5914, lng: 130.3990 }, { lat: 33.6050, lng: 130.4100 }, { lat: 33.5896, lng: 130.4050 }, { lat: 33.5700, lng: 130.4200 },
+  { lat: 33.5805, lng: 130.4225 }, { lat: 33.5930, lng: 130.4060 }, { lat: 33.5850, lng: 130.4017 }, { lat: 33.6200, lng: 130.4300 },
+  { lat: 33.5620, lng: 130.4260 }, { lat: 33.5945, lng: 130.4050 }, { lat: 33.5860, lng: 130.4010 }, { lat: 33.5920, lng: 130.4130 },
+  { lat: 33.5680, lng: 130.4180 }, { lat: 33.5895, lng: 130.4205 }, { lat: 33.5900, lng: 130.4200 },
 ];
+function generateDrivers() {
+  const statusCycle = ["waiting", "dispatch", "waiting", "arrived", "waiting", "returning"];
+  return DRIVER_NAME_POOL.map((name, i) => {
+    const status = statusCycle[i % statusCycle.length];
+    return {
+      id: `d${i + 1}`, name, car: `${i + 1}号車`, status,
+      pos: { x: 20 + (i * 11) % 60, y: 20 + (i * 17) % 60 },
+      latlng: DRIVER_SPOTS[i % DRIVER_SPOTS.length],
+      dest: null, note: status === "waiting" ? "待機中" : "",
+      wage: 1250 + (i % 3) * 25, hours: 5 + (i % 4),
+      loginId: DRIVER_LOGIN_POOL[i], password: "pass1234",
+    };
+  });
+}
+export const INITIAL_DRIVERS = generateDrivers();
 
 export const INITIAL_CUSTOMERS = [
   { id: "u1", name: "田中様", phones: ["090-XXXX-1111", "092-XXX-1111"], address: "福岡市中央区天神X-X", email: "tanaka@example.com", visits: 14, lastVisit: "2026-06-28", colorLevel: "vip", note: "常連。指名多め",
@@ -425,6 +443,75 @@ export function AreaHotel({ area, hotel }) { if (area === "-" || !area) return <
 export function castFullName(c) { if (!c) return "未割当"; return c.sei ? `${c.sei} ${c.name}` : c.name; }
 export function findCast(casts, nameStr) { return casts.find((c) => c.name === nameStr || castFullName(c) === nameStr); }
 export function hotelArea(hotel) { for (const [a, list] of Object.entries(HOTELS_BY_AREA)) if (list.includes(hotel)) return a; return "中央区"; }
+
+// ホテル名(または"営業所")から座標を引く(生きたhotelsリスト優先、無ければHOTEL_COORDSにフォールバック)
+export function coordForHotelName(name, hotels, office, HOTEL_COORDS) {
+  if (!name) return null;
+  if (name === "営業所") return office && office.lat != null ? { lat: office.lat, lng: office.lng } : null;
+  const h = (hotels || []).find((x) => x.name === name);
+  if (h && h.lat != null) return { lat: h.lat, lng: h.lng };
+  return (HOTEL_COORDS && HOTEL_COORDS[name]) || null;
+}
+
+// ============================================================
+// 配車ジョブ(送り・迎え)
+//  1予約 = 送りジョブ + 迎えジョブ の2本として扱う
+// ============================================================
+export const JOB_STATUS = {
+  unassigned: { label: "未割当", color: "#C0492B" },
+  assigned: { label: "割当済み", color: "#E08A1E" },
+  enroute: { label: "向かってます", color: "#2F6DB5" },
+  arrived: { label: "到着済み", color: "#3E9C74" },
+};
+
+// 本日の予約から「送り」「迎え」ジョブを組み立てる(場所が確定しているもののみ)
+export function buildDispatchJobs(reservations, dateStr) {
+  const jobs = [];
+  reservations
+    .filter((r) => r.date === dateStr && r.status !== "キャンセル" && r.hotel && r.hotel !== "-")
+    .forEach((r) => {
+      jobs.push({
+        id: `${r.id}-send`, reservationId: r.id, kind: "send",
+        time: r.start, hotel: r.hotel, room: r.room, castId: r.castId, customer: r.customer,
+        driverCar: r.sendDriver || "未定", jobStatus: r.sendStatus || (r.sendDriver && r.sendDriver !== "未定" ? "assigned" : "unassigned"),
+      });
+      jobs.push({
+        id: `${r.id}-pick`, reservationId: r.id, kind: "pick",
+        time: r.start + r.dur, hotel: r.hotel, room: r.room, castId: r.castId, customer: r.customer,
+        driverCar: r.pickDriver || "未定", jobStatus: r.pickStatus || (r.pickDriver && r.pickDriver !== "未定" ? "assigned" : "unassigned"),
+      });
+    });
+  return jobs.sort((a, b) => a.time - b.time);
+}
+
+// 指定した車が担当する、本日の未完了ジョブ(到着済み以外)を時刻順で
+export function driverQueue(jobs, car) {
+  return jobs.filter((j) => j.driverCar === car && j.jobStatus !== "arrived").sort((a, b) => a.time - b.time);
+}
+
+// 予約への割当変更(送り/迎え共通)。setReservationsにそのまま渡せる更新関数を返す
+export function applyJobAssignment(reservationId, kind, driverCarOrNull) {
+  return (prev) => prev.map((r) => {
+    if (r.id !== reservationId) return r;
+    if (kind === "send") return { ...r, sendDriver: driverCarOrNull || "未定", sendStatus: driverCarOrNull ? "assigned" : "unassigned" };
+    return { ...r, pickDriver: driverCarOrNull || "未定", pickStatus: driverCarOrNull ? "assigned" : "unassigned" };
+  });
+}
+
+// ジョブの状態を進める(割当済み→向かっています→到着済み)。到着時は本体のstatusも連動させる
+export function advanceJobStatus(reservationId, kind, nextJobStatus) {
+  return (prev) => prev.map((r) => {
+    if (r.id !== reservationId) return r;
+    const patch = kind === "send" ? { sendStatus: nextJobStatus } : { pickStatus: nextJobStatus };
+    if (nextJobStatus === "arrived") {
+      if (kind === "send" && (r.status === "受付済" || r.status === "移動中")) patch.status = "接客中";
+      if (kind === "pick" && r.status !== "キャンセル") patch.status = "終了";
+    } else if (nextJobStatus === "enroute" && kind === "send" && r.status === "受付済") {
+      patch.status = "移動中";
+    }
+    return { ...r, ...patch };
+  });
+}
 export function parseTimeToHour(t) {
   if (!t || t === "-") return null;
   const m = String(t).match(/(\d+):(\d+)/);

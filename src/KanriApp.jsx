@@ -145,10 +145,10 @@ const INITIAL_DRIVERS = [
 ];
 
 const INITIAL_RESERVATIONS = [
-  { id: "r1", start: 19.5, dur: 1.5, customer: "田中様", castId: "c1", area: "中央区", hotel: "天神プラザホテル", course: "90分コース", price: 21000, status: "接客中", sendDriver: "1号車", pickDriver: "1号車" },
-  { id: "r2", start: 20, dur: 1, customer: "佐藤様", castId: "c2", area: "東区", hotel: "博多ベイサイドホテル", course: "60分コース", price: 18000, status: "移動中", sendDriver: "2号車", pickDriver: "未定" },
-  { id: "r3", start: 21, dur: 1.5, customer: "鈴木様", castId: "c4", area: "中央区", hotel: "中央グランドイン", course: "90分コース", price: 21000, status: "受付済", sendDriver: "3号車", pickDriver: "未定" },
-  { id: "r4", start: 22.5, dur: 2, customer: "新規 山本様", castId: null, area: "中央区", hotel: "-", course: "120分コース", price: 28000, status: "問合せ中", sendDriver: "未定", pickDriver: "未定" },
+  { id: "r1", start: 19.5, dur: 1.5, customer: "田中様", phone: "090-XXXX-1111", castId: "c1", area: "中央区", hotel: "天神プラザホテル", room: "802号室", course: "90分コース", options: [{ name: "本指名", price: 3000 }], price: 24000, status: "接客中", sendDriver: "1号車", pickDriver: "1号車", note: "" },
+  { id: "r2", start: 20, dur: 1, customer: "佐藤様", phone: "080-XXXX-2222", castId: "c2", area: "東区", hotel: "博多ベイサイドホテル", room: "1201号室", course: "60分コース", options: [{ name: "指名", price: 2000 }], price: 20000, status: "移動中", sendDriver: "2号車", pickDriver: "未定", note: "" },
+  { id: "r3", start: 21, dur: 1.5, customer: "鈴木様", phone: "070-XXXX-3333", castId: "c4", area: "中央区", hotel: "中央グランドイン", room: "505号室", course: "90分コース", options: [], price: 21000, status: "受付済", sendDriver: "3号車", pickDriver: "未定", note: "現金払い" },
+  { id: "r4", start: 22.5, dur: 2, customer: "新規 山本様", phone: "080-XXXX-4444", castId: null, area: "中央区", hotel: "-", room: "", course: "120分コース", options: [], price: 28000, status: "問合せ中", sendDriver: "未定", pickDriver: "未定", note: "" },
 ];
 
 const INITIAL_CUSTOMERS = [
@@ -284,6 +284,12 @@ function AreaHotel({ area, hotel }) { if (area === "-" || !area) return <span>-<
 function castFullName(c) { return c ? `${c.sei} ${c.name}` : "未割当"; }
 function findCast(casts, nameStr) { return casts.find((c) => c.name === nameStr || castFullName(c) === nameStr); }
 function hotelArea(hotel) { for (const [a, list] of Object.entries(HOTELS_BY_AREA)) if (list.includes(hotel)) return a; return "中央区"; }
+function parseTimeToHour(t) {
+  if (!t || t === "-") return null;
+  const m = String(t).match(/(\d+):(\d+)/);
+  if (!m) return null;
+  return Number(m[1]) + Number(m[2]) / 60;
+}
 function StatCard({ label, value, color, unit }) {
   return (
     <Card>
@@ -435,40 +441,200 @@ function Dashboard({ casts, reservations }) {
 }
 
 // ============================================================
-// タイムテーブル
+// 予約詳細モーダル(受付内容の確認・状態変更・キャンセル)
 // ============================================================
-function Timetable({ reservations, casts }) {
-  const hours = [18, 19, 20, 21, 22, 23, 24, 25];
-  const castName = (id) => castFullName(casts.find((c) => c.id === id));
-  const rows = reservations.filter((r) => r.castId);
-  const colW = 90;
-  const statusColor = (s) => (s === "接客中" ? COLORS.accent : s === "移動中" ? COLORS.blue : COLORS.green);
+function ReservationDetailModal({ reservation, casts, onClose, onUpdate }) {
+  const r = reservation;
+  const cast = casts.find((c) => c.id === r.castId);
+  const [status, setStatus] = useState(r.status);
+  const [note, setNote] = useState(r.note || "");
+  const endHour = r.start + r.dur;
+  const fmt = (h) => `${Math.floor(h)}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
+  const optionsTotal = (r.options || []).reduce((a, o) => a + o.price, 0);
+  const coursePrice = r.price - optionsTotal;
+  const resStatusColor = (s) => s === "接客中" ? "#2F6DB5" : s === "移動中" ? "#5C93C4" : s === "受付済" ? "#3E9C74" : s === "終了" ? "#7A8798" : s === "キャンセル" ? "#B5541F" : "#E08A1E";
+  const save = () => { onUpdate({ ...r, status, note }); onClose(); };
+  const cancel = () => { onUpdate({ ...r, status: "キャンセル", note }); onClose(); };
+  const statusOptions = ["問合せ中", "受付済", "移動中", "接客中", "終了", "キャンセル"];
+  return (
+    <Modal title={`受付詳細（No.${r.id.replace(/[^0-9]/g, "")}）`} onClose={onClose} wide>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.textMain, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(r.start)} 〜 {fmt(endHour)}</div>
+        <span style={{ fontSize: 12, fontWeight: 700, color: resStatusColor(status), background: `${resStatusColor(status)}1F`, padding: "4px 12px", borderRadius: 999 }}>{status}</span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 11, color: COLORS.textSub, fontWeight: 600, marginBottom: 3 }}>顧客名</div>
+          <div style={{ fontSize: 15, color: COLORS.textMain, fontWeight: 700 }}>{r.customer}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: COLORS.textSub, fontWeight: 600, marginBottom: 3 }}>電話番号</div>
+          <div style={{ fontSize: 15, color: COLORS.textMain, fontFamily: "'JetBrains Mono', monospace" }}>{r.phone || "-"}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: COLORS.textSub, fontWeight: 600, marginBottom: 3 }}>担当キャスト</div>
+          <div style={{ fontSize: 15, color: COLORS.textMain, fontWeight: 700 }}>{cast ? castFullName(cast) : "未定"}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: COLORS.textSub, fontWeight: 600, marginBottom: 3 }}>場所</div>
+          <div style={{ fontSize: 15, color: COLORS.textMain }}>{r.hotel}{r.room ? ` ${r.room}` : ""}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: COLORS.textSub, fontWeight: 600, marginBottom: 3 }}>送りドライバー</div>
+          <div style={{ fontSize: 15, color: COLORS.textMain }}>{r.sendDriver}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: COLORS.textSub, fontWeight: 600, marginBottom: 3 }}>迎えドライバー</div>
+          <div style={{ fontSize: 15, color: COLORS.textMain }}>{r.pickDriver}</div>
+        </div>
+      </div>
+
+      <div style={{ background: "#EDF3FA", borderRadius: 10, padding: 14, marginBottom: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: COLORS.textMain, marginBottom: 6 }}><span>コース：{r.course}</span><Yen value={coursePrice} /></div>
+        {(r.options || []).map((o) => (
+          <div key={o.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: COLORS.textSub, marginBottom: 6 }}><span>オプション：{o.name}</span><Yen value={o.price} /></div>
+        ))}
+        {(!r.options || r.options.length === 0) && <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 6 }}>オプション：なし</div>}
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15, fontWeight: 800, color: COLORS.accentDark, borderTop: `1px solid ${COLORS.border}`, paddingTop: 8, marginTop: 4 }}><span>合計金額</span><Yen value={r.price} /></div>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: COLORS.textSub, fontWeight: 600, marginBottom: 4 }}>メモ</div>
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="対応時の注意事項など" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+      </div>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <SelectField label="状態を変更" value={status} onChange={setStatus} options={statusOptions} />
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+        <button onClick={cancel} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>この予約を取消</button>
+        <PrimaryButton onClick={save} style={{ flex: 2 }}>保存して閉じる</PrimaryButton>
+      </div>
+    </Modal>
+  );
+}
+
+// ============================================================
+// メモ編集モーダル
+// ============================================================
+function CastMemoModal({ cast, onClose, onSave }) {
+  const [text, setText] = useState(cast.comment || "");
+  return (
+    <Modal title={`${castFullName(cast)} のメモ`} onClose={onClose}>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder="対応上の注意事項・特記事項など" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box", resize: "vertical", fontFamily: "inherit", marginBottom: 12 }} />
+      <PrimaryButton onClick={() => { onSave(text); onClose(); }} style={{ width: "100%" }}>保存する</PrimaryButton>
+    </Modal>
+  );
+}
+
+// ============================================================
+// タイムテーブル(デリヘル仕様：勤務時間外/待機中/予約中を色分け、
+//  現在時刻ライン、状態プルダウン、メモ、クリックで詳細モーダル)
+// ============================================================
+const TT_HOURS = Array.from({ length: 17 }, (_, i) => 12 + i); // 12:00〜翌4:00(29時)
+function ttLabel(h) { const hh = h % 24; return `${hh}${h >= 24 ? "" : ""}`; }
+
+function Timetable({ reservations, casts, setCasts, onOpenReservation }) {
+  const colW = 64;
+  const nameColW = 150;
+  const [now, setNow] = useState(new Date());
+  const [memoCast, setMemoCast] = useState(null);
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(t); }, []);
+
+  const castName = (id) => { const c = casts.find((x) => x.id === id); return c ? castFullName(c) : "-"; };
+  const workingCasts = casts.filter((c) => c.status !== "off");
+  const totalW = TT_HOURS.length * colW;
+
+  let nowHour = now.getHours() + now.getMinutes() / 60;
+  if (nowHour < TT_HOURS[0]) nowHour += 24;
+  const showNowLine = nowHour >= TT_HOURS[0] && nowHour <= TT_HOURS[TT_HOURS.length - 1] + 1;
+  const nowLeft = (nowHour - TT_HOURS[0]) * colW;
+
+  const resColor = (status) => status === "接客中" ? { bg: "#2F6DB5", text: "#FFFFFF" }
+    : status === "移動中" ? { bg: "#5C93C4", text: "#FFFFFF" }
+    : status === "受付済" ? { bg: "#3E9C74", text: "#FFFFFF" }
+    : status === "終了" ? { bg: "#B7C2D0", text: "#FFFFFF" }
+    : status === "キャンセル" ? { bg: "#E3D6D2", text: "#8A6A5E" }
+    : { bg: "#E08A1E", text: "#FFFFFF" }; // 問合せ中など
+
   return (
     <div>
-      <SectionTitle sub="利用履歴から自動生成される時間割(接客中・移動中を色分け)">タイムテーブル</SectionTitle>
+      <SectionTitle sub="出勤中キャストの本日の予定。白=待機中／グレー=勤務時間外／色付き=予約中(クリックで詳細)">タイムテーブル</SectionTitle>
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">
-          <div style={{ minWidth: 120 + hours.length * colW }}>
-            <div style={{ display: "flex", background: "#EDF3FA", borderBottom: `1px solid ${COLORS.border}` }}>
-              <div style={{ width: 120, padding: "10px 12px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, flexShrink: 0 }}>キャスト</div>
-              {hours.map((h) => <div key={h} style={{ width: colW, padding: "10px 0", textAlign: "center", fontSize: 12, color: COLORS.textSub, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0, borderLeft: `1px solid ${COLORS.border}` }}>{h}:00</div>)}
+          <div style={{ minWidth: nameColW + totalW, position: "relative" }}>
+            {/* ヘッダー(時間軸) */}
+            <div style={{ display: "flex", background: "#EDF3FA", borderBottom: `1px solid ${COLORS.border}`, position: "sticky", top: 0, zIndex: 2 }}>
+              <div style={{ width: nameColW, padding: "10px 12px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, flexShrink: 0 }}>キャスト</div>
+              {TT_HOURS.map((h) => <div key={h} style={{ width: colW, padding: "10px 0", textAlign: "center", fontSize: 11.5, color: COLORS.textSub, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0, borderLeft: `1px solid ${COLORS.border}` }}>{h % 24}:00</div>)}
             </div>
-            {rows.map((r) => {
-              const left = (r.start - hours[0]) * colW;
-              const width = r.dur * colW;
+
+            {/* 行 */}
+            {workingCasts.map((c) => {
+              const shiftStart = parseTimeToHour(c.shiftStart);
+              const shiftEnd = parseTimeToHour(c.shiftEnd);
+              const rows = reservations.filter((r) => r.castId === c.id);
               return (
-                <div key={r.id} style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, position: "relative", height: 48 }}>
-                  <div style={{ width: 120, padding: "0 12px", fontSize: 13, color: COLORS.textMain, flexShrink: 0, display: "flex", alignItems: "center" }}>{castName(r.castId)}</div>
-                  <div style={{ position: "relative", flex: 1 }}>
-                    {hours.map((h, i) => <div key={h} style={{ position: "absolute", left: i * colW, top: 0, bottom: 0, width: 1, background: COLORS.border }} />)}
-                    <div style={{ position: "absolute", top: 8, left, width: width - 6, height: 32, background: `${statusColor(r.status)}22`, border: `1.5px solid ${statusColor(r.status)}`, borderRadius: 8, display: "flex", alignItems: "center", padding: "0 8px", fontSize: 11, color: statusColor(r.status), fontWeight: 600, overflow: "hidden", whiteSpace: "nowrap" }}>{r.customer} / {r.course}</div>
+                <div key={c.id} style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, position: "relative", height: 56 }}>
+                  {/* 名前列 */}
+                  <div style={{ width: nameColW, padding: "6px 10px", flexShrink: 0, display: "flex", alignItems: "center", gap: 8, background: "#FAFBFD" }}>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: COLORS.accentBg, color: COLORS.accentDark, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{c.name[0]}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.textMain, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{castFullName(c)}</div>
+                      <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 2 }}>
+                        <select value={c.status} onChange={(e) => setCasts((prev) => prev.map((x) => x.id === c.id ? { ...x, status: e.target.value } : x))} style={{ fontSize: 10, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "1px 3px", color: COLORS.textMain, background: "#FFF" }}>
+                          {Object.entries(CAST_STATUS).map(([key, v]) => <option key={key} value={key}>{v.label}</option>)}
+                        </select>
+                        <button onClick={() => setMemoCast(c)} title="メモ" style={{ fontSize: 9, border: `1px solid ${c.comment ? COLORS.accent : COLORS.border}`, borderRadius: 6, padding: "1px 5px", color: c.comment ? COLORS.accent : COLORS.textSub, background: "#FFF", cursor: "pointer" }}>メモ</button>
+                      </div>
+                    </div>
+                  </div>
+                  {/* グリッド本体 */}
+                  <div style={{ position: "relative", width: totalW, flexShrink: 0 }}>
+                    {TT_HOURS.map((h, i) => {
+                      const outside = shiftStart == null || shiftEnd == null || h < shiftStart || h >= shiftEnd;
+                      return <div key={h} style={{ position: "absolute", left: i * colW, top: 0, width: colW, height: "100%", borderLeft: `1px solid ${COLORS.border}`, background: outside ? "#EEF0F3" : "#FFFFFF" }} />;
+                    })}
+                    {rows.map((r) => {
+                      const left = (r.start - TT_HOURS[0]) * colW;
+                      const width = r.dur * colW - 4;
+                      const col = resColor(r.status);
+                      const endH = r.start + r.dur;
+                      const fmt = (h) => `${Math.floor(h)}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
+                      return (
+                        <div key={r.id} onClick={() => onOpenReservation(r)}
+                          style={{ position: "absolute", top: 5, left: left + 2, width: Math.max(width, colW - 6), height: 46, background: col.bg, color: col.text, borderRadius: 8, padding: "4px 8px", overflow: "hidden", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.15)" }}>
+                          <div style={{ fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.hotel === "-" ? r.customer : r.hotel}</div>
+                          <div style={{ fontSize: 9.5, opacity: 0.9, whiteSpace: "nowrap" }}>{fmt(r.start)}-{fmt(endH)} {r.customer}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
             })}
+
+            {/* 現在時刻ライン */}
+            {showNowLine && (
+              <div style={{ position: "absolute", top: 0, bottom: 0, left: nameColW + nowLeft, width: 2, background: "#3E9C74", zIndex: 3, pointerEvents: "none" }}>
+                <div style={{ position: "absolute", top: -6, left: -4, width: 10, height: 10, borderRadius: "50%", background: "#3E9C74" }} />
+              </div>
+            )}
           </div>
         </div>
       </Card>
+
+      <div style={{ display: "flex", gap: 16, marginTop: 12, flexWrap: "wrap", fontSize: 12, color: COLORS.textSub }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 14, height: 14, borderRadius: 3, background: "#FFFFFF", border: `1px solid ${COLORS.border}` }} />待機中(勤務時間内)</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 14, height: 14, borderRadius: 3, background: "#EEF0F3", border: `1px solid ${COLORS.border}` }} />勤務時間外</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 14, height: 14, borderRadius: 3, background: "#3E9C74" }} />受付済</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 14, height: 14, borderRadius: 3, background: "#5C93C4" }} />移動中</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 14, height: 14, borderRadius: 3, background: "#2F6DB5" }} />接客中</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 2, height: 14, background: "#3E9C74" }} />現在時刻</div>
+      </div>
+
+      {memoCast && <CastMemoModal cast={memoCast} onClose={() => setMemoCast(null)} onSave={(text) => setCasts((prev) => prev.map((x) => x.id === memoCast.id ? { ...x, comment: text } : x))} />}
     </div>
   );
 }
@@ -515,11 +681,15 @@ function NewReservationModal({ prefillCustomer, casts, drivers, reservations, co
   const last = prefillCustomer?.history?.[0];
   const prefillCast = last ? findCast(casts, last.cast) : null;
   const [customer, setCustomer] = useState(prefillCustomer?.name || "");
+  const [phone, setPhone] = useState(prefillCustomer?.phones?.[0] || "");
   const [castName, setCastName] = useState(prefillCast ? castFullName(prefillCast) : (casts[0] ? castFullName(casts[0]) : ""));
   const [course, setCourse] = useState(last?.course || courses[0]?.name || "");
   const [hotel, setHotel] = useState(last?.hotel || ALL_HOTELS[0]);
+  const [room, setRoom] = useState("");
   const [start, setStart] = useState("21");
   const [sendDriver, setSendDriver] = useState(drivers[0]?.car || "未定");
+  const [selectedOptions, setSelectedOptions] = useState([]);
+  const toggleOption = (opt) => setSelectedOptions((prev) => prev.some((o) => o.name === opt.name) ? prev.filter((o) => o.name !== opt.name) : [...prev, opt]);
 
   const selectedCast = findCast(casts, castName);
   const startNum = Number(start);
@@ -528,12 +698,13 @@ function NewReservationModal({ prefillCustomer, casts, drivers, reservations, co
     return Math.abs(r.start - startNum) < 1.5;
   });
   const driverConflict = reservations.find((r) => r.sendDriver === sendDriver && sendDriver !== "未定" && Math.abs(r.start - startNum) < 1);
+  const coursePrice = courses.find((c) => c.name === course)?.price || 0;
+  const optionsTotal = selectedOptions.reduce((a, o) => a + o.price, 0);
 
   const create = () => {
-    const price = courses.find((c) => c.name === course)?.price || 0;
     onCreate({
       id: `r${reservations.length + 1}`, start: startNum, dur: course.includes("120") ? 2 : course.includes("90") ? 1.5 : 1,
-      customer, castId: selectedCast?.id || null, area: hotelArea(hotel), hotel, course, price, status: "受付済", sendDriver, pickDriver: "未定",
+      customer, phone, castId: selectedCast?.id || null, area: hotelArea(hotel), hotel, room, course, options: selectedOptions, price: coursePrice + optionsTotal, status: "受付済", sendDriver, pickDriver: "未定", note: "",
     });
     onClose();
   };
@@ -545,14 +716,33 @@ function NewReservationModal({ prefillCustomer, casts, drivers, reservations, co
           📋 {prefillCustomer.name}の前回利用を引用: {last.cast} / {last.course} / {last.option} / {last.hotel}
         </div>
       )}
-      <TextField label="顧客名" value={customer} onChange={setCustomer} placeholder="例: 田中様" />
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 2 }}><TextField label="顧客名" value={customer} onChange={setCustomer} placeholder="例: 田中様" /></div>
+        <div style={{ flex: 2 }}><TextField label="電話番号" value={phone} onChange={setPhone} placeholder="090-XXXX-XXXX" /></div>
+      </div>
       <SelectField label="指名キャスト" value={castName} onChange={setCastName} options={casts.map((c) => castFullName(c))} />
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 2 }}><SelectField label="ホテル" value={hotel} onChange={setHotel} options={ALL_HOTELS} /></div>
+        <div style={{ flex: 1 }}><TextField label="号室" value={room} onChange={setRoom} placeholder="例: 802号室" /></div>
+      </div>
       <SelectField label="コース" value={course} onChange={setCourse} options={courses.map((c) => c.name)} />
-      <SelectField label="ホテル" value={hotel} onChange={setHotel} options={ALL_HOTELS} />
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 6, fontWeight: 600 }}>オプション</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {OPTION_POOL.map((name) => {
+            const price = INITIAL_OPTIONS.find((o) => o.name === name)?.price ?? 2000;
+            const on = selectedOptions.some((o) => o.name === name);
+            return (
+              <button key={name} onClick={() => toggleOption({ name, price })} style={{ padding: "6px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${on ? COLORS.accent : COLORS.border}`, background: on ? COLORS.accent : "#FFF", color: on ? "#FFF" : COLORS.textMain }}>{name}</button>
+            );
+          })}
+        </div>
+      </div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><SelectField label="開始時刻" value={start} onChange={setStart} options={["18", "19", "20", "21", "22", "23", "24"]} /></div>
         <div style={{ flex: 1 }}><SelectField label="送りドライバー" value={sendDriver} onChange={setSendDriver} options={[...drivers.map((d) => d.car), "未定"]} /></div>
       </div>
+      <div style={{ fontSize: 13, color: COLORS.textSub, marginBottom: 8 }}>合計金額目安：<span style={{ color: COLORS.textMain, fontWeight: 700 }}><Yen value={coursePrice + optionsTotal} /></span>（コース<Yen value={coursePrice} />{optionsTotal > 0 && <> + オプション<Yen value={optionsTotal} /></>}）</div>
       {conflict && <div style={{ color: COLORS.red, fontSize: 13, fontWeight: 700, marginBottom: 8 }}>⚠ バッティング警告: {castName}は{conflict.start}:00に既に予約があります</div>}
       {driverConflict && <div style={{ color: "#B58A1F", fontSize: 12, marginBottom: 8 }}>⚠ {sendDriver}は同時間帯に別の送迎があります</div>}
       <PrimaryButton onClick={create} disabled={!!conflict} style={{ width: "100%", marginTop: 6 }}>{conflict ? "重複のため受付不可" : "この内容で予約受付"}</PrimaryButton>
@@ -1667,6 +1857,7 @@ export default function KanriApp() {
   const syncMsg = syncErrors[0] || "";
   const [menuOpen, setMenuOpen] = useState(false);
   const [ctiCustomer, setCtiCustomer] = useState(null);
+  const [openReservation, setOpenReservation] = useState(null);
   const [quoteCustomer, setQuoteCustomer] = useState(null);
 
   const allowed = VIEW_ROLES[role].tabs;
@@ -1720,7 +1911,7 @@ export default function KanriApp() {
 
         <div className="main-content" style={{ flex: 1, padding: "28px 32px", minWidth: 0 }}>
           {tab === "dashboard" && <Dashboard casts={casts} reservations={reservations} />}
-          {tab === "timetable" && <Timetable reservations={reservations} casts={casts} />}
+          {tab === "timetable" && <Timetable reservations={reservations} casts={casts} setCasts={setCasts} onOpenReservation={setOpenReservation} />}
           {tab === "shift" && <ShiftManagement casts={casts} setCasts={setCasts} />}
           {tab === "castlist" && <CastList casts={casts} setCasts={setCasts} />}
           {tab === "reservation" && <ReservationManagement reservations={reservations} setReservations={setReservations} casts={casts} drivers={drivers} courses={INITIAL_COURSES} />}
@@ -1739,6 +1930,7 @@ export default function KanriApp() {
 
       {ctiCustomer && <CtiPopup customer={ctiCustomer} onClose={() => setCtiCustomer(null)} onReserve={startQuote} />}
       {quoteCustomer && <NewReservationModal prefillCustomer={quoteCustomer} casts={casts} drivers={drivers} reservations={reservations} courses={INITIAL_COURSES} onClose={() => setQuoteCustomer(null)} onCreate={(r) => { setReservations((prev) => [...prev, r]); setTab("reservation"); }} />}
+      {openReservation && <ReservationDetailModal reservation={openReservation} casts={casts} onClose={() => setOpenReservation(null)} onUpdate={(u) => setReservations((prev) => prev.map((x) => x.id === u.id ? u : x))} />}
     </div>
   );
 }

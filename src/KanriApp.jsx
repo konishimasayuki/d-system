@@ -152,18 +152,37 @@ const CAST_SEI = [
 const OPTION_POOL = ["指名", "本指名", "延長30分", "コスプレ", "ロングコース"];
 const FAMILY_NAMES = ["佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村", "小林", "加藤"];
 
+// ============================================================
+// 24時間営業スケジュール生成(本日+今後10日分)
+//  同時稼働(待機+接客)が常に約25人前後になるよう、
+//  1時間あたり5人がシフトイン、1シフト5時間で回す設計
+// ============================================================
+const NUM_DAYS = 10;
+function isoDate(dt) { return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`; }
+function dayLabel(dt) { const w = ["日", "月", "火", "水", "木", "金", "土"][dt.getDay()]; return `${dt.getMonth() + 1}/${dt.getDate()}(${w})`; }
+const DAY_DATES = Array.from({ length: NUM_DAYS }, (_, d) => { const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(dt.getDate() + d); return dt; });
+
+const DAY_ROTATION_STEP = 131; // 日ごとに違う顔ぶれにするための回転幅
+const SHIFT_LEN = 5;           // 1シフト5時間
+const STARTERS_PER_HOUR = 5;   // 毎時5人が出勤 → 同時稼働 5*5=25人前後を維持
+
+// dayIndex(0=本日〜9=10日後)の出勤スケジュールを返す(24*5=120人/日)
+function daySchedule(dayIndex) {
+  const N = CAST_NAMES.length;
+  const offset = (dayIndex * DAY_ROTATION_STEP) % N;
+  const entries = [];
+  for (let idxInDay = 0; idxInDay < 24 * STARTERS_PER_HOUR; idxInDay++) {
+    const hour = Math.floor(idxInDay / STARTERS_PER_HOUR);
+    const castIndex = (offset + idxInDay) % N;
+    entries.push({ castIndex, shiftStart: hour, shiftEnd: hour + SHIFT_LEN });
+  }
+  return entries;
+}
+
+// キャストの基本情報(身分・個人情報)のみを生成。稼働状態は後段で本日分を上書き
 function generateCasts() {
-  const statusPattern = ["waiting", "working", "before_shift", "working", "waiting", "off", "before_shift", "waiting"];
   const idTypes = ["運転免許証", "マイナンバーカード", "パスポート", "健康保険証"];
   return CAST_NAMES.map((name, i) => {
-    const status = statusPattern[i % statusPattern.length];
-    const hotel = status === "working" ? ALL_HOTELS[i % ALL_HOTELS.length] : null;
-    const shiftHour = 17 + (i % 5);
-    const shiftLenHour = 6 + (i % 3); // 6,7,8時間
-    // 出勤時間に応じた本数(目安：6時間で3本 ≒ 1時間0.5本)
-    const rateVariance = [0, 1, -1, 0, 1][i % 5];
-    const todayCount = status === "off" || status === "before_shift" ? 0 : Math.max(1, Math.round(shiftLenHour * 0.5) + rateVariance);
-    const todaySales = todayCount * (18000 + (i % 4) * 3000);
     const stdDaysAgo = [20, 55, 88, 30, 10, 70][i % 6];
     const stdLast = new Date(2026, 5, 30); stdLast.setDate(stdLast.getDate() - stdDaysAgo);
     const age = 21 + (i % 9);
@@ -175,22 +194,98 @@ function generateCasts() {
     return {
       id: `c${i + 1}`, name, sei: "", // 単独源氏名(姓なし)
       honmyo: `${FAMILY_NAMES[i % FAMILY_NAMES.length]} ${["彩", "舞", "結", "楓", "咲"][i % 5]}子`,
-      age, birthday, status,
+      age, birthday,
+      status: "off", shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, // ← applyDay0Stateで本日分を上書き
       phone: `090-${String(1000 + i).slice(-4)}-${String(2000 + i * 3).slice(-4)}`,
       address: `福岡市${["中央区", "博多区", "東区", "南区"][i % 4]}${["大名", "今泉", "薬院", "春吉"][i % 4]}${(i % 5) + 1}-${(i % 20) + 1}-${(i % 15) + 1}`,
       idType: idTypes[i % idTypes.length],
       idNo: `${String(1000 + i * 13).slice(-4)}-${String(5000 + i * 7).slice(-4)}-${String(9000 - i * 3).slice(-4)}`,
       joinDate,
-      shiftStart: status === "off" ? "-" : `${shiftHour}:00`,
-      shiftEnd: status === "off" ? "-" : `${shiftHour + shiftLenHour}:00`,
-      hotel, todayCount, todaySales,
       itakuRate: 0.5 + (i % 3) * 0.05, idVerified: i % 7 !== 0,
       stdLast: stdLast.toISOString().slice(0, 10),
       okOptions, comment: "",
     };
   });
 }
-const INITIAL_CASTS = generateCasts();
+const INITIAL_CASTS_BASE = generateCasts();
+
+const CUSTOMER_SURNAMES = ["田中", "佐藤", "鈴木", "高橋", "伊藤", "渡辺", "山本", "中村", "小林", "加藤", "吉田", "山田", "佐々木", "山口", "松本", "井上", "木村", "林", "清水", "斎藤"];
+
+// 本日〜10日後まで、各日のスケジュールに沿って予約を自動生成(10分単位)
+function generateAllReservations(casts) {
+  const list = [];
+  let idx = 1;
+  const durPattern = [1, 1.5, 1];
+  const statusCycle = ["受付済", "移動中", "接客中", "終了"];
+  for (let d = 0; d < NUM_DAYS; d++) {
+    const dateStr = isoDate(DAY_DATES[d]);
+    const sched = daySchedule(d);
+    sched.forEach((entry) => {
+      const cast = casts[entry.castIndex];
+      if (!cast) return;
+      const span = entry.shiftEnd - entry.shiftStart;
+      const count = Math.max(1, Math.round(span * 0.5)); // 1時間0.5本の目安
+      const slot = span / count;
+      for (let k = 0; k < count; k++) {
+        let dur = durPattern[(entry.castIndex + k) % durPattern.length];
+        if (dur > slot - 1 / 6) dur = 1;
+        let start = entry.shiftStart + k * slot + 0.05;
+        start = Math.round(start * 6) / 6; // 10分単位
+        dur = Math.round(dur * 6) / 6;
+        if (start + dur > entry.shiftEnd) dur = Math.max(1 / 6, Math.round((entry.shiftEnd - start) * 6) / 6);
+        const hotel = ALL_HOTELS[(entry.castIndex * 3 + k + d) % ALL_HOTELS.length];
+        const course = dur >= 2 ? INITIAL_COURSES[2] : dur >= 1.5 ? INITIAL_COURSES[1] : INITIAL_COURSES[0];
+        const surname = CUSTOMER_SURNAMES[(entry.castIndex * 7 + k * 3 + d) % CUSTOMER_SURNAMES.length];
+        const status = d === 0 ? statusCycle[(entry.castIndex + k) % statusCycle.length] : "受付済";
+        const withShimei = (entry.castIndex + k) % 3 === 0;
+        list.push({
+          id: `r${idx}`, start, dur, customer: `${surname}様`,
+          phone: `090-${String(3000 + entry.castIndex * 7 + k).slice(-4)}-${String(4000 + entry.castIndex * 3 + k + d).slice(-4)}`,
+          castId: cast.id, area: hotelArea(hotel), hotel, room: `${300 + ((entry.castIndex * 5 + k * 11 + d * 3) % 600)}号室`,
+          course: course.name, options: withShimei ? [{ name: "指名", price: 2000 }] : [],
+          price: course.price + (withShimei ? 2000 : 0), status,
+          sendDriver: "未定", pickDriver: "未定", note: "", date: dateStr,
+        });
+        idx++;
+      }
+    });
+  }
+  return list;
+}
+
+// 本日(day0)分のスケジュール・予約から、現在時刻に応じたキャストの状態を反映
+function applyDay0State(casts, allReservations) {
+  const sched0 = daySchedule(0);
+  const schedByIndex = new Map(sched0.map((e) => [e.castIndex, e]));
+  const today0 = isoDate(DAY_DATES[0]);
+  const now = new Date();
+  const nowHour = now.getHours() + now.getMinutes() / 60;
+  const byCast = new Map();
+  allReservations.forEach((r) => {
+    if (r.date !== today0) return;
+    if (!byCast.has(r.castId)) byCast.set(r.castId, []);
+    byCast.get(r.castId).push(r);
+  });
+  return casts.map((c, i) => {
+    const entry = schedByIndex.get(i);
+    if (!entry) return c; // 本日出勤なし(status='off'のまま)
+    const list = byCast.get(c.id) || [];
+    const todayCount = list.length;
+    const todaySales = list.reduce((a, r) => a + r.price, 0);
+    let status = "waiting", hotel = null;
+    if (nowHour < entry.shiftStart) status = "before_shift";
+    else if (nowHour >= entry.shiftEnd) status = "off";
+    else {
+      const active = list.find((r) => nowHour >= r.start && nowHour < r.start + r.dur);
+      if (active) { status = "working"; hotel = active.hotel; }
+    }
+    return { ...c, status, shiftStart: `${entry.shiftStart}:00`, shiftEnd: `${entry.shiftEnd}:00`, hotel, todayCount, todaySales };
+  });
+}
+
+const ALL_RESERVATIONS_10D = generateAllReservations(INITIAL_CASTS_BASE);
+const INITIAL_CASTS = applyDay0State(INITIAL_CASTS_BASE, ALL_RESERVATIONS_10D);
+const INITIAL_RESERVATIONS = ALL_RESERVATIONS_10D; // 本日〜10日後、日付(date)付きで全件保持
 
 const INITIAL_DRIVERS = [
   { id: "d1", name: "佃", car: "1号車", status: "dispatch", pos: { x: 32, y: 38 }, latlng: { lat: 33.5914, lng: 130.3990 }, dest: "天神プラザホテル", note: "田中様を天神プラザホテルへ送迎中", wage: 1300, hours: 7 },
@@ -198,48 +293,6 @@ const INITIAL_DRIVERS = [
   { id: "d3", name: "野口", car: "3号車", status: "waiting", pos: { x: 45, y: 20 }, latlng: { lat: 33.5896, lng: 130.4050 }, dest: null, note: "中央区エリアで待機中", wage: 1250, hours: 8 },
   { id: "d4", name: "堤", car: "4号車", status: "returning", pos: { x: 20, y: 70 }, latlng: { lat: 33.5700, lng: 130.4200 }, dest: "営業所", note: "南区より営業所へ戻り中", wage: 1250, hours: 5 },
 ];
-
-const CUSTOMER_SURNAMES = ["田中", "佐藤", "鈴木", "高橋", "伊藤", "渡辺", "山本", "中村", "小林", "加藤", "吉田", "山田", "佐々木", "山口", "松本", "井上", "木村", "林", "清水", "斎藤"];
-
-// 出勤中の全キャストについて、本日の本数(todayCount)ぶんの予約を勤務時間内に10分単位で自動生成
-function generateReservations(casts) {
-  const list = [];
-  let idx = 1;
-  const durPattern = [1, 1.5, 1, 2];
-  const statusCycle = ["受付済", "移動中", "接客中", "終了"];
-  casts.forEach((c, ci) => {
-    if (c.status === "off" || c.status === "before_shift") return;
-    const shiftStart = parseTimeToHour(c.shiftStart);
-    const shiftEnd = parseTimeToHour(c.shiftEnd);
-    if (shiftStart == null || shiftEnd == null || c.todayCount <= 0) return;
-    const span = shiftEnd - shiftStart;
-    const slot = span / c.todayCount;
-    for (let k = 0; k < c.todayCount; k++) {
-      let dur = durPattern[(ci + k) % durPattern.length];
-      if (dur > slot - 1 / 6) dur = 1; // 枠が狭い時は60分に短縮
-      let start = shiftStart + k * slot + 0.05;
-      start = Math.round(start * 6) / 6; // 10分単位に丸め
-      dur = Math.round(dur * 6) / 6;
-      if (start + dur > shiftEnd) dur = Math.max(1 / 6, Math.round((shiftEnd - start) * 6) / 6);
-      const hotel = ALL_HOTELS[(ci * 3 + k) % ALL_HOTELS.length];
-      const course = dur >= 2 ? INITIAL_COURSES[2] : dur >= 1.5 ? INITIAL_COURSES[1] : INITIAL_COURSES[0];
-      const surname = CUSTOMER_SURNAMES[(ci * 7 + k * 3) % CUSTOMER_SURNAMES.length];
-      const status = statusCycle[(ci + k) % statusCycle.length];
-      const withShimei = (ci + k) % 3 === 0;
-      list.push({
-        id: `r${idx}`, start, dur, customer: `${surname}様`,
-        phone: `090-${String(3000 + ci * 7 + k).slice(-4)}-${String(4000 + ci * 3 + k).slice(-4)}`,
-        castId: c.id, area: hotelArea(hotel), hotel, room: `${300 + ((ci * 5 + k * 11) % 600)}号室`,
-        course: course.name, options: withShimei ? [{ name: "指名", price: 2000 }] : [],
-        price: course.price + (withShimei ? 2000 : 0), status,
-        sendDriver: "未定", pickDriver: "未定", note: "",
-      });
-      idx++;
-    }
-  });
-  return list;
-}
-const INITIAL_RESERVATIONS = generateReservations(INITIAL_CASTS);
 
 const INITIAL_CUSTOMERS = [
   { id: "u1", name: "田中様", phones: ["090-XXXX-1111", "092-XXX-1111"], address: "福岡市中央区天神X-X", email: "tanaka@example.com", visits: 14, lastVisit: "2026-06-28", colorLevel: "vip", note: "常連。指名多め",
@@ -556,26 +609,33 @@ function CastMemoModal({ cast, onClose, onSave }) {
 }
 
 // ============================================================
-// タイムテーブル(デリヘル仕様：勤務時間外/待機中/予約中を色分け、
-//  現在時刻ライン、状態プルダウン、メモ、クリックで詳細モーダル)
+// タイムテーブル(24時間営業・本日〜10日後まで日付切替対応)
+//  白=待機中／グレー=勤務時間外／色付き=予約中(クリックで詳細)
+//  本日のみ状態プルダウン・メモが編集可能。翌日以降は予定表示のみ
 // ============================================================
-const TT_HOURS = Array.from({ length: 17 }, (_, i) => 12 + i); // 12:00〜翌4:00(29時)
-function ttLabel(h) { const hh = h % 24; return `${hh}${h >= 24 ? "" : ""}`; }
+const TT_HOURS = Array.from({ length: 30 }, (_, i) => i); // 0:00〜翌5:00(29時)まで表示
 
 function Timetable({ reservations, casts, setCasts, onOpenReservation }) {
-  const colW = 64;
+  const colW = 60;
   const nameColW = 150;
   const [now, setNow] = useState(new Date());
   const [memoCast, setMemoCast] = useState(null);
+  const [dayIndex, setDayIndex] = useState(0);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(t); }, []);
 
-  const castName = (id) => { const c = casts.find((x) => x.id === id); return c ? castFullName(c) : "-"; };
-  const workingCasts = casts.filter((c) => c.status !== "off");
+  const isToday = dayIndex === 0;
+  const dateStr = isoDate(DAY_DATES[dayIndex]);
   const totalW = TT_HOURS.length * colW;
 
+  // 本日：実際のcasts(編集可能な状態)／翌日以降：スケジュールから算出(閲覧のみ)
+  const rowsForDay = isToday
+    ? casts.filter((c) => c.status !== "off").map((c) => ({ castId: c.id, cast: c, shiftStart: parseTimeToHour(c.shiftStart), shiftEnd: parseTimeToHour(c.shiftEnd) }))
+    : daySchedule(dayIndex).map((e) => ({ castId: casts[e.castIndex]?.id, cast: casts[e.castIndex], shiftStart: e.shiftStart, shiftEnd: e.shiftEnd })).filter((r) => r.cast);
+
+  const dayReservations = reservations.filter((r) => r.date === dateStr);
+
   let nowHour = now.getHours() + now.getMinutes() / 60;
-  if (nowHour < TT_HOURS[0]) nowHour += 24;
-  const showNowLine = nowHour >= TT_HOURS[0] && nowHour <= TT_HOURS[TT_HOURS.length - 1] + 1;
+  const showNowLine = isToday && nowHour >= TT_HOURS[0] && nowHour <= TT_HOURS[TT_HOURS.length - 1] + 1;
   const nowLeft = (nowHour - TT_HOURS[0]) * colW;
 
   const resColor = (status) => status === "接客中" ? { bg: "#2F6DB5", text: "#FFFFFF" }
@@ -587,34 +647,45 @@ function Timetable({ reservations, casts, setCasts, onOpenReservation }) {
 
   return (
     <div>
-      <SectionTitle sub="出勤中キャストの本日の予定。白=待機中／グレー=勤務時間外／色付き=予約中(クリックで詳細)">タイムテーブル</SectionTitle>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+        <SectionTitle sub="24時間営業。白=待機中／グレー=勤務時間外／色付き=予約中(クリックで詳細)">タイムテーブル</SectionTitle>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
+          <button onClick={() => setDayIndex((d) => Math.max(0, d - 1))} disabled={dayIndex === 0} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#FFF", color: dayIndex === 0 ? COLORS.border : COLORS.textMain, cursor: dayIndex === 0 ? "default" : "pointer", fontSize: 16 }}>‹</button>
+          <div style={{ minWidth: 108, textAlign: "center", fontSize: 14, fontWeight: 700, color: COLORS.textMain, background: "#EDF3FA", borderRadius: 8, padding: "6px 10px" }}>{isToday ? "本日 " : ""}{dayLabel(DAY_DATES[dayIndex])}</div>
+          <button onClick={() => setDayIndex((d) => Math.min(NUM_DAYS - 1, d + 1))} disabled={dayIndex === NUM_DAYS - 1} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#FFF", color: dayIndex === NUM_DAYS - 1 ? COLORS.border : COLORS.textMain, cursor: dayIndex === NUM_DAYS - 1 ? "default" : "pointer", fontSize: 16 }}>›</button>
+        </div>
+      </div>
+      {!isToday && <div style={{ fontSize: 12, color: COLORS.textSub, background: "#EDF3FA", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>翌日以降は出勤予定の閲覧です。状態変更・メモは本日のみ操作できます。予約はクリックで内容確認・編集できます。</div>}
+
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">
           <div style={{ minWidth: nameColW + totalW, position: "relative" }}>
             {/* ヘッダー(時間軸) */}
             <div style={{ display: "flex", background: "#EDF3FA", borderBottom: `1px solid ${COLORS.border}`, position: "sticky", top: 0, zIndex: 2 }}>
               <div style={{ width: nameColW, padding: "10px 12px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, flexShrink: 0 }}>キャスト</div>
-              {TT_HOURS.map((h) => <div key={h} style={{ width: colW, padding: "10px 0", textAlign: "center", fontSize: 11.5, color: COLORS.textSub, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0, borderLeft: `1px solid ${COLORS.border}` }}>{h % 24}:00</div>)}
+              {TT_HOURS.map((h) => <div key={h} style={{ width: colW, padding: "10px 0", textAlign: "center", fontSize: 11, color: COLORS.textSub, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0, borderLeft: `1px solid ${COLORS.border}` }}>{h % 24}:00</div>)}
             </div>
 
             {/* 行 */}
-            {workingCasts.map((c) => {
-              const shiftStart = parseTimeToHour(c.shiftStart);
-              const shiftEnd = parseTimeToHour(c.shiftEnd);
-              const rows = reservations.filter((r) => r.castId === c.id);
+            {rowsForDay.map(({ castId, cast: c, shiftStart, shiftEnd }) => {
+              const rows = dayReservations.filter((r) => r.castId === castId);
               return (
-                <div key={c.id} style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, position: "relative", height: 56 }}>
+                <div key={castId} style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, position: "relative", height: 56 }}>
                   {/* 名前列 */}
                   <div style={{ width: nameColW, padding: "6px 10px", flexShrink: 0, display: "flex", alignItems: "center", gap: 8, background: "#FAFBFD" }}>
                     <div style={{ width: 30, height: 30, borderRadius: "50%", background: COLORS.accentBg, color: COLORS.accentDark, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{c.name[0]}</div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.textMain, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{castFullName(c)}</div>
-                      <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 2 }}>
-                        <select value={c.status} onChange={(e) => setCasts((prev) => prev.map((x) => x.id === c.id ? { ...x, status: e.target.value } : x))} style={{ fontSize: 10, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "1px 3px", color: COLORS.textMain, background: "#FFF" }}>
-                          {Object.entries(CAST_STATUS).map(([key, v]) => <option key={key} value={key}>{v.label}</option>)}
-                        </select>
-                        <button onClick={() => setMemoCast(c)} title="メモ" style={{ fontSize: 9, border: `1px solid ${c.comment ? COLORS.accent : COLORS.border}`, borderRadius: 6, padding: "1px 5px", color: c.comment ? COLORS.accent : COLORS.textSub, background: "#FFF", cursor: "pointer" }}>メモ</button>
-                      </div>
+                      {isToday ? (
+                        <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 2 }}>
+                          <select value={c.status} onChange={(e) => setCasts((prev) => prev.map((x) => x.id === c.id ? { ...x, status: e.target.value } : x))} style={{ fontSize: 10, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "1px 3px", color: COLORS.textMain, background: "#FFF" }}>
+                            {Object.entries(CAST_STATUS).map(([key, v]) => <option key={key} value={key}>{v.label}</option>)}
+                          </select>
+                          <button onClick={() => setMemoCast(c)} title="メモ" style={{ fontSize: 9, border: `1px solid ${c.comment ? COLORS.accent : COLORS.border}`, borderRadius: 6, padding: "1px 5px", color: c.comment ? COLORS.accent : COLORS.textSub, background: "#FFF", cursor: "pointer" }}>メモ</button>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 10, color: COLORS.textSub, marginTop: 2 }}>{shiftStart}:00〜{shiftEnd % 24}:00 出勤予定</div>
+                      )}
                     </div>
                   </div>
                   {/* グリッド本体 */}
@@ -642,7 +713,7 @@ function Timetable({ reservations, casts, setCasts, onOpenReservation }) {
               );
             })}
 
-            {/* 現在時刻ライン */}
+            {/* 現在時刻ライン(本日のみ) */}
             {showNowLine && (
               <div style={{ position: "absolute", top: 0, bottom: 0, left: nameColW + nowLeft, width: 2, background: "#3E9C74", zIndex: 3, pointerEvents: "none" }}>
                 <div style={{ position: "absolute", top: -6, left: -4, width: 10, height: 10, borderRadius: "50%", background: "#3E9C74" }} />
@@ -780,9 +851,10 @@ function NewReservationModal({ prefillCustomer, editReservation, casts, drivers,
   ];
 
   const buildPayload = () => ({
-    id: r0 ? r0.id : `r${reservations.length + 1}`, start: startNum, dur,
+    id: r0 ? r0.id : `r${Date.now()}${Math.floor(Math.random() * 1000)}`, start: startNum, dur,
     customer, phone, castId: selectedCast?.id || null, area: hotels.find((h) => h.name === hotel)?.area || hotelArea(hotel), hotel, room,
     course, options: optionsForSave, price: total, status: isEdit ? status : "受付済", sendDriver, pickDriver: r0?.pickDriver || "未定",
+    date: r0?.date || isoDate(DAY_DATES[0]),
     note: [note, otherTotal > 0 ? `交通費/その他:¥${otherTotal.toLocaleString()}` : "", discount > 0 ? `ハッピーチケット:-¥${discount.toLocaleString()}` : "", guestCount && guestCount !== "1" ? `宿泊人数:${guestCount}名` : ""].filter(Boolean).join(" / "),
   });
 
@@ -1858,10 +1930,12 @@ const SETTINGS_SUBTABS = [
 function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, setReservations, syncMsg }) {
   const [sub, setSub] = useState("cast");
   const resetDemoData = () => {
-    if (!window.confirm("キャスト一覧と予約を初期デモデータで上書きします。よろしいですか？(保存済みの内容は失われます)")) return;
-    const freshCasts = generateCasts();
+    if (!window.confirm("キャスト一覧と予約(本日〜10日後まで)を初期デモデータで上書きします。よろしいですか？(保存済みの内容は失われます)")) return;
+    const freshBase = generateCasts();
+    const freshReservations = generateAllReservations(freshBase);
+    const freshCasts = applyDay0State(freshBase, freshReservations);
     setCasts(freshCasts);
-    setReservations(generateReservations(freshCasts));
+    setReservations(freshReservations);
   };
   return (
     <div>
@@ -2032,13 +2106,56 @@ function usePersistedState(key, initialValue) {
   return [value, setValue, { loaded, err }];
 }
 
+// 予約データ専用：日付ごと(kanri:reservations:YYYY-MM-DD)に分けて保存・読込
+// (1日分ずつなので1リクエストが軽く、10日分でも安全に保存できる)
+function usePersistedReservations(dayDates, initialAll) {
+  const isoList = dayDates.map(isoDate);
+  const [reservations, setReservations] = useState(initialAll);
+  const [loaded, setLoaded] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(isoList.map((d) => fetch(`/api/state?key=reservations:${d}`).then((r) => r.json()).catch(() => null)))
+      .then((results) => {
+        if (cancelled) return;
+        const merged = [];
+        results.forEach((res, i) => {
+          const d = isoList[i];
+          if (res && Array.isArray(res.value) && res.value.length > 0) merged.push(...res.value);
+          else merged.push(...initialAll.filter((r) => r.date === d));
+        });
+        setReservations(merged);
+      })
+      .catch(() => { if (!cancelled) setErr("読み込みに失敗しました(初期データで表示中)"); })
+      .finally(() => { if (!cancelled) setLoaded(true); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    const byDate = {};
+    isoList.forEach((d) => { byDate[d] = []; });
+    reservations.forEach((r) => { if (!byDate[r.date]) byDate[r.date] = []; byDate[r.date].push(r); });
+    Promise.all(Object.entries(byDate).map(([d, list]) =>
+      fetch(`/api/state?key=reservations:${d}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: list }) })
+    )).then((results) => {
+      if (results.every((r) => r.ok)) setErr(""); else setErr("一部の保存に失敗しました");
+    }).catch(() => setErr("保存に失敗しました"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reservations, loaded]);
+
+  return [reservations, setReservations, { loaded, err }];
+}
+
 export default function KanriApp() {
   const [role, setRole] = useState("owner");
   const [tab, setTab] = useState("dashboard");
   const [casts, setCasts, castsSync] = usePersistedState("casts", INITIAL_CASTS);
   const [customers, setCustomers, customersSync] = usePersistedState("customers", INITIAL_CUSTOMERS);
   const [drivers, setDrivers, driversSync] = usePersistedState("drivers", INITIAL_DRIVERS);
-  const [reservations, setReservations, reservationsSync] = usePersistedState("reservations", INITIAL_RESERVATIONS);
+  const [reservations, setReservations, reservationsSync] = usePersistedReservations(DAY_DATES, INITIAL_RESERVATIONS);
   const [hotels, setHotels, hotelsSync] = usePersistedState("hotels", INITIAL_HOTELS);
   const [office, setOffice, officeSync] = usePersistedState("office", DEFAULT_OFFICE);
   const [staff, setStaff, staffSync] = usePersistedState("staff", INITIAL_STAFF);

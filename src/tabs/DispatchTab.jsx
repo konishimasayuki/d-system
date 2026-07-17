@@ -11,18 +11,16 @@ import { loadGoogleMaps, HOTEL_COORDS } from "../mapsLoader.js";
 // ============================================================
 export function driverPinSvg(car, label, color) {
   const num = String(car || "").replace(/[^0-9]/g, "") || "?";
-  // 車のシルエット + 車番 + 状態ラベル
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='104' height='74' viewBox='0 0 104 74'>
-    <rect x='8' y='2' rx='8' ry='8' width='88' height='20' fill='${color}'/>
-    <text x='52' y='16' font-size='12' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${label}</text>
-    <g transform='translate(28,28)'>
-      <rect x='2' y='14' width='44' height='16' rx='4' fill='${color}' stroke='#ffffff' stroke-width='1.5'/>
-      <path d='M8 14 L14 5 L34 5 L40 14 Z' fill='${color}' stroke='#ffffff' stroke-width='1.5'/>
-      <rect x='15' y='7' width='8' height='6' fill='#ffffff' opacity='0.85'/>
-      <rect x='25' y='7' width='8' height='6' fill='#ffffff' opacity='0.85'/>
-      <circle cx='13' cy='31' r='5' fill='#20262E' stroke='#ffffff' stroke-width='1.5'/>
-      <circle cx='35' cy='31' r='5' fill='#20262E' stroke='#ffffff' stroke-width='1.5'/>
-      <text x='24' y='27' font-size='11' font-family='sans-serif' font-weight='800' fill='#ffffff' text-anchor='middle'>${num}</text>
+  // ラベルは全幅で文字切れを防止。車体は窓なしでコンパクトに(文字サイズは維持)
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='58' viewBox='0 0 100 58'>
+    <rect x='0' y='0' rx='7' ry='7' width='100' height='20' fill='${color}'/>
+    <text x='50' y='14' font-size='12' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${label}</text>
+    <g transform='translate(30,24)'>
+      <rect x='2' y='10' width='36' height='13' rx='3' fill='${color}' stroke='#ffffff' stroke-width='1.4'/>
+      <path d='M8 10 L13 3 L27 3 L32 10 Z' fill='${color}' stroke='#ffffff' stroke-width='1.4'/>
+      <circle cx='10' cy='25' r='4' fill='#20262E' stroke='#ffffff' stroke-width='1.2'/>
+      <circle cx='30' cy='25' r='4' fill='#20262E' stroke='#ffffff' stroke-width='1.2'/>
+      <text x='20' y='21' font-size='11' font-family='sans-serif' font-weight='800' fill='#ffffff' text-anchor='middle'>${num}</text>
     </g>
   </svg>`;
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
@@ -45,7 +43,7 @@ function jobPinSvg(kind, timeLabel) {
 // ============================================================
 // 地図(ドライバー位置・未割当ジョブ・ドライバーごとの経路線)
 // ============================================================
-export function DriverMap({ drivers, hotels, office, jobs, pinJobs, onJobClick }) {
+export function DriverMap({ drivers, hotels, office, jobs, pinJobs, onJobClick, onDriverClick }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -91,9 +89,10 @@ export function DriverMap({ drivers, hotels, office, jobs, pinJobs, onJobClick }
       const st = DRIVER_STATUS[d.status] || { label: "-", color: "#7A8798" };
       const m = new maps.Marker({
         position: d.latlng, map: mapRef.current, title: `${d.car} ${d.name}(${st.label})`,
-        icon: { url: driverPinSvg(d.car, st.label, st.color), anchor: new maps.Point(52, 66), scaledSize: new maps.Size(104, 74) },
+        icon: { url: driverPinSvg(d.car, st.label, st.color), anchor: new maps.Point(50, 53), scaledSize: new maps.Size(100, 58) },
         zIndex: 10,
       });
+      m.addListener("click", () => onDriverClick && onDriverClick(d));
       markersRef.current.push(m);
     });
 
@@ -195,12 +194,46 @@ function AssignPopover({ job, drivers, jobs, onAssign, onClose }) {
   );
 }
 
+// ドライバーピンをクリックした時：次の行き先・その次の行き先を表示(読み取り専用)
+function DriverInfoPopover({ driver, jobs, onClose }) {
+  const queue = driverQueue(jobs, driver.car);
+  const st = DRIVER_STATUS[driver.status];
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,35,0.4)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 14, width: "100%", maxWidth: 360, padding: 18, boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>{driver.car} ・ {driver.name}</div>
+          <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: `${st.color}1F`, padding: "3px 9px", borderRadius: 999 }}>{st.label}</span>
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>{driverLocationLabel(driver, jobs)}</div>
+        {queue.length === 0 ? (
+          <div style={{ fontSize: 13, color: COLORS.textSub }}>本日の予定はもうありません。</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {queue.map((j, i) => (
+              <div key={j.id} style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#FAFBFD" }}>
+                <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 2 }}>{i === 0 ? "次" : i === 1 ? "その次" : `${i + 1}件先`}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.textMain }}>
+                  {fmtHour(j.time)} <span style={{ fontSize: 11, fontWeight: 700, color: j.kind === "send" ? "#2F6DB5" : "#3E9C74", marginLeft: 4 }}>{j.kind === "send" ? "送り" : "迎え"}</span>
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.textSub, marginTop: 2 }}>{j.customer} ・ {j.hotel}{j.room ? ` ${j.room}` : ""}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={onClose} style={{ width: "100%", marginTop: 14, padding: "10px 0", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.textSub, fontSize: 13, cursor: "pointer" }}>閉じる</button>
+      </div>
+    </div>
+  );
+}
+
 // ============================================================
 // 配車管理タブ本体
 // ============================================================
 export function DispatchMap({ drivers, reservations, setReservations, casts, hotels, office }) {
   const [now, setNow] = useState(new Date());
   const [popoverJob, setPopoverJob] = useState(null);
+  const [infoDriver, setInfoDriver] = useState(null);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(t); }, []);
 
   const castName = (id) => casts.find((c) => c.id === id) ? castFullName(casts.find((x) => x.id === id)) : "-";
@@ -228,7 +261,7 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
       <SectionTitle sub="直近2時間の送り・迎えを一覧/地図から割り当て。未割当ピンをクリックしてドライバーを選べます">配車管理</SectionTitle>
       <div className="grid-2">
         <Card style={{ padding: 12 }}>
-          <DriverMap drivers={drivers} hotels={hotels} office={office} jobs={allJobs} pinJobs={listJobs} onJobClick={setPopoverJob} />
+          <DriverMap drivers={drivers} hotels={hotels} office={office} jobs={allJobs} pinJobs={listJobs} onJobClick={setPopoverJob} onDriverClick={setInfoDriver} />
           <div style={{ display: "flex", gap: 14, marginTop: 12, flexWrap: "wrap" }}>
             {Object.entries(DRIVER_STATUS).map(([key, v]) => <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textSub }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: v.color }} />{v.label}</div>)}
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.textSub }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2F6DB5" }} />送り</div>
@@ -289,6 +322,9 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
           onAssign={(car) => { assign(popoverJob, car); setPopoverJob(null); }}
           onClose={() => setPopoverJob(null)}
         />
+      )}
+      {infoDriver && (
+        <DriverInfoPopover driver={infoDriver} jobs={allJobs} onClose={() => setInfoDriver(null)} />
       )}
     </div>
   );

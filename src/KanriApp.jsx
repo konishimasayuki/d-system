@@ -1450,7 +1450,7 @@ function HotelForm({ hotels, setHotels, office, setOffice }) {
             </label>
           </div>
         </div>
-        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 12 }}>CSV列：id,name,area,address ／ 差分はホテルIDで判定(同一IDは上書き・新規IDは追加・CSVに無い既存は保持)</div>
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 12 }}>CSV列：id,name,area,address ／ 差分はホテルIDで判定(同一IDは上書き・新規IDは追加・CSVに無い既存は保持) ／ 変更は自動的に保存されます</div>
 
         <div className="table-scroll" style={{ maxHeight: 320, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 10, marginBottom: 16 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
@@ -1486,11 +1486,12 @@ function HotelForm({ hotels, setHotels, office, setOffice }) {
 const SETTINGS_SUBTABS = [
   { key: "cast", label: "キャスト登録" }, { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "項目登録" }, { key: "security", label: "セキュリティ" },
 ];
-function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffice }) {
+function SettingsTab({ setCasts, setDrivers, hotels, setHotels, office, setOffice, syncMsg }) {
   const [sub, setSub] = useState("cast");
   return (
     <div>
       <SectionTitle sub="キャスト・ドライバー・ホテル・スタッフ・項目・セキュリティの管理">設定</SectionTitle>
+      {syncMsg && sub === "hotel" && <div style={{ marginBottom: 12, fontSize: 12, color: COLORS.red, background: "#FBEAE5", padding: "8px 12px", borderRadius: 8 }}>{syncMsg}</div>}
       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         {SETTINGS_SUBTABS.map((t) => <button key={t.key} onClick={() => setSub(t.key)} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${sub === t.key ? COLORS.accent : COLORS.border}`, background: sub === t.key ? COLORS.accent : "#FFF", color: sub === t.key ? "#FFF" : COLORS.textMain, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.label}</button>)}
       </div>
@@ -1629,6 +1630,41 @@ export default function KanriApp() {
   const [drivers, setDrivers] = useState(INITIAL_DRIVERS);
   const [hotels, setHotels] = useState(INITIAL_HOTELS);
   const [office, setOffice] = useState(DEFAULT_OFFICE);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+
+  // 初回読み込み(Upstash保存分があれば反映)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [hRes, oRes] = await Promise.all([
+          fetch("/api/hotels").then((r) => r.json()),
+          fetch("/api/office").then((r) => r.json()),
+        ]);
+        if (cancelled) return;
+        if (Array.isArray(hRes.hotels) && hRes.hotels.length > 0) setHotels(hRes.hotels);
+        if (oRes.office) setOffice(oRes.office);
+      } catch (e) {
+        setSyncMsg("保存データの読み込みに失敗しました(初期データで表示中)。");
+      }
+      if (!cancelled) setDataLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // 変更をUpstashへ保存(初回読込後のみ)
+  useEffect(() => {
+    if (!dataLoaded) return;
+    fetch("/api/hotels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hotels }) })
+      .catch(() => setSyncMsg("ホテル情報の保存に失敗しました。"));
+  }, [hotels, dataLoaded]);
+
+  useEffect(() => {
+    if (!dataLoaded) return;
+    fetch("/api/office", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ office }) })
+      .catch(() => setSyncMsg("営業所情報の保存に失敗しました。"));
+  }, [office, dataLoaded]);
   const [reservations, setReservations] = useState(INITIAL_RESERVATIONS);
   const [menuOpen, setMenuOpen] = useState(false);
   const [ctiCustomer, setCtiCustomer] = useState(null);
@@ -1698,7 +1734,7 @@ export default function KanriApp() {
           {tab === "driverpage" && <DriverPage reservations={reservations} casts={casts} drivers={drivers} />}
           {tab === "mypage" && <CastMyPage casts={casts} reservations={reservations} />}
           {tab === "std" && <StdManagement casts={casts} />}
-          {tab === "settings" && <SettingsTab setCasts={setCasts} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} />}
+          {tab === "settings" && <SettingsTab setCasts={setCasts} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} syncMsg={syncMsg} />}
         </div>
       </div>
 

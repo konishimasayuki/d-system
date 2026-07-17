@@ -621,11 +621,22 @@ function Timetable({ reservations, casts, setCasts, onOpenReservation }) {
   const [now, setNow] = useState(new Date());
   const [memoCast, setMemoCast] = useState(null);
   const [dayIndex, setDayIndex] = useState(0);
+  const scrollRef = useRef(null);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(t); }, []);
 
   const isToday = dayIndex === 0;
   const dateStr = isoDate(DAY_DATES[dayIndex]);
   const totalW = TT_HOURS.length * colW;
+
+  let nowHour = now.getHours() + now.getMinutes() / 60;
+
+  // 今の時間近辺が左端に来るよう自動スクロール(日付切替のたびに実行)
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const targetHour = Math.max(TT_HOURS[0], nowHour - 1); // 1時間前から表示
+    scrollRef.current.scrollLeft = Math.max(0, (targetHour - TT_HOURS[0]) * colW);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayIndex]);
 
   // 本日：実際のcasts(編集可能な状態)／翌日以降：スケジュールから算出(閲覧のみ)
   const rowsForDay = isToday
@@ -634,7 +645,6 @@ function Timetable({ reservations, casts, setCasts, onOpenReservation }) {
 
   const dayReservations = reservations.filter((r) => r.date === dateStr);
 
-  let nowHour = now.getHours() + now.getMinutes() / 60;
   const showNowLine = isToday && nowHour >= TT_HOURS[0] && nowHour <= TT_HOURS[TT_HOURS.length - 1] + 1;
   const nowLeft = (nowHour - TT_HOURS[0]) * colW;
 
@@ -658,11 +668,11 @@ function Timetable({ reservations, casts, setCasts, onOpenReservation }) {
       {!isToday && <div style={{ fontSize: 12, color: COLORS.textSub, background: "#EDF3FA", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>翌日以降は出勤予定の閲覧です。状態変更・メモは本日のみ操作できます。予約はクリックで内容確認・編集できます。</div>}
 
       <Card style={{ padding: 0, overflow: "hidden" }}>
-        <div className="table-scroll">
+        <div className="table-scroll" ref={scrollRef}>
           <div style={{ minWidth: nameColW + totalW, position: "relative" }}>
             {/* ヘッダー(時間軸) */}
-            <div style={{ display: "flex", background: "#EDF3FA", borderBottom: `1px solid ${COLORS.border}`, position: "sticky", top: 0, zIndex: 2 }}>
-              <div style={{ width: nameColW, padding: "10px 12px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, flexShrink: 0 }}>キャスト</div>
+            <div style={{ display: "flex", background: "#EDF3FA", borderBottom: `1px solid ${COLORS.border}`, position: "sticky", top: 0, zIndex: 4 }}>
+              <div style={{ width: nameColW, padding: "10px 12px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, flexShrink: 0, position: "sticky", left: 0, zIndex: 5, background: "#EDF3FA" }}>キャスト</div>
               {TT_HOURS.map((h) => <div key={h} style={{ width: colW, padding: "10px 0", textAlign: "center", fontSize: 11, color: COLORS.textSub, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0, borderLeft: `1px solid ${COLORS.border}` }}>{h % 24}:00</div>)}
             </div>
 
@@ -672,7 +682,7 @@ function Timetable({ reservations, casts, setCasts, onOpenReservation }) {
               return (
                 <div key={castId} style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, position: "relative", height: 56 }}>
                   {/* 名前列 */}
-                  <div style={{ width: nameColW, padding: "6px 10px", flexShrink: 0, display: "flex", alignItems: "center", gap: 8, background: "#FAFBFD" }}>
+                  <div style={{ width: nameColW, padding: "6px 10px", flexShrink: 0, display: "flex", alignItems: "center", gap: 8, background: "#FAFBFD", position: "sticky", left: 0, zIndex: 3, borderRight: `1px solid ${COLORS.border}` }}>
                     <div style={{ width: 30, height: 30, borderRadius: "50%", background: COLORS.accentBg, color: COLORS.accentDark, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{c.name[0]}</div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.textMain, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{castFullName(c)}</div>
@@ -784,7 +794,8 @@ function TimeBadge({ label, value, color }) {
   );
 }
 
-function NewReservationModal({ prefillCustomer, editReservation, casts, drivers, reservations, courses, options, hotels, onClose, onCreate, onCancelReservation }) {
+function NewReservationModal({ prefillCustomer, editReservation, casts, drivers, reservations, courses, options, hotels: hotelsProp, onClose, onCreate, onCancelReservation }) {
+  const hotels = hotelsProp || [];
   const r0 = editReservation;
   const last = prefillCustomer?.history?.[0];
   const prefillCast = last ? findCast(casts, last.cast) : null;
@@ -2239,7 +2250,7 @@ export default function KanriApp() {
 
       {ctiCustomer && <CtiPopup customer={ctiCustomer} onClose={() => setCtiCustomer(null)} onReserve={startQuote} />}
       {quoteCustomer && <NewReservationModal prefillCustomer={quoteCustomer} casts={casts} drivers={drivers} reservations={reservations} courses={courses} options={options} hotels={hotels} onClose={() => setQuoteCustomer(null)} onCreate={(r) => { setReservations((prev) => [...prev, r]); setTab("reservation"); }} />}
-      {openReservation && <NewReservationModal editReservation={openReservation} casts={casts} drivers={drivers} reservations={reservations} courses={courses} options={options}
+      {openReservation && <NewReservationModal editReservation={openReservation} casts={casts} drivers={drivers} reservations={reservations} courses={courses} options={options} hotels={hotels}
         onClose={() => setOpenReservation(null)}
         onCreate={(u) => setReservations((prev) => prev.map((x) => x.id === u.id ? u : x))}
         onCancelReservation={(u) => setReservations((prev) => prev.map((x) => x.id === u.id ? u : x))}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, isoDate } from "../shared.jsx";
+import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, isoDate } from "../shared.jsx";
 
 // キャストの写真管理(最大10枚・縦3:4)。詳細モーダル内で使用
 function CastPhotoManager({ castId }) {
@@ -170,7 +170,8 @@ export function CastList({ casts, setCasts }) {
   const [query, setQuery] = useState("");
   const [detailId, setDetailId] = useState(null);
   const [registerOpen, setRegisterOpen] = useState(false);
-  const rows = casts.filter((c) => castFullName(c).includes(query) || c.honmyo.includes(query));
+  const nq = kanaNormalize(query);
+  const rows = casts.filter((c) => kanaNormalize(castFullName(c)).includes(nq) || kanaNormalize(c.honmyo).includes(nq));
   const detailCast = casts.find((c) => c.id === detailId);
   const thumbs = useCastThumbs(rows.map((c) => c.id));
   return (
@@ -190,7 +191,7 @@ export function CastList({ casts, setCasts }) {
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <CastAvatar cast={c} photo={thumbs[c.id]} size={60} radius={8} />
-                      <span>{castFullName(c)}</span>
+                      <span title={castFullName(c)}>{truncateName(castFullName(c), 8)}</span>
                     </div>
                   </td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13 }}>{c.age}</td>

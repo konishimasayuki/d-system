@@ -62,16 +62,13 @@ export function CastDetailModal({ cast, onClose, onSave }) {
   const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、") });
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const save = () => {
-    onSave({ ...cast, sei: f.sei, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, itakuRate: (Number(f.ratePct) || Math.round(cast.itakuRate * 100)) / 100, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean) });
+    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, itakuRate: (Number(f.ratePct) || Math.round(cast.itakuRate * 100)) / 100, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean) });
     onClose();
   };
   return (
     <Modal title={`${castFullName(cast)} の詳細・編集`} onClose={onClose} wide>
       <CastPhotoManager castId={cast.id} />
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}><TextField label="源氏名(姓)" value={f.sei} onChange={(v) => set("sei", v)} /></div>
-        <div style={{ flex: 1 }}><TextField label="源氏名(名)" value={f.name} onChange={(v) => set("name", v)} /></div>
-      </div>
+      <TextField label="キャスト名" value={f.name} onChange={(v) => set("name", v)} />
       <TextField label="本名" value={f.honmyo} onChange={(v) => set("honmyo", v)} />
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="生年月日" value={f.birthday} onChange={(v) => set("birthday", v)} placeholder="2000-01-01" /></div>
@@ -101,15 +98,15 @@ export function CastDetailModal({ cast, onClose, onSave }) {
 
 export function CastRegisterModal({ onClose, onCreate }) {
   const [f, setF] = useState({
-    sei: "", name: "", honmyo: "", birthday: "", age: "20", phone: "", address: "",
+    name: "", honmyo: "", birthday: "", age: "20", phone: "", address: "",
     idType: "運転免許証", idNo: "", joinDate: isoDate(new Date()), ratePct: "55", okText: "指名", idVerified: false,
   });
   const [msg, setMsg] = useState("");
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const submit = () => {
-    if (!f.name.trim()) { setMsg("源氏名(名)を入力してください"); return; }
+    if (!f.name.trim()) { setMsg("キャスト名を入力してください"); return; }
     onCreate({
-      id: `c${Date.now()}`, sei: f.sei.trim(), name: f.name.trim(), honmyo: f.honmyo.trim(),
+      id: `c${Date.now()}`, name: f.name.trim(), honmyo: f.honmyo.trim(),
       age: Number(f.age) || 20, birthday: f.birthday || "-", status: "before_shift",
       phone: f.phone || "090-0000-0000", address: f.address || "-",
       idType: f.idType, idNo: f.idNo || "-", joinDate: f.joinDate,
@@ -121,10 +118,7 @@ export function CastRegisterModal({ onClose, onCreate }) {
   };
   return (
     <Modal title="キャスト新規登録" onClose={onClose} wide>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}><TextField label="源氏名(姓)" value={f.sei} onChange={(v) => set("sei", v)} placeholder="任意(姓なしも可)" /></div>
-        <div style={{ flex: 1 }}><TextField label="源氏名(名)" value={f.name} onChange={(v) => set("name", v)} placeholder="例: みさき" /></div>
-      </div>
+      <TextField label="キャスト名" value={f.name} onChange={(v) => set("name", v)} placeholder="例: みさき" />
       <TextField label="本名" value={f.honmyo} onChange={(v) => set("honmyo", v)} placeholder="例: 山田 花子" />
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="生年月日" value={f.birthday} onChange={(v) => set("birthday", v)} placeholder="2000-01-01" /></div>
@@ -167,11 +161,11 @@ export function CastList({ casts, setCasts }) {
         <SectionTitle sub={`在籍キャストの名簿。詳細ボタンで個人情報の確認・編集(全${casts.length}名)`}>キャスト一覧</SectionTitle>
         <PrimaryButton onClick={() => setRegisterOpen(true)}>＋ 新規登録</PrimaryButton>
       </div>
-      <input placeholder="源氏名・本名で検索" value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#FFFFFF", color: COLORS.textMain, fontSize: 14, marginBottom: 16, boxSizing: "border-box" }} />
+      <input placeholder="キャスト名・本名で検索" value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#FFFFFF", color: COLORS.textMain, fontSize: 14, marginBottom: 16, boxSizing: "border-box" }} />
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
-            <thead><tr style={{ background: "#EDF3FA" }}>{["源氏名", "本名", "年齢", "電話番号", "委託率", "身分証", "対応可能オプション", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "年齢", "電話番号", "身分証", "対応可能オプション", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
             <tbody>
               {rows.map((c) => (
                 <tr key={c.id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
@@ -181,10 +175,8 @@ export function CastList({ casts, setCasts }) {
                       <span>{castFullName(c)}</span>
                     </div>
                   </td>
-                  <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, whiteSpace: "nowrap" }}>{c.honmyo}</td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13 }}>{c.age}</td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" }}>{c.phone}</td>
-                  <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13 }}>{Math.round(c.itakuRate * 100)}%</td>
                   <td style={{ padding: "12px 14px", fontSize: 12 }}><span style={{ color: c.idVerified ? COLORS.green : COLORS.red, fontWeight: 700 }}>{c.idVerified ? "確認済" : "未確認"}</span></td>
                   <td style={{ padding: "12px 14px" }}>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{c.okOptions.map((o) => <span key={o} style={{ fontSize: 11, color: COLORS.accent, background: COLORS.accentBg, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>{o}</span>)}</div>

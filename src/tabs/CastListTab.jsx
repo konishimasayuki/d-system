@@ -1,5 +1,61 @@
 import { useState } from "react";
-import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, castFullName, isoDate } from "../shared.jsx";
+import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToSizedDataURL, castFullName, isoDate } from "../shared.jsx";
+
+// キャストの写真管理(最大10枚・縦3:4)。詳細モーダル内で使用
+function CastPhotoManager({ castId }) {
+  const { photos, setPhotos, loaded } = useCastPhotos(castId);
+  const [busy, setBusy] = useState(false);
+  const MAX = 10;
+  const onPick = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setBusy(true);
+    const room = MAX - photos.length;
+    const use = files.slice(0, room);
+    const next = [...photos];
+    for (const file of use) {
+      try { next.push(await fileToSizedDataURL(file)); } catch (err) {}
+    }
+    setPhotos(next);
+    setBusy(false);
+    e.target.value = "";
+  };
+  const remove = (i) => setPhotos(photos.filter((_, idx) => idx !== i));
+  const makeFirst = (i) => { if (i === 0) return; const next = [...photos]; const [p] = next.splice(i, 1); next.unshift(p); setPhotos(next); };
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.textMain }}>写真({photos.length}/{MAX})</span>
+        {photos.length < MAX && (
+          <label style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontSize: 12, fontWeight: 700, cursor: busy ? "default" : "pointer" }}>
+            {busy ? "追加中…" : "＋ 写真を追加"}
+            <input type="file" accept="image/*" multiple onChange={onPick} disabled={busy} style={{ display: "none" }} />
+          </label>
+        )}
+      </div>
+      {!loaded ? (
+        <div style={{ fontSize: 12, color: COLORS.textSub }}>読み込み中…</div>
+      ) : photos.length === 0 ? (
+        <div style={{ fontSize: 12, color: COLORS.textSub, padding: "10px 0" }}>写真が未登録です。1枚目が一覧・タイムテーブルのサムネイルになります。</div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(84px, 1fr))", gap: 8 }}>
+          {photos.map((p, i) => (
+            <div key={i} style={{ position: "relative" }}>
+              <div style={{ width: "100%", aspectRatio: "3 / 4", borderRadius: 8, overflow: "hidden", border: i === 0 ? `2px solid ${COLORS.accent}` : `1px solid ${COLORS.border}` }}>
+                <img src={p} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              </div>
+              {i === 0 && <span style={{ position: "absolute", top: 4, left: 4, fontSize: 9, fontWeight: 700, color: "#FFF", background: COLORS.accent, padding: "1px 6px", borderRadius: 999 }}>メイン</span>}
+              <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                {i !== 0 && <button onClick={() => makeFirst(i)} style={{ flex: 1, fontSize: 9, padding: "2px 0", borderRadius: 5, border: `1px solid ${COLORS.border}`, background: "#FFF", color: COLORS.textSub, cursor: "pointer" }}>メインに</button>}
+                <button onClick={() => remove(i)} style={{ flex: 1, fontSize: 9, padding: "2px 0", borderRadius: 5, border: `1px solid ${COLORS.red}`, background: "#FFF", color: COLORS.red, cursor: "pointer" }}>削除</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ============================================================
 export function CastDetailModal({ cast, onClose, onSave }) {
@@ -11,6 +67,7 @@ export function CastDetailModal({ cast, onClose, onSave }) {
   };
   return (
     <Modal title={`${castFullName(cast)} の詳細・編集`} onClose={onClose} wide>
+      <CastPhotoManager castId={cast.id} />
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="源氏名(姓)" value={f.sei} onChange={(v) => set("sei", v)} /></div>
         <div style={{ flex: 1 }}><TextField label="源氏名(名)" value={f.name} onChange={(v) => set("name", v)} /></div>
@@ -103,6 +160,7 @@ export function CastList({ casts, setCasts }) {
   const [registerOpen, setRegisterOpen] = useState(false);
   const rows = casts.filter((c) => castFullName(c).includes(query) || c.honmyo.includes(query));
   const detailCast = casts.find((c) => c.id === detailId);
+  const thumbs = useCastThumbs(rows.map((c) => c.id));
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
@@ -117,7 +175,12 @@ export function CastList({ casts, setCasts }) {
             <tbody>
               {rows.map((c) => (
                 <tr key={c.id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                  <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>{castFullName(c)}</td>
+                  <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <CastAvatar cast={c} photo={thumbs[c.id]} size={38} radius={8} />
+                      <span>{castFullName(c)}</span>
+                    </div>
+                  </td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, whiteSpace: "nowrap" }}>{c.honmyo}</td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13 }}>{c.age}</td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" }}>{c.phone}</td>

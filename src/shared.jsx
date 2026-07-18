@@ -567,17 +567,16 @@ export function useCastPhotos(castId) {
     }).catch(() => { if (!cancelled) { setPhotos([]); setLoaded(true); } });
     return () => { cancelled = true; };
   }, [castId]);
-  const save = async (next) => {
+  const save = async (next, explicitThumb) => {
     setPhotos(next);
     // フル画質を保存
     fetch(`/api/state?key=castphotos:${castId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: next }) }).catch(() => {});
-    // 1枚目から軽量サムネを作って別キーに保存＋キャッシュ更新(一覧を軽くする)
+    // サムネ：明示的に渡されたらそれを使う(再処理せず黒化を防ぐ)。無ければ1枚目から生成
     if (next[0]) {
-      try {
-        const thumb = await dataUrlToThumb(next[0]);
-        fetch(`/api/state?key=castphotos:${castId}:thumb`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: thumb }) }).catch(() => {});
-        setCastThumbCache(castId, thumb);
-      } catch (e) { setCastThumbCache(castId, next[0]); }
+      let thumb = explicitThumb;
+      if (!thumb) { try { thumb = await dataUrlToThumb(next[0]); } catch (e) { thumb = next[0]; } }
+      fetch(`/api/state?key=castphotos:${castId}:thumb`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: thumb }) }).catch(() => {});
+      setCastThumbCache(castId, thumb);
     } else {
       fetch(`/api/state?key=castphotos:${castId}:thumb`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: "" }) }).catch(() => {});
       setCastThumbCache(castId, null);
@@ -591,40 +590,63 @@ export function dataUrlToThumb(dataUrl, targetW = 120, targetH = 160) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = targetW; canvas.height = targetH;
-      const ctx = canvas.getContext("2d");
-      const srcRatio = img.width / img.height;
-      const dstRatio = targetW / targetH;
-      let sw = img.width, sh = img.height, sx = 0, sy = 0;
-      if (srcRatio > dstRatio) { sw = img.height * dstRatio; sx = (img.width - sw) / 2; }
-      else { sh = img.width / dstRatio; sy = (img.height - sh) / 2; }
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
-      resolve(canvas.toDataURL("image/jpeg", 0.72));
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-}
-
-// 画像ファイルを縦3:4(シティヘブン準拠)にリサイズしdataURL化(保存容量を抑える)
-export function fileToSizedDataURL(file, targetW = 450, targetH = 600) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
+      try {
         const canvas = document.createElement("canvas");
         canvas.width = targetW; canvas.height = targetH;
         const ctx = canvas.getContext("2d");
-        // 中央クロップで3:4に収める
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, targetW, targetH);
         const srcRatio = img.width / img.height;
         const dstRatio = targetW / targetH;
         let sw = img.width, sh = img.height, sx = 0, sy = 0;
         if (srcRatio > dstRatio) { sw = img.height * dstRatio; sx = (img.width - sw) / 2; }
         else { sh = img.width / dstRatio; sy = (img.height - sh) / 2; }
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
+        const out = canvas.toDataURL("image/jpeg", 0.72);
+        // 生成に失敗して真っ黒/空になった場合は元画像をそのまま使う
+        if (!out || out.length < 200) resolve(dataUrl); else resolve(out);
+      } catch (e) { resolve(dataUrl); }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+// 画像ファイルを縦3:4(シティヘブン準拠)にリサイズ。フル画質とサムネの両方を1回の読み込みで生成
+//  ・白背景を敷いてからJPEG化(透過画像の黒つぶれを防止)
+//  ・元画像→目的サイズを1段階で描画(二重canvas処理による iOS の黒化を回避)
+function _drawSized(img, targetW, targetH, quality) {
+  const canvas = document.createElement("canvas");
+  canvas.width = targetW; canvas.height = targetH;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, targetW, targetH); // 透過部分を白で埋める
+  const srcRatio = img.width / img.height;
+  const dstRatio = targetW / targetH;
+  let sw = img.width, sh = img.height, sx = 0, sy = 0;
+  if (srcRatio > dstRatio) { sw = img.height * dstRatio; sx = (img.width - sw) / 2; }
+  else { sh = img.width / dstRatio; sy = (img.height - sh) / 2; }
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+// フル画質のdataURLを返す(後方互換)。内部で白背景処理済み
+export function fileToSizedDataURL(file, targetW = 450, targetH = 600) {
+  return fileToPhotoSet(file).then((set) => set.full);
+}
+
+// 1枚のファイルから { full(450x600), thumb(120x160) } を生成
+export function fileToPhotoSet(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const full = _drawSized(img, 450, 600, 0.82);
+          const thumb = _drawSized(img, 120, 160, 0.72);
+          resolve({ full, thumb });
+        } catch (e) { reject(e); }
       };
       img.onerror = reject;
       img.src = reader.result;

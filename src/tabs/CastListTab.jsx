@@ -1,27 +1,45 @@
 import { useState } from "react";
-import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToSizedDataURL, castFullName, isoDate } from "../shared.jsx";
+import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, isoDate } from "../shared.jsx";
 
 // キャストの写真管理(最大10枚・縦3:4)。詳細モーダル内で使用
 function CastPhotoManager({ castId }) {
   const { photos, setPhotos, loaded } = useCastPhotos(castId);
   const [busy, setBusy] = useState(false);
+  const [thumbList, setThumbList] = useState([]); // photosと同順のサムネ(1枚目保存用)
   const MAX = 10;
+
+  // photos変更後、1枚目のサムネを添えて保存する
+  const commit = (nextPhotos, nextThumbs) => {
+    setThumbList(nextThumbs);
+    setPhotos(nextPhotos, nextThumbs[0]);
+  };
+
   const onPick = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     setBusy(true);
     const room = MAX - photos.length;
     const use = files.slice(0, room);
-    const next = [...photos];
+    const nextPhotos = [...photos];
+    const nextThumbs = [...thumbList];
     for (const file of use) {
-      try { next.push(await fileToSizedDataURL(file)); } catch (err) {}
+      try { const set = await fileToPhotoSet(file); nextPhotos.push(set.full); nextThumbs.push(set.thumb); } catch (err) {}
     }
-    setPhotos(next);
+    commit(nextPhotos, nextThumbs);
     setBusy(false);
     e.target.value = "";
   };
-  const remove = (i) => setPhotos(photos.filter((_, idx) => idx !== i));
-  const makeFirst = (i) => { if (i === 0) return; const next = [...photos]; const [p] = next.splice(i, 1); next.unshift(p); setPhotos(next); };
+  const remove = (i) => {
+    const nextPhotos = photos.filter((_, idx) => idx !== i);
+    const nextThumbs = thumbList.filter((_, idx) => idx !== i);
+    commit(nextPhotos, nextThumbs);
+  };
+  const makeFirst = (i) => {
+    if (i === 0) return;
+    const nextPhotos = [...photos]; const [p] = nextPhotos.splice(i, 1); nextPhotos.unshift(p);
+    const nextThumbs = [...thumbList]; const [t] = nextThumbs.splice(i, 1); nextThumbs.unshift(t);
+    commit(nextPhotos, nextThumbs);
+  };
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>

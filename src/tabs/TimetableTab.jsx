@@ -66,7 +66,21 @@ export function Timetable({ reservations, casts, setCasts, onOpenReservation }) 
         <SectionTitle sub="24時間営業。白=待機中／グレー=勤務時間外／色付き=予約中(クリックで詳細)">タイムテーブル</SectionTitle>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
           <button onClick={() => setDayIndex((d) => Math.max(0, d - 1))} disabled={dayIndex === 0} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#FFF", color: dayIndex === 0 ? COLORS.border : COLORS.textMain, cursor: dayIndex === 0 ? "default" : "pointer", fontSize: 16 }}>‹</button>
-          <div style={{ minWidth: 108, textAlign: "center", fontSize: 14, fontWeight: 700, color: COLORS.textMain, background: "#EDF3FA", borderRadius: 8, padding: "6px 10px" }}>{isToday ? "本日 " : ""}{dayLabel(DAY_DATES[dayIndex])}</div>
+          <label style={{ position: "relative", display: "inline-flex", alignItems: "center", minWidth: 138, justifyContent: "center", fontSize: 14, fontWeight: 700, color: COLORS.textMain, background: "#EDF3FA", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>
+            <span>📅 {isToday ? "本日 " : ""}{dayLabel(DAY_DATES[dayIndex])}</span>
+            <input
+              type="date"
+              value={isoDate(DAY_DATES[dayIndex])}
+              min={isoDate(DAY_DATES[0])}
+              max={isoDate(DAY_DATES[NUM_DAYS - 1])}
+              onChange={(e) => {
+                const picked = e.target.value;
+                const idx = DAY_DATES.findIndex((d) => isoDate(d) === picked);
+                if (idx >= 0) setDayIndex(idx);
+              }}
+              style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+            />
+          </label>
           <button onClick={() => setDayIndex((d) => Math.min(NUM_DAYS - 1, d + 1))} disabled={dayIndex === NUM_DAYS - 1} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#FFF", color: dayIndex === NUM_DAYS - 1 ? COLORS.border : COLORS.textMain, cursor: dayIndex === NUM_DAYS - 1 ? "default" : "pointer", fontSize: 16 }}>›</button>
         </div>
       </div>

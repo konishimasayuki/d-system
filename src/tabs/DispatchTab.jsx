@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   AreaHotel, COLORS, Card, DRIVER_STATUS, JOB_STATUS, SectionTitle,
-  buildDispatchJobs, driverQueue, driverLocationLabel, driverStatusLabel, applyJobAssignment, coordForHotelName,
+  buildDispatchJobs, driverQueue, driverLocationLabel, driverStatusLabel, driverStatusColor, applyJobAssignment, coordForHotelName,
   castFullName, fmtHour, isoDate,
 } from "../shared.jsx";
 import { loadGoogleMaps, HOTEL_COORDS } from "../mapsLoader.js";
@@ -31,8 +31,8 @@ function jobPinSvg(kind, timeLabel) {
   const label = kind === "send" ? "送" : "迎";
   const color = kind === "send" ? "#2F6DB5" : "#3E9C74";
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='80' height='62' viewBox='0 0 80 62'>
-    <rect x='4' y='2' rx='7' ry='7' width='72' height='20' fill='${color}'/>
-    <text x='40' y='16' font-size='12' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${timeLabel}</text>
+    <rect x='13' y='2' rx='6' ry='6' width='54' height='19' fill='${color}'/>
+    <text x='40' y='15.5' font-size='12' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${timeLabel}</text>
     <circle cx='40' cy='40' r='13' fill='${color}' stroke='#ffffff' stroke-width='2.5'/>
     <text x='40' y='45' font-size='13' font-family='sans-serif' font-weight='700' fill='#ffffff' text-anchor='middle'>${label}</text>
     <path d='M40 55 l-6 -7 h12 z' fill='${color}'/>
@@ -183,7 +183,7 @@ function AssignPopover({ job, drivers, jobs, onAssign, onClose }) {
             <button key={d.id} onClick={() => onAssign(d.car)} style={{ display: "flex", flexDirection: "column", gap: 2, padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#FFF", cursor: "pointer", textAlign: "left" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain }}>{d.car} ・ {d.name}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: DRIVER_STATUS[d.status]?.color, background: `${DRIVER_STATUS[d.status]?.color}1F`, padding: "2px 8px", borderRadius: 999 }}>{driverStatusLabel(d, jobs || [])}</span>
+                {(() => { const lbl = driverStatusLabel(d, jobs || []); const c = driverStatusColor(lbl); return <span style={{ fontSize: 11, fontWeight: 700, color: c, background: `${c}1F`, padding: "2px 8px", borderRadius: 999 }}>{lbl}</span>; })()}
               </div>
               <span style={{ fontSize: 11, color: COLORS.textSub }}>{driverLocationLabel(d, jobs || [])}</span>
             </button>
@@ -204,7 +204,7 @@ function DriverInfoPopover({ driver, jobs, onClose }) {
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 14, width: "100%", maxWidth: 360, padding: 18, boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>{driver.car} ・ {driver.name}</div>
-          <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: `${st.color}1F`, padding: "3px 9px", borderRadius: 999 }}>{driverStatusLabel(driver, jobs)}</span>
+          {(() => { const lbl = driverStatusLabel(driver, jobs); const c = driverStatusColor(lbl); return <span style={{ fontSize: 11, fontWeight: 700, color: c, background: `${c}1F`, padding: "3px 9px", borderRadius: 999 }}>{lbl}</span>; })()}
         </div>
         <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>{driverLocationLabel(driver, jobs)}</div>
         {queue.length === 0 ? (
@@ -306,7 +306,7 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
                       {d.car} ・ {d.name}
                       <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 500, color: COLORS.textSub }}>{driverLocationLabel(d, allJobs)}</span>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: DRIVER_STATUS[d.status].color, background: `${DRIVER_STATUS[d.status].color}1F`, padding: "2px 8px", borderRadius: 999 }}>{driverStatusLabel(d, allJobs)}</span>
+                    {(() => { const lbl = driverStatusLabel(d, allJobs); const c = driverStatusColor(lbl); return <span style={{ fontSize: 11, fontWeight: 700, color: c, background: `${c}1F`, padding: "2px 8px", borderRadius: 999 }}>{lbl}</span>; })()}
                   </div>
                   <div style={{ color: COLORS.textSub, fontSize: 12, marginTop: 4 }}>
                     {next ? `次: ${fmtHour(next.time)} ${next.kind === "send" ? "送り" : "迎え"} ${next.hotel}` : "本日の予定なし"}

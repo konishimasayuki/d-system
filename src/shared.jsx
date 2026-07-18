@@ -495,13 +495,76 @@ export function CastAvatar({ cast, photo, size = 30, radius }) {
   );
 }
 
-// キャストの写真(最大10枚)をUpstash(castphotos:<id>)に保存・読込するフック
+// ============================================================
+// キャスト写真：フル画質は castphotos:<id>、一覧用の軽量サムネは castphotos:<id>:thumb に分離保存
+//  サムネはモジュールレベルでキャッシュし、タブを切り替えても再取得しない(チラつき防止)
+// ============================================================
+const _thumbCache = new Map();   // castId -> dataURL(サムネ) / null(写真なし)
+const _thumbInflight = new Map(); // castId -> Promise(取得中の重複防止)
+const _thumbSubscribers = new Set(); // 再描画通知用
+
+function _notifyThumbSubscribers() { _thumbSubscribers.forEach((fn) => { try { fn(); } catch (e) {} }); }
+
+// 1件のサムネを取得(キャッシュ優先・取得中は共有)。サムネキーが空なら旧データとしてフル画質から生成
+function _fetchThumb(castId) {
+  if (_thumbCache.has(castId)) return Promise.resolve(_thumbCache.get(castId));
+  if (_thumbInflight.has(castId)) return _thumbInflight.get(castId);
+  const p = fetch(`/api/state?key=castphotos:${castId}:thumb`).then((r) => r.json()).then(async (d) => {
+    if (d && typeof d.value === "string" && d.value) {
+      _thumbCache.set(castId, d.value); _thumbInflight.delete(castId); _notifyThumbSubscribers();
+      return d.value;
+    }
+    // サムネ未生成(旧データ or 空)。フル画質を1回だけ読んでサムネを生成・保存
+    try {
+      const full = await fetch(`/api/state?key=castphotos:${castId}`).then((r) => r.json());
+      const first = Array.isArray(full.value) && full.value[0] ? full.value[0] : null;
+      if (first) {
+        const thumb = await dataUrlToThumb(first);
+        fetch(`/api/state?key=castphotos:${castId}:thumb`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: thumb }) }).catch(() => {});
+        _thumbCache.set(castId, thumb); _thumbInflight.delete(castId); _notifyThumbSubscribers();
+        return thumb;
+      }
+    } catch (e) {}
+    _thumbCache.set(castId, null); _thumbInflight.delete(castId); _notifyThumbSubscribers();
+    return null;
+  }).catch(() => { _thumbCache.set(castId, null); _thumbInflight.delete(castId); return null; });
+  _thumbInflight.set(castId, p);
+  return p;
+}
+
+// キャッシュを更新(写真の保存・削除時に呼ぶ)
+export function setCastThumbCache(castId, thumbDataUrlOrNull) {
+  _thumbCache.set(castId, thumbDataUrlOrNull || null);
+  _notifyThumbSubscribers();
+}
+
+// 一覧・タイムテーブル用：表示中キャストのサムネだけを遅延取得し、一度読んだら保持する
+export function useCastThumbs(castIds) {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const rerender = () => force((n) => n + 1);
+    _thumbSubscribers.add(rerender);
+    return () => { _thumbSubscribers.delete(rerender); };
+  }, []);
+  const key = (castIds || []).join(",");
+  useEffect(() => {
+    (castIds || []).forEach((id) => { if (id && !_thumbCache.has(id)) _fetchThumb(id); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  // キャッシュから現在値を組み立てて返す
+  const map = {};
+  (castIds || []).forEach((id) => { const v = _thumbCache.get(id); if (v) map[id] = v; });
+  return map;
+}
+
+// キャストの写真(最大10枚・フル画質)をUpstash(castphotos:<id>)に保存・読込するフック
 export function useCastPhotos(castId) {
   const [photos, setPhotos] = useState([]);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     if (!castId) { setPhotos([]); setLoaded(true); return; }
     let cancelled = false;
+    setLoaded(false);
     fetch(`/api/state?key=castphotos:${castId}`).then((r) => r.json()).then((d) => {
       if (cancelled) return;
       setPhotos(Array.isArray(d.value) ? d.value : []);
@@ -509,32 +572,44 @@ export function useCastPhotos(castId) {
     }).catch(() => { if (!cancelled) { setPhotos([]); setLoaded(true); } });
     return () => { cancelled = true; };
   }, [castId]);
-  const save = (next) => {
+  const save = async (next) => {
     setPhotos(next);
+    // フル画質を保存
     fetch(`/api/state?key=castphotos:${castId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: next }) }).catch(() => {});
+    // 1枚目から軽量サムネを作って別キーに保存＋キャッシュ更新(一覧を軽くする)
+    if (next[0]) {
+      try {
+        const thumb = await dataUrlToThumb(next[0]);
+        fetch(`/api/state?key=castphotos:${castId}:thumb`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: thumb }) }).catch(() => {});
+        setCastThumbCache(castId, thumb);
+      } catch (e) { setCastThumbCache(castId, next[0]); }
+    } else {
+      fetch(`/api/state?key=castphotos:${castId}:thumb`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: "" }) }).catch(() => {});
+      setCastThumbCache(castId, null);
+    }
   };
   return { photos, setPhotos: save, loaded };
 }
 
-// 1枚目のサムネイルだけを一覧用に読む軽量フック(複数キャストぶんをまとめて)
-export function useCastThumbs(castIds) {
-  const [thumbs, setThumbs] = useState({});
-  const key = (castIds || []).join(",");
-  useEffect(() => {
-    if (!castIds || castIds.length === 0) return;
-    let cancelled = false;
-    Promise.all(castIds.map((id) =>
-      fetch(`/api/state?key=castphotos:${id}`).then((r) => r.json()).then((d) => ({ id, first: Array.isArray(d.value) && d.value[0] ? d.value[0] : null })).catch(() => ({ id, first: null }))
-    )).then((results) => {
-      if (cancelled) return;
-      const map = {};
-      results.forEach((r) => { if (r.first) map[r.id] = r.first; });
-      setThumbs(map);
-    });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  return thumbs;
+// dataURL(フル画質)から一覧用の小さいサムネ(縦3:4・約120x160)を生成
+export function dataUrlToThumb(dataUrl, targetW = 120, targetH = 160) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = targetW; canvas.height = targetH;
+      const ctx = canvas.getContext("2d");
+      const srcRatio = img.width / img.height;
+      const dstRatio = targetW / targetH;
+      let sw = img.width, sh = img.height, sx = 0, sy = 0;
+      if (srcRatio > dstRatio) { sw = img.height * dstRatio; sx = (img.width - sw) / 2; }
+      else { sh = img.width / dstRatio; sy = (img.height - sh) / 2; }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+      resolve(canvas.toDataURL("image/jpeg", 0.72));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
 }
 
 // 画像ファイルを縦3:4(シティヘブン準拠)にリサイズしdataURL化(保存容量を抑える)

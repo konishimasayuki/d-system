@@ -477,6 +477,26 @@ export function Yen({ value }) { return <span style={{ fontFamily: "'JetBrains M
 export function AreaHotel({ area, hotel }) { if (area === "-" || !area) return <span>-</span>; return <span>{area}{hotel ? ` ・ ${hotel}` : ""}</span>; }
 export function castFullName(c) { if (!c) return "未割当"; return c.name || ""; }
 
+// ひらがな⇔カタカナを区別せず検索するための正規化(全部カタカナに寄せて小文字化)
+export function kanaNormalize(s) {
+  return String(s || "")
+    .replace(/[\u3041-\u3096]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60)) // ひらがな→カタカナ
+    .toLowerCase();
+}
+// 表示名を全角換算n文字で切り、超過分は…にする(全角=1・半角=0.5換算)
+export function truncateName(name, maxZen = 8) {
+  const s = String(name || "");
+  let width = 0;
+  let out = "";
+  for (const ch of s) {
+    const w = ch.charCodeAt(0) <= 0xff ? 0.5 : 1;
+    if (width + w > maxZen) return out + "…";
+    width += w;
+    out += ch;
+  }
+  return out;
+}
+
 // キャストのアバター。写真があれば1枚目を表示、無ければ頭文字(タイムテーブルと共通の見た目)
 // shape: "circle"(頭文字丸) or "photo"(縦3:4のサムネイル枠)
 export function CastAvatar({ cast, photo, size = 30, radius }) {

@@ -171,7 +171,7 @@ export function CastList({ casts, setCasts }) {
                 <tr key={c.id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <CastAvatar cast={c} photo={thumbs[c.id]} size={38} radius={8} />
+                      <CastAvatar cast={c} photo={thumbs[c.id]} size={46} radius={8} />
                       <span>{castFullName(c)}</span>
                     </div>
                   </td>

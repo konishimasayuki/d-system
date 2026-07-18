@@ -5,7 +5,7 @@ export function CastMiniCard({ c }) {
   const s = CAST_STATUS[c.status];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#FFFFFF", marginBottom: 8 }}>
-      <div style={{ width: 32, height: 32, borderRadius: "50%", background: s.bg, border: `1.5px solid ${s.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: s.color, fontWeight: 700, flexShrink: 0 }}>{(c.sei || c.name)[0]}</div>
+      <div style={{ width: 32, height: 32, borderRadius: "50%", background: s.bg, border: `1.5px solid ${s.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: s.color, fontWeight: 700, flexShrink: 0 }}>{(c.name || "?")[0]}</div>
       <div style={{ minWidth: 0 }}>
         <div style={{ color: COLORS.textMain, fontSize: 13, fontWeight: 600 }}>{castFullName(c)}</div>
         <div style={{ color: COLORS.textSub, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.shiftStart === "-" ? "本日休み" : `${c.shiftStart}〜${c.shiftEnd}${c.hotel ? " / " + c.hotel : ""}`}</div>

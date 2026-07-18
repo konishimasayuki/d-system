@@ -12,8 +12,9 @@ const ALLOWED_KEYS = [
   "staff", "courses", "options", "expenses",
 ];
 const RESERVATION_KEY_RE = /^reservations:\d{4}-\d{2}-\d{2}$/;
+const CASTPHOTO_KEY_RE = /^castphotos:[A-Za-z0-9_]+$/;
 function isAllowedKey(key) {
-  return ALLOWED_KEYS.includes(key) || RESERVATION_KEY_RE.test(key);
+  return ALLOWED_KEYS.includes(key) || RESERVATION_KEY_RE.test(key) || CASTPHOTO_KEY_RE.test(key);
 }
 
 async function kvGet(key) {

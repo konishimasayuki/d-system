@@ -29,7 +29,7 @@ const PATTERNS = [
 const OUT_W = 1080;
 const OUT_H = 1440;
 
-function castFullName(c) { return c ? `${c.sei} ${c.name}` : ""; }
+function castFullName(c) { return c ? (c.name || "") : ""; }
 
 function parseSegments(line) {
   const segs = [];

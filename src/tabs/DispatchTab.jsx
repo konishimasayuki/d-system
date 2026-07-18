@@ -97,7 +97,7 @@ export function DriverMap({ drivers, hotels, office, jobs, pinJobs, onJobClick, 
       markersRef.current.push(m);
     });
 
-    // 未割当ジョブのピン(直近2時間ぶんのみ・クリックで割当)
+    // 未割当ジョブのピン(直近1時間ぶんのみ・クリックで割当)
     (pinJobs || []).filter((j) => j.jobStatus === "unassigned").forEach((j) => {
       const pos = coordFor(j.hotel);
       if (!pos) return;
@@ -243,7 +243,7 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
 
   const allJobs = buildDispatchJobs(reservations, todayStr);
   // 今の時間から2時間先までのジョブだけを配車対象として一覧・地図に出す
-  const listJobs = allJobs.filter((j) => j.time >= nowHour && j.time <= nowHour + 2).sort((a, b) => a.time - b.time);
+  const listJobs = allJobs.filter((j) => j.time >= nowHour && j.time <= nowHour + 1).sort((a, b) => a.time - b.time);
 
   const assign = (job, driverCar) => {
     if (driverCar === "未定") {
@@ -259,7 +259,7 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
 
   return (
     <div>
-      <SectionTitle sub="直近2時間の送り・迎えを一覧/地図から割り当て。未割当ピンをクリックしてドライバーを選べます">配車管理</SectionTitle>
+      <SectionTitle sub="直近1時間の送り・迎えを一覧/地図から割り当て。未割当ピンをクリックしてドライバーを選べます">配車管理</SectionTitle>
       <div className="grid-2">
         <Card style={{ padding: 12 }}>
           <DriverMap drivers={drivers} hotels={hotels} office={office} jobs={allJobs} pinJobs={listJobs} onJobClick={setPopoverJob} onDriverClick={setInfoDriver} />
@@ -271,9 +271,9 @@ export function DispatchMap({ drivers, reservations, setReservations, casts, hot
         </Card>
 
         <Card>
-          <div style={{ color: COLORS.textSub, fontSize: 12, marginBottom: 12 }}>未割当・直近の送り迎え(今から2時間以内・全{listJobs.length}件)</div>
+          <div style={{ color: COLORS.textSub, fontSize: 12, marginBottom: 12 }}>未割当・直近の送り迎え(今から1時間以内・全{listJobs.length}件)</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 340, overflowY: "auto", marginBottom: 18 }}>
-            {listJobs.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub }}>直近2時間に対象のジョブはありません。</div>}
+            {listJobs.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub }}>直近1時間に対象のジョブはありません。</div>}
             {listJobs.map((j) => {
               const st = JOB_STATUS[j.jobStatus] || JOB_STATUS.unassigned;
               return (

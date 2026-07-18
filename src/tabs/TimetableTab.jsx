@@ -1,21 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { CAST_STATUS, COLORS, Card, DAY_DATES, Modal, NUM_DAYS, PrimaryButton, SectionTitle, CastAvatar, useCastThumbs, castFullName, dayLabel, daySchedule, isoDate, parseTimeToHour } from "../shared.jsx";
+import { CAST_STATUS, COLORS, Card, DAY_DATES, NUM_DAYS, SectionTitle, CastAvatar, useCastThumbs, castFullName, dayLabel, daySchedule, isoDate, parseTimeToHour } from "../shared.jsx";
 
 // ============================================================
-export function CastMemoModal({ cast, onClose, onSave }) {
-  const [text, setText] = useState(cast.comment || "");
-  return (
-    <Modal title={`${castFullName(cast)} のメモ`} onClose={onClose}>
-      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder="対応上の注意事項・特記事項など" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box", resize: "vertical", fontFamily: "inherit", marginBottom: 12 }} />
-      <PrimaryButton onClick={() => { onSave(text); onClose(); }} style={{ width: "100%" }}>保存する</PrimaryButton>
-    </Modal>
-  );
-}
-
 // ============================================================
 // タイムテーブル(24時間営業・本日〜10日後まで日付切替対応)
-//  白=待機中／グレー=勤務時間外／色付き=予約中(クリックで詳細)
-//  本日のみ状態プルダウン・メモが編集可能。翌日以降は予定表示のみ
+//  状態タグ(接客中/待機中/退勤済み等)は現在時刻と予約バーから自動判定
+//  満枠/空き有 でオペレーターが予約可否を判断できる
 // ============================================================
 export const TT_HOURS = Array.from({ length: 30 }, (_, i) => i); // 0:00〜翌5:00(29時)まで表示
 
@@ -23,7 +13,6 @@ export function Timetable({ reservations, casts, setCasts, onOpenReservation }) 
   const colW = 60;
   const nameColW = 150;
   const [now, setNow] = useState(new Date());
-  const [memoCast, setMemoCast] = useState(null);
   const [dayIndex, setDayIndex] = useState(0);
   const scrollRef = useRef(null);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(t); }, []);
@@ -49,6 +38,31 @@ export function Timetable({ reservations, casts, setCasts, onOpenReservation }) 
 
   const dayReservations = reservations.filter((r) => r.date === dateStr);
   const thumbs = useCastThumbs(rowsForDay.map((r) => r.castId));
+
+  // 今の時刻・シフト・予約バーから、そのキャストの「今の実状態」と「空き枠の有無」を判定
+  // 満枠=これ以上予約を入れる余地がない / 空き有=まだ入れられる / なし=勤務時間外や休み
+  const liveStatus = (castRows, shiftStart, shiftEnd) => {
+    // 勤務時間外(未出勤 or 退勤済み)
+    if (shiftStart == null || shiftEnd == null) return { key: "off", label: "本日休み", vacancy: null };
+    if (nowHour < shiftStart) return { key: "before_shift", label: "出勤前", vacancy: null };
+    if (nowHour >= shiftEnd) return { key: "off", label: "退勤済み", vacancy: null };
+
+    // 勤務時間内。今この瞬間に進行中の予約があるか(キャンセル・終了は除く)
+    const active = castRows.find((r) => r.status !== "キャンセル" && r.status !== "終了" && nowHour >= r.start && nowHour < r.start + r.dur);
+    const statusKey = active ? (active.status === "移動中" ? "working" : "working") : "waiting";
+    const label = active ? (active.status === "移動中" ? "移動中" : "接客中") : "待機中";
+
+    // 空き枠判定：現在〜シフト終了までの残り時間に、既存の(未来の)予約が埋まっているか
+    // 進行中＋これから始まる予約の合計時間が、残り勤務時間の8割以上なら「満枠」とみなす
+    const remain = shiftEnd - Math.max(nowHour, shiftStart);
+    const futureBusy = castRows
+      .filter((r) => r.status !== "キャンセル" && r.status !== "終了" && r.start + r.dur > nowHour)
+      .reduce((sum, r) => sum + Math.min(r.start + r.dur, shiftEnd) - Math.max(r.start, nowHour), 0);
+    const vacancy = remain <= 0.5 ? "full" : (futureBusy >= remain * 0.8 ? "full" : "open");
+    return { key: statusKey, label, vacancy };
+  };
+
+  const STATUS_TAG = (key) => CAST_STATUS[key] || CAST_STATUS.off;
 
   const showNowLine = isToday && nowHour >= TT_HOURS[0] && nowHour <= TT_HOURS[TT_HOURS.length - 1] + 1;
   const nowLeft = (nowHour - TT_HOURS[0]) * colW;
@@ -106,10 +120,17 @@ export function Timetable({ reservations, casts, setCasts, onOpenReservation }) 
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.textMain, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{castFullName(c)}</div>
                       {isToday ? (
-                        <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 2 }}>
-                          {(() => { const s = CAST_STATUS[c.status] || CAST_STATUS.off; return <span style={{ fontSize: 10, fontWeight: 700, color: s.color, background: s.bg, padding: "1px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>{s.label}</span>; })()}
-                          <button onClick={() => setMemoCast(c)} title="メモ" style={{ fontSize: 9, border: `1px solid ${c.comment ? COLORS.accent : COLORS.border}`, borderRadius: 6, padding: "1px 5px", color: c.comment ? COLORS.accent : COLORS.textSub, background: "#FFF", cursor: "pointer" }}>メモ</button>
-                        </div>
+                        (() => {
+                          const ls = liveStatus(rows, shiftStart, shiftEnd);
+                          const s = STATUS_TAG(ls.key);
+                          return (
+                            <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 2, flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: s.color, background: s.bg, padding: "1px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>{ls.label}</span>
+                              {ls.vacancy === "full" && <span style={{ fontSize: 10, fontWeight: 700, color: "#C0492B", background: "rgba(192,73,43,0.12)", padding: "1px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>満枠</span>}
+                              {ls.vacancy === "open" && <span style={{ fontSize: 10, fontWeight: 700, color: "#3E9C74", background: "rgba(62,156,116,0.12)", padding: "1px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>空き有</span>}
+                            </div>
+                          );
+                        })()
                       ) : (
                         <div style={{ fontSize: 10, color: COLORS.textSub, marginTop: 2 }}>{shiftStart}:00〜{shiftEnd % 24}:00 出勤予定</div>
                       )}
@@ -159,7 +180,6 @@ export function Timetable({ reservations, casts, setCasts, onOpenReservation }) 
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 2, height: 14, background: "#3E9C74" }} />現在時刻</div>
       </div>
 
-      {memoCast && <CastMemoModal cast={memoCast} onClose={() => setMemoCast(null)} onSave={(text) => setCasts((prev) => prev.map((x) => x.id === memoCast.id ? { ...x, comment: text } : x))} />}
     </div>
   );
 }

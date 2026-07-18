@@ -481,6 +481,88 @@ export function SectionTitle({ children, sub }) {
 export function Yen({ value }) { return <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>¥{value.toLocaleString()}</span>; }
 export function AreaHotel({ area, hotel }) { if (area === "-" || !area) return <span>-</span>; return <span>{area}{hotel ? ` ・ ${hotel}` : ""}</span>; }
 export function castFullName(c) { if (!c) return "未割当"; return c.sei ? `${c.sei} ${c.name}` : c.name; }
+
+// キャストのアバター。写真があれば1枚目を表示、無ければ頭文字(タイムテーブルと共通の見た目)
+// shape: "circle"(頭文字丸) or "photo"(縦3:4のサムネイル枠)
+export function CastAvatar({ cast, photo, size = 30, radius }) {
+  const r = radius != null ? radius : "50%";
+  const initial = cast?.name ? cast.name[0] : "?";
+  if (photo) {
+    return <img src={photo} alt={castFullName(cast)} style={{ width: size, height: size, borderRadius: r, objectFit: "cover", flexShrink: 0, display: "block", background: "#EDF0F4" }} />;
+  }
+  return (
+    <div style={{ width: size, height: size, borderRadius: r, background: COLORS.accentBg, color: COLORS.accentDark, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(size * 0.4), fontWeight: 700, flexShrink: 0 }}>{initial}</div>
+  );
+}
+
+// キャストの写真(最大10枚)をUpstash(castphotos:<id>)に保存・読込するフック
+export function useCastPhotos(castId) {
+  const [photos, setPhotos] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    if (!castId) { setPhotos([]); setLoaded(true); return; }
+    let cancelled = false;
+    fetch(`/api/state?key=castphotos:${castId}`).then((r) => r.json()).then((d) => {
+      if (cancelled) return;
+      setPhotos(Array.isArray(d.value) ? d.value : []);
+      setLoaded(true);
+    }).catch(() => { if (!cancelled) { setPhotos([]); setLoaded(true); } });
+    return () => { cancelled = true; };
+  }, [castId]);
+  const save = (next) => {
+    setPhotos(next);
+    fetch(`/api/state?key=castphotos:${castId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: next }) }).catch(() => {});
+  };
+  return { photos, setPhotos: save, loaded };
+}
+
+// 1枚目のサムネイルだけを一覧用に読む軽量フック(複数キャストぶんをまとめて)
+export function useCastThumbs(castIds) {
+  const [thumbs, setThumbs] = useState({});
+  const key = (castIds || []).join(",");
+  useEffect(() => {
+    if (!castIds || castIds.length === 0) return;
+    let cancelled = false;
+    Promise.all(castIds.map((id) =>
+      fetch(`/api/state?key=castphotos:${id}`).then((r) => r.json()).then((d) => ({ id, first: Array.isArray(d.value) && d.value[0] ? d.value[0] : null })).catch(() => ({ id, first: null }))
+    )).then((results) => {
+      if (cancelled) return;
+      const map = {};
+      results.forEach((r) => { if (r.first) map[r.id] = r.first; });
+      setThumbs(map);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return thumbs;
+}
+
+// 画像ファイルを縦3:4(シティヘブン準拠)にリサイズしdataURL化(保存容量を抑える)
+export function fileToSizedDataURL(file, targetW = 450, targetH = 600) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = targetW; canvas.height = targetH;
+        const ctx = canvas.getContext("2d");
+        // 中央クロップで3:4に収める
+        const srcRatio = img.width / img.height;
+        const dstRatio = targetW / targetH;
+        let sw = img.width, sh = img.height, sx = 0, sy = 0;
+        if (srcRatio > dstRatio) { sw = img.height * dstRatio; sx = (img.width - sw) / 2; }
+        else { sh = img.width / dstRatio; sy = (img.height - sh) / 2; }
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 export function findCast(casts, nameStr) { return casts.find((c) => c.name === nameStr || castFullName(c) === nameStr); }
 export function hotelArea(hotel) { for (const [a, list] of Object.entries(HOTELS_BY_AREA)) if (list.includes(hotel)) return a; return "中央区"; }
 
@@ -546,6 +628,19 @@ export function driverStatusLabel(d, jobs) {
   const active = queue.find((j) => j.jobStatus === "enroute") || queue[0];
   if (!active) return "送迎中";
   return active.kind === "send" ? "送り中" : "迎え中";
+}
+
+// 状態ラベルに応じた表示色(送り中=青／迎え中=緑／待機中=グレー／到着済=橙／戻り中=水色)
+export function driverStatusColor(label) {
+  switch (label) {
+    case "送り中": return "#2F6DB5";
+    case "迎え中": return "#3E9C74";
+    case "待機中": return "#7A8798";
+    case "到着済": return "#E08A1E";
+    case "戻り中": return "#5C93C4";
+    case "送迎中": return "#2F6DB5";
+    default: return "#7A8798";
+  }
 }
 
 // 予約への割当変更(送り/迎え共通)。setReservationsにそのまま渡せる更新関数を返す

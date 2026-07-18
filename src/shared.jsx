@@ -142,11 +142,6 @@ export const CAST_NAMES = [
   "ラン～ドM潮吹き動画撮影～", "ココ～最高峰！国民的美少女級～", "イオリ～期待の星降臨☆～", "マナカ～Eカップの甘えんぼさん～", "レイカ～目を奪うほどの美しさ～",
   "エナ〜全て揃った奇跡の逸材〜",
 ];
-// 源氏名の姓
-export const CAST_SEI = [
-  "白石", "藤原", "桜井", "星野", "綾瀬", "早乙女", "天音", "水無月", "有栖", "神楽",
-  "月島", "小鳥遊", "envy", "花園", "橘",
-].filter((s) => /[一-龠]/.test(s)); // 漢字のみ採用
 export const OPTION_POOL = ["指名", "本指名", "延長30分", "コスプレ", "ロングコース"];
 export const FAMILY_NAMES = ["佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村", "小林", "加藤"];
 
@@ -190,7 +185,7 @@ export function generateCasts() {
     const okCount = 2 + (i % 3);
     const okOptions = OPTION_POOL.filter((_, oi) => (i + oi) % 5 < okCount).slice(0, okCount);
     return {
-      id: `c${i + 1}`, name, sei: "", // 単独源氏名(姓なし)
+      id: `c${i + 1}`, name,
       honmyo: `${FAMILY_NAMES[i % FAMILY_NAMES.length]} ${["彩", "舞", "結", "楓", "咲"][i % 5]}子`,
       age, birthday,
       status: "off", shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, // ← applyDay0Stateで本日分を上書き
@@ -480,7 +475,7 @@ export function SectionTitle({ children, sub }) {
 }
 export function Yen({ value }) { return <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>¥{value.toLocaleString()}</span>; }
 export function AreaHotel({ area, hotel }) { if (area === "-" || !area) return <span>-</span>; return <span>{area}{hotel ? ` ・ ${hotel}` : ""}</span>; }
-export function castFullName(c) { if (!c) return "未割当"; return c.sei ? `${c.sei} ${c.name}` : c.name; }
+export function castFullName(c) { if (!c) return "未割当"; return c.name || ""; }
 
 // キャストのアバター。写真があれば1枚目を表示、無ければ頭文字(タイムテーブルと共通の見た目)
 // shape: "circle"(頭文字丸) or "photo"(縦3:4のサムネイル枠)

@@ -99,10 +99,10 @@ export function Timetable({ reservations, casts, setCasts, onOpenReservation }) 
             {rowsForDay.map(({ castId, cast: c, shiftStart, shiftEnd }) => {
               const rows = dayReservations.filter((r) => r.castId === castId);
               return (
-                <div key={castId} style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, position: "relative", height: 56 }}>
+                <div key={castId} style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, position: "relative", height: 64 }}>
                   {/* 名前列 */}
                   <div style={{ width: nameColW, padding: "6px 10px", flexShrink: 0, display: "flex", alignItems: "center", gap: 8, background: "#FAFBFD", position: "sticky", left: 0, zIndex: 3, borderRight: `1px solid ${COLORS.border}` }}>
-                    <CastAvatar cast={c} photo={thumbs[c.id]} size={36} radius={8} />
+                    <CastAvatar cast={c} photo={thumbs[c.id]} size={44} radius={8} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.textMain, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{castFullName(c)}</div>
                       {isToday ? (

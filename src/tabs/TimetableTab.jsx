@@ -34,6 +34,13 @@ export function Timetable({ reservations, casts, setCasts, onOpenReservation }) 
   // 本日：実際のcasts(編集可能な状態)／翌日以降：スケジュールから算出(閲覧のみ)
   const rowsForDay = isToday
     ? casts.filter((c) => c.status !== "off").map((c) => ({ castId: c.id, cast: c, shiftStart: parseTimeToHour(c.shiftStart), shiftEnd: parseTimeToHour(c.shiftEnd) }))
+        .sort((a, b) => {
+          // 退勤済み(現在時刻がシフト終了を過ぎている)を下に
+          const aDone = a.shiftEnd != null && nowHour >= a.shiftEnd ? 1 : 0;
+          const bDone = b.shiftEnd != null && nowHour >= b.shiftEnd ? 1 : 0;
+          if (aDone !== bDone) return aDone - bDone;
+          return 0;
+        })
     : daySchedule(dayIndex).map((e) => ({ castId: casts[e.castIndex]?.id, cast: casts[e.castIndex], shiftStart: e.shiftStart, shiftEnd: e.shiftEnd })).filter((r) => r.cast);
 
   const dayReservations = reservations.filter((r) => r.date === dateStr);

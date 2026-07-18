@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CAST_STATUS, COLORS, Card, DAY_DATES, Modal, NUM_DAYS, PrimaryButton, SectionTitle, castFullName, dayLabel, daySchedule, isoDate, parseTimeToHour } from "../shared.jsx";
+import { CAST_STATUS, COLORS, Card, DAY_DATES, Modal, NUM_DAYS, PrimaryButton, SectionTitle, CastAvatar, useCastThumbs, castFullName, dayLabel, daySchedule, isoDate, parseTimeToHour } from "../shared.jsx";
 
 // ============================================================
 export function CastMemoModal({ cast, onClose, onSave }) {
@@ -48,6 +48,7 @@ export function Timetable({ reservations, casts, setCasts, onOpenReservation }) 
     : daySchedule(dayIndex).map((e) => ({ castId: casts[e.castIndex]?.id, cast: casts[e.castIndex], shiftStart: e.shiftStart, shiftEnd: e.shiftEnd })).filter((r) => r.cast);
 
   const dayReservations = reservations.filter((r) => r.date === dateStr);
+  const thumbs = useCastThumbs(rowsForDay.map((r) => r.castId));
 
   const showNowLine = isToday && nowHour >= TT_HOURS[0] && nowHour <= TT_HOURS[TT_HOURS.length - 1] + 1;
   const nowLeft = (nowHour - TT_HOURS[0]) * colW;
@@ -87,14 +88,12 @@ export function Timetable({ reservations, casts, setCasts, onOpenReservation }) 
                 <div key={castId} style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, position: "relative", height: 56 }}>
                   {/* 名前列 */}
                   <div style={{ width: nameColW, padding: "6px 10px", flexShrink: 0, display: "flex", alignItems: "center", gap: 8, background: "#FAFBFD", position: "sticky", left: 0, zIndex: 3, borderRight: `1px solid ${COLORS.border}` }}>
-                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: COLORS.accentBg, color: COLORS.accentDark, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{c.name[0]}</div>
+                    <CastAvatar cast={c} photo={thumbs[c.id]} size={30} radius={8} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.textMain, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{castFullName(c)}</div>
                       {isToday ? (
                         <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 2 }}>
-                          <select value={c.status} onChange={(e) => setCasts((prev) => prev.map((x) => x.id === c.id ? { ...x, status: e.target.value } : x))} style={{ fontSize: 10, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "1px 3px", color: COLORS.textMain, background: "#FFF" }}>
-                            {Object.entries(CAST_STATUS).map(([key, v]) => <option key={key} value={key}>{v.label}</option>)}
-                          </select>
+                          {(() => { const s = CAST_STATUS[c.status] || CAST_STATUS.off; return <span style={{ fontSize: 10, fontWeight: 700, color: s.color, background: s.bg, padding: "1px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>{s.label}</span>; })()}
                           <button onClick={() => setMemoCast(c)} title="メモ" style={{ fontSize: 9, border: `1px solid ${c.comment ? COLORS.accent : COLORS.border}`, borderRadius: 6, padding: "1px 5px", color: c.comment ? COLORS.accent : COLORS.textSub, background: "#FFF", cursor: "pointer" }}>メモ</button>
                         </div>
                       ) : (

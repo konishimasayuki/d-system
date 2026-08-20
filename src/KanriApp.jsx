@@ -60,7 +60,7 @@ const TAB_GROUPS = [
     { key: "reservation", label: "予約管理" }, { key: "dispatch", label: "配車管理" },
   ] },
   { group: "顧客・媒体", tabs: [
-    { key: "customer", label: "顧客・NGリスト" }, { key: "media", label: "媒体・HP更新" },
+    { key: "customer", label: "顧客名簿" }, { key: "media", label: "媒体・HP更新" },
   ] },
   { group: "経営", tabs: [
     { key: "report", label: "集計" }, { key: "accounting", label: "会計" }, { key: "payout", label: "委託費" },

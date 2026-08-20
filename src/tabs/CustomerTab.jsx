@@ -145,7 +145,7 @@ export function CustomerManagement({ customers, setCustomers, onQuote }) {
                 const isVip = c.colorLevel === "vip";
                 return (
                   <tr key={c.id} style={{ borderBottom: `1px solid ${COLORS.border}`, background: isNg ? "rgba(192,73,43,0.05)" : "#FFF" }}>
-                    <td style={{ padding: "10px 12px", fontSize: 12, color: COLORS.textSub, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" }}>{c.numId}</td>
+                    <td style={{ padding: "10px 12px", fontSize: 12, color: COLORS.textSub, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" }}>{c.numId ?? c.id}</td>
                     <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       <button onClick={() => setEditTarget(c)} style={{ background: "none", border: "none", padding: 0, color: COLORS.accent, fontSize: 14, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>{c.name}</button>
                       {isVip && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#C47F00", background: "rgba(196,127,0,0.12)", padding: "1px 7px", borderRadius: 999 }}>VIP</span>}
@@ -158,7 +158,7 @@ export function CustomerManagement({ customers, setCustomers, onQuote }) {
                     <td style={{ padding: "10px 12px", fontSize: 12, color: COLORS.textSub, whiteSpace: "nowrap" }}>{c.firstVisit}</td>
                     <td style={{ padding: "10px 12px", fontSize: 12, color: COLORS.textSub, whiteSpace: "nowrap" }}>{c.lastVisit}</td>
                     <td style={{ padding: "10px 12px", fontSize: 13, fontWeight: 600, color: COLORS.textMain, textAlign: "right" }}>{c.visits}</td>
-                    <td style={{ padding: "10px 12px", fontSize: 13, fontWeight: 600, color: COLORS.textMain, textAlign: "right" }}><Yen value={c.totalSales} /></td>
+                    <td style={{ padding: "10px 12px", fontSize: 13, fontWeight: 600, color: COLORS.textMain, textAlign: "right" }}><Yen value={c.totalSales || 0} /></td>
                     <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       <button onClick={() => remove(c.id)} title="削除" style={{ border: "none", background: "none", cursor: "pointer", color: COLORS.red, fontSize: 16, padding: "0 4px" }}>🗑</button>
                     </td>

@@ -473,7 +473,7 @@ export function SectionTitle({ children, sub }) {
     </div>
   );
 }
-export function Yen({ value }) { return <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>¥{value.toLocaleString()}</span>; }
+export function Yen({ value }) { const v = Number(value); return <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>¥{isNaN(v) ? 0 : v.toLocaleString()}</span>; }
 export function AreaHotel({ area, hotel }) { if (area === "-" || !area) return <span>-</span>; return <span>{area}{hotel ? ` ・ ${hotel}` : ""}</span>; }
 export function castFullName(c) { if (!c) return "未割当"; return c.name || ""; }
 

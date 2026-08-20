@@ -345,35 +345,35 @@ const _seeded = seedDemoDispatch(INITIAL_DRIVERS_RAW, ALL_RESERVATIONS_10D, isoD
 export const INITIAL_DRIVERS = _seeded.drivers;
 export const INITIAL_RESERVATIONS = _seeded.reservations; // 本日〜10日後、日付(date)付きで全件保持
 
-export const INITIAL_CUSTOMERS = [
-  { id: "u1", name: "田中様", phones: ["090-XXXX-1111", "092-XXX-1111"], address: "福岡市中央区天神X-X", email: "tanaka@example.com", visits: 14, lastVisit: "2026-06-28", colorLevel: "vip", note: "常連。指名多め",
-    history: [
-      { date: "2026-06-28", cast: "みお", course: "90分コース", option: "本指名", hotel: "天神プラザホテル", price: 23000 },
-      { date: "2026-06-14", cast: "みお", course: "90分コース", option: "本指名", hotel: "中央グランドイン", price: 23000 },
-      { date: "2026-05-30", cast: "ゆら", course: "60分コース", option: "指名", hotel: "天神プラザホテル", price: 18000 },
-      { date: "2026-05-18", cast: "みお", course: "120分コース", option: "本指名", hotel: "西鉄シティホテル", price: 30000 },
-      { date: "2026-05-02", cast: "みお", course: "90分コース", option: "本指名", hotel: "天神プラザホテル", price: 23000 },
-    ] },
-  { id: "u2", name: "佐藤様", phones: ["080-XXXX-2222"], address: "福岡市東区XX", email: "", visits: 3, lastVisit: "2026-06-20", colorLevel: "normal", note: "",
-    history: [
-      { date: "2026-06-20", cast: "りん", course: "60分コース", option: "指名", hotel: "博多ベイサイドホテル", price: 18000 },
-      { date: "2026-06-05", cast: "りん", course: "60分コース", option: "指名", hotel: "博多ベイサイドホテル", price: 18000 },
-      { date: "2026-05-22", cast: "あず", course: "90分コース", option: "なし", hotel: "東区パークホテル", price: 21000 },
-    ] },
-  { id: "u3", name: "鈴木様", phones: ["070-XXXX-3333"], address: "福岡市中央区XX", email: "suzuki@example.com", visits: 7, lastVisit: "2026-06-30", colorLevel: "normal", note: "現金払い。指名はあず様が多め",
-    history: [
-      { date: "2026-06-30", cast: "あず", course: "90分コース", option: "指名", hotel: "中央グランドイン", price: 21000 },
-      { date: "2026-06-16", cast: "せな", course: "60分コース", option: "なし", hotel: "天神プラザホテル", price: 18000 },
-      { date: "2026-06-01", cast: "あず", course: "90分コース", option: "指名", hotel: "中央グランドイン", price: 21000 },
-      { date: "2026-05-15", cast: "こはる", course: "60分コース", option: "なし", hotel: "西鉄シティホテル", price: 18000 },
-      { date: "2026-04-29", cast: "あず", course: "120分コース", option: "指名", hotel: "中央グランドイン", price: 28000 },
-    ] },
-  { id: "u4", name: "問題客A", phones: ["090-XXXX-9999"], address: "-", email: "", visits: 2, lastVisit: "2026-05-11", colorLevel: "ng", note: "キャストへの言動により出禁",
-    history: [
-      { date: "2026-05-11", cast: "ひな", course: "60分コース", option: "なし", hotel: "博多エクセルホテル", price: 18000 },
-      { date: "2026-04-20", cast: "さら", course: "60分コース", option: "なし", hotel: "博多エクセルホテル", price: 18000 },
-    ] },
-];
+const _SURNAMES = ["田中", "佐藤", "鈴木", "高橋", "伊藤", "渡辺", "山本", "中村", "小林", "加藤", "吉田", "山田", "佐々木", "山口", "松本", "井上", "木村", "林", "清水", "斎藤", "松田", "中野", "橋本", "中島", "岡田", "前田", "後藤", "村上", "長谷川", "近藤"];
+const _COURSES = ["60分コース", "90分コース", "120分コース"];
+const _CASTS = ["みお", "りん", "あず", "せな", "こはる", "ひな", "さら", "ゆら", "まい", "るか"];
+const _PRICES = { "60分コース": 18000, "90分コース": 21000, "120分コース": 28000 };
+function _randDate(daysAgo, range = 30) {
+  const d = new Date(); d.setDate(d.getDate() - Math.floor(daysAgo + Math.random() * range));
+  return isoDate(d);
+}
+export const INITIAL_CUSTOMERS = Array.from({ length: 60 }, (_, i) => {
+  const id = 1000 + i;
+  const name = _SURNAMES[i % _SURNAMES.length];
+  const visits = Math.floor(Math.random() * 20) + 1;
+  const firstVisit = _randDate(visits * 14, 7);
+  const lastVisit = _randDate(1, 30);
+  const totalSales = visits * _PRICES[_COURSES[i % 3]];
+  const colorLevel = i % 20 === 3 ? "ng" : i % 15 === 0 ? "vip" : i % 10 === 1 ? "caution" : "normal";
+  const history = Array.from({ length: Math.min(visits, 5) }, (__, k) => ({
+    date: _randDate(k * 14, 7), cast: _CASTS[(i + k) % _CASTS.length],
+    course: _COURSES[k % 3], option: k % 2 === 0 ? "指名" : "なし",
+    hotel: INITIAL_HOTELS[i % INITIAL_HOTELS.length]?.name || "-", price: _PRICES[_COURSES[k % 3]],
+  }));
+  return {
+    id: `u${id}`, numId: id, name, phones: [`0${Math.floor(80 + Math.random() * 20)}${String(10000000 + id * 7).slice(-8).replace(/(.{4})/, "$1-")}`],
+    address: `福岡市${["中央区", "博多区", "東区", "南区"][i % 4]}`, email: i % 3 === 0 ? `${name.toLowerCase()}${id}@example.com` : "",
+    visits, firstVisit, lastVisit, totalSales, colorLevel, note: colorLevel === "ng" ? "出禁：キャストへの言動" : colorLevel === "vip" ? "VIP：常連" : "", history,
+  };
+}).concat([
+  { id: "u4", numId: 4, name: "問題客", phones: ["090-9999-9999"], address: "福岡市博多区", email: "", visits: 2, firstVisit: "2026-05-01", lastVisit: "2026-05-11", totalSales: 36000, colorLevel: "ng", note: "出禁：キャストへの言動", history: [] },
+]);
 
 export const INITIAL_STAFF = [
   { id: "s1", name: "近藤", role: "オーナー", loginId: "kondo", password: "pass1234" },

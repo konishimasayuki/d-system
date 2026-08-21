@@ -207,7 +207,7 @@ export function generateCasts() {
       joinDate,
       itakuRate: 0.5 + (i % 3) * 0.05, idVerified: i % 7 !== 0,
       stdLast: stdLast.toISOString().slice(0, 10),
-      okOptions, comment: "", shops: ["hakata"], // 所属店舗(人妻専科/博多ココ、複数可)。現状は全員博多ココ
+      okOptions, comment: "", shops: ["hakata"], taikiba: "", // 所属店舗・待機場(受付表の待機場列と対応)
     };
   });
 }
@@ -306,6 +306,9 @@ const DRIVER_SPOTS = [
   { lat: 33.6000, lng: 130.4250 }, { lat: 33.5830, lng: 130.4100 }, { lat: 33.5650, lng: 130.4050 }, { lat: 33.5980, lng: 130.3980 },
 ];
 const DRIVER_AREAS = ["中央区", "東区", "博多区", "南区", "中央区", "博多区", "中央区", "東区", "南区", "博多区", "中央区", "博多区", "南区", "博多区", "博多区", "早良区", "東区", "中央区", "南区", "早良区"];
+// 待機場の選択肢(キャスト設定・受付表で共通)
+export const TAIKI_OPTIONS = ["", "2階車", "駅南", "220", "1階", "自宅", "住吉", "車"];
+
 export function generateDrivers() {
   return DRIVER_NAME_POOL.map((name, i) => {
     const area = DRIVER_AREAS[i % DRIVER_AREAS.length];

@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { COLORS, Card, SectionTitle, dayLabel, isoDate } from "../shared.jsx";
 
 // ============================================================
-// スタッフスケジュールタブ
-//  縦=スタッフ名 / 横=今週7日間
+// ドライバースケジュールタブ
+//  縦=ドライバー名 / 横=今週7日間
 //  各セルで「休み」or「HH:00〜HH:00」(30分刻み)を選択
-//  データは /api/state?key=staffschedule に保存
+//  データは /api/state?key=driverschedule に保存
 // ============================================================
 
 // 00:00〜29:30まで30分刻みの選択肢
@@ -36,7 +36,7 @@ function setCell(schedule, staffId, dateStr, cell) {
   };
 }
 
-export function StaffScheduleTab({ staff }) {
+export function DriverScheduleTab({ drivers }) {
   const [schedule, setSchedule] = useState(emptySchedule());
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -44,7 +44,7 @@ export function StaffScheduleTab({ staff }) {
 
   // Upstashから読み込み
   useEffect(() => {
-    fetch("/api/state?key=staffschedule").then((r) => r.json()).then((d) => {
+    fetch("/api/state?key=driverschedule").then((r) => r.json()).then((d) => {
       if (d && d.value && typeof d.value === "object") setSchedule(d.value);
       setLoaded(true);
     }).catch(() => setLoaded(true));
@@ -57,7 +57,7 @@ export function StaffScheduleTab({ staff }) {
       const next = setCell(prev, staffId, dateStr, { ...cur, [field]: val });
       // 非同期で保存
       setSaving(true);
-      fetch("/api/state?key=staffschedule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: next }) })
+      fetch("/api/state?key=driverschedule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: next }) })
         .then(() => { setSaving(false); setMsg("保存しました"); setTimeout(() => setMsg(""), 1200); })
         .catch(() => { setSaving(false); setMsg("保存に失敗しました"); });
       return next;
@@ -79,7 +79,7 @@ export function StaffScheduleTab({ staff }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
-        <SectionTitle sub="スタッフの1週間の出勤スケジュール。変更は即時保存されます">スタッフスケジュール</SectionTitle>
+        <SectionTitle sub="ドライバーの1週間の出勤スケジュール。変更は即時保存されます">ドライバースケジュール</SectionTitle>
         <div style={{ fontSize: 12, color: saving ? COLORS.accent : COLORS.textSub, padding: "4px 0" }}>
           {saving ? "保存中…" : msg}
         </div>
@@ -93,7 +93,7 @@ export function StaffScheduleTab({ staff }) {
             <div style={{ minWidth: nameColW + colW * 7 }}>
               {/* ヘッダ行(日付) */}
               <div style={{ display: "flex", borderBottom: `2px solid ${COLORS.border}` }}>
-                <div style={{ width: nameColW, flexShrink: 0, padding: "12px 14px", fontSize: 12, fontWeight: 600, color: COLORS.textSub, background: "#EDF3FA", position: "sticky", left: 0, zIndex: 3 }}>スタッフ</div>
+                <div style={{ width: nameColW, flexShrink: 0, padding: "12px 14px", fontSize: 12, fontWeight: 600, color: COLORS.textSub, background: "#EDF3FA", position: "sticky", left: 0, zIndex: 3 }}>ドライバー</div>
                 {WEEK_DAYS.map((d) => (
                   <div key={isoDate(d)} style={{ width: colW, flexShrink: 0, padding: "10px 6px", textAlign: "center", background: headBg(d), color: headColor(d), fontWeight: 700, fontSize: 13, borderLeft: `1px solid ${COLORS.border}` }}>
                     {dayLabel(d)}
@@ -102,8 +102,8 @@ export function StaffScheduleTab({ staff }) {
                 ))}
               </div>
 
-              {/* スタッフ行 */}
-              {staff.map((s) => (
+              {/* ドライバー行 */}
+              {drivers.map((s) => (
                 <div key={s.id} style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}` }}>
                   {/* 名前列(固定) */}
                   <div style={{ width: nameColW, flexShrink: 0, padding: "14px 14px", background: "#FAFBFD", position: "sticky", left: 0, zIndex: 2, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -142,13 +142,6 @@ export function StaffScheduleTab({ staff }) {
                             <select value={cell.end} onChange={(e) => update(s.id, dateStr, "end", e.target.value)} style={SELECT_STYLE}>
                               {HALF_HOURS.filter((t) => t > cell.start).map((t) => <option key={t} value={t}>{t}</option>)}
                             </select>
-                          </div>
-                        )}
-
-                        {/* 出勤時間サマリ */}
-                        {!isOff && (
-                          <div style={{ fontSize: 11, color: COLORS.accent, fontWeight: 600, textAlign: "center" }}>
-                            {cell.start}〜{cell.end}
                           </div>
                         )}
                       </div>

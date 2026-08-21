@@ -319,7 +319,7 @@ export function UketsukeTab({ casts, courses, drivers }) {
   const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
   const wareki = d.getFullYear() - 2018; // 令和
 
-  const castNames = ["", ...casts.map((c) => castFullName(c))];
+  const castNames = ["", ...casts.filter((c) => (c.shops || []).includes(sheetKey)).map((c) => castFullName(c))];
   const courseNames = ["", "60", "90", "120", "D150", "150", "180"];
   const driverNames = ["", ...drivers.map((dr) => dr.name)];
   const taikiOptions = ["", "2階車", "駅南", "220", "1階", "自宅", "住吉", "車"];

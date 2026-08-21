@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { COLORS, Card, SectionTitle, castFullName, isoDate } from "../shared.jsx";
+import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, isoDate } from "../shared.jsx";
 
 // ============================================================
 // 受付表タブ(スプレッドシート再現・1日1シート)
@@ -141,6 +141,79 @@ function Cell({ value, onChange, width, align = "center", bg, color, bold, fontS
   );
 }
 
+// 文字入力で候補が絞り込まれるオートコンプリートセル(ひらがな/カタカナ相互一致)
+function AutoCompleteCell({ value, onChange, options, width, bg, color, bold, fontSize = 11.5, customStyle, onStyleChange }) {
+  const [picker, setPicker] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [query, setQuery] = useState("");
+  const finalBg = customStyle?.bg || bg || "transparent";
+  const finalColor = customStyle?.color || color || COLORS.textMain;
+  const lp = useLongPress((x, y) => setPicker({ x, y }));
+
+  const nq = kanaNormalize(query);
+  const filtered = query ? options.filter((o) => o && kanaNormalize(o).includes(nq)) : options.filter(Boolean);
+
+  const startEdit = () => { setQuery(""); setEditing(true); };
+  const pick = (name) => { onChange(name); setEditing(false); setQuery(""); };
+
+  if (!editing) {
+    return (
+      <>
+        <button
+          onClick={startEdit}
+          {...lp}
+          style={{
+            width, minWidth: width, maxWidth: width, boxSizing: "border-box",
+            padding: "2px 3px", border: "none", borderRight: `1px solid ${COLORS.border}`,
+            background: finalBg, color: value ? finalColor : "#B7C2D0",
+            fontWeight: bold ? 700 : 400, fontSize, textAlign: "center",
+            outline: "none", height: "100%", cursor: "pointer",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>{value || "選択"}</button>
+        {picker && onStyleChange && (
+          <ColorPickerPopover x={picker.x} y={picker.y} currentBg={customStyle?.bg} currentColor={customStyle?.color}
+            onPick={(patch) => { onStyleChange({ ...customStyle, ...patch }); setPicker(null); }}
+            onClose={() => setPicker(null)} />
+        )}
+      </>
+    );
+  }
+
+  return (
+    <div style={{ position: "relative", width, minWidth: width, maxWidth: width, height: "100%" }}>
+      <input
+        autoFocus
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onBlur={() => setTimeout(() => setEditing(false), 150)}
+        placeholder="入力して検索"
+        style={{
+          width: "100%", height: "100%", boxSizing: "border-box",
+          padding: "2px 3px", border: `1.5px solid ${COLORS.accent}`,
+          background: "#FFF9DB", color: COLORS.textMain, fontWeight: bold ? 700 : 400,
+          fontSize, textAlign: "center", outline: "none", zIndex: 5, position: "relative",
+        }}
+      />
+      <div style={{
+        position: "absolute", top: "100%", left: 0, minWidth: 150, maxHeight: 220, overflowY: "auto",
+        background: "#FFF", border: `1px solid ${COLORS.border}`, borderRadius: 8, boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
+        zIndex: 100,
+      }}>
+        {value && (
+          <div onMouseDown={() => pick("")} style={{ padding: "7px 10px", fontSize: 12, color: COLORS.textSub, cursor: "pointer", borderBottom: `1px solid ${COLORS.border}` }}>(クリア)</div>
+        )}
+        {filtered.length === 0 && <div style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub }}>該当なし</div>}
+        {filtered.slice(0, 30).map((o) => (
+          <div key={o} onMouseDown={() => pick(o)}
+            style={{ padding: "7px 10px", fontSize: 12.5, color: COLORS.textMain, cursor: "pointer", background: o === value ? "#EDF3FA" : "#FFF", whiteSpace: "nowrap" }}>
+            {o}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // セレクト型セル
 function SelCell({ value, onChange, options, width, bg, color, bold, fontSize = 11.5, customStyle, onStyleChange }) {
   const [picker, setPicker] = useState(null);
@@ -237,6 +310,11 @@ export function UketsukeTab({ casts, courses, drivers }) {
     }), { otoshi: 0, joshi: 0, count: 0 });
   }, [sheet.rows]);
 
+  // 料金からカード総額(1.15倍)・手数料(差額=15%分)を自動計算
+  const ryokinNum = Number(String(sheet.header.ryokin).replace(/[^0-9.-]/g, "")) || 0;
+  const cardTotal = Math.round(ryokinNum * 1.15);
+  const tesuryo = cardTotal - ryokinNum;
+
   const d = new Date(dateStr);
   const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
   const wareki = d.getFullYear() - 2018; // 令和
@@ -301,14 +379,14 @@ export function UketsukeTab({ casts, courses, drivers }) {
                     <span style={{ fontSize: 15, fontWeight: 700 }}>{d.getDate()}日</span>
                     <span style={{ fontSize: 14, fontWeight: 700, marginLeft: 6, color: COLORS.textSub }}>({youbi})</span>
                   </div>
-                  {/* 集計 */}
+                  {/* 集計(料金を入力するとカード総額・手数料が自動計算) */}
                   <div style={{ display: "flex", alignItems: "center" }}>
                     <div style={{ fontSize: 11, fontWeight: 700, background: "#FFFF00", padding: "5px 10px", borderRight: `1px solid ${COLORS.border}` }}>料金</div>
                     <Cell value={sheet.header.ryokin} onChange={(v) => setHeader("ryokin", v)} width={90} bg="#FFFF00" bold color="#C00000" placeholder="¥0" mono />
                     <div style={{ fontSize: 11, fontWeight: 700, background: "#FFFF00", padding: "5px 10px", borderRight: `1px solid ${COLORS.border}` }}>カード総額</div>
-                    <Cell value={sheet.header.cardTotal} onChange={(v) => setHeader("cardTotal", v)} width={90} bg="#FFFF00" bold color="#C00000" placeholder="¥0" mono />
+                    <div style={{ width: 90, padding: "5px 6px", background: "#FFFF00", color: "#C00000", fontWeight: 700, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", textAlign: "center", borderRight: `1px solid ${COLORS.border}` }}>¥{cardTotal.toLocaleString()}</div>
                     <div style={{ fontSize: 9.5, fontWeight: 700, background: "#FFFF00", padding: "5px 6px", borderRight: `1px solid ${COLORS.border}`, lineHeight: 1.1, textAlign: "center" }}>手数料<br />(15%)</div>
-                    <Cell value={sheet.header.tesuryo} onChange={(v) => setHeader("tesuryo", v)} width={80} bg="#FFFF00" bold mono placeholder="¥0" />
+                    <div style={{ width: 80, padding: "5px 6px", background: "#FFFF00", color: COLORS.textMain, fontWeight: 700, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", textAlign: "center" }}>¥{tesuryo.toLocaleString()}</div>
                   </div>
                 </div>
                 {/* 寮滞在者 */}
@@ -378,7 +456,7 @@ export function UketsukeTab({ casts, courses, drivers }) {
 
                 {/* F キャスト(結合) */}
                 <div style={{ width: W.cast, minWidth: W.cast, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", background: "#FFF" }}>
-                  <SelCell value={r.cast} onChange={(v) => setRow(i, "cast", v)} options={castNames} width={W.cast - 2} bold fontSize={10.5}  customStyle={r.styles?.["cast"]} onStyleChange={(s) => setRowStyle(i, "cast", s)}/>
+                  <AutoCompleteCell value={r.cast} onChange={(v) => setRow(i, "cast", v)} options={castNames} width={W.cast - 2} bold fontSize={10.5} customStyle={r.styles?.["cast"]} onStyleChange={(s) => setRowStyle(i, "cast", s)} />
                 </div>
 
                 {/* G 指名数(上段のみ・オレンジ) */}

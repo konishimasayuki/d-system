@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, isoDate } from "../shared.jsx";
+import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, isoDate } from "../shared.jsx";
 
 // キャストの写真管理(最大10枚・縦3:4)。詳細モーダル内で使用
 function CastPhotoManager({ castId }) {
@@ -77,7 +77,7 @@ function CastPhotoManager({ castId }) {
 
 // ============================================================
 export function CastDetailModal({ cast, onClose, onSave }) {
-  const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、"), shops: cast.shops || [] });
+  const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、"), shops: castShops(cast) });
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
   const save = () => {
@@ -196,7 +196,7 @@ export function CastList({ casts, setCasts }) {
   const [detailId, setDetailId] = useState(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const nq = kanaNormalize(query);
-  const shopCasts = casts.filter((c) => (c.shops || []).includes(shopKey));
+  const shopCasts = casts.filter((c) => castShops(c).includes(shopKey));
   const rows = shopCasts.filter((c) => kanaNormalize(castFullName(c)).includes(nq) || kanaNormalize(c.honmyo).includes(nq));
   const detailCast = casts.find((c) => c.id === detailId);
   const thumbs = useCastThumbs(rows.map((c) => c.id));
@@ -214,7 +214,7 @@ export function CastList({ casts, setCasts }) {
               background: shopKey === s.key ? "#FFF" : "#EDF3FA",
               color: shopKey === s.key ? COLORS.accent : COLORS.textSub,
               fontWeight: 700, fontSize: 13, cursor: "pointer", position: "relative", top: 1,
-            }}>{s.label}（{casts.filter((c) => (c.shops || []).includes(s.key)).length}）</button>
+            }}>{s.label}（{casts.filter((c) => castShops(c).includes(s.key)).length}）</button>
         ))}
       </div>
 

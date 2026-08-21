@@ -20,7 +20,7 @@ import { Payout } from "./tabs/PayoutTab.jsx";
 import { StdManagement } from "./tabs/StdTab.jsx";
 import { DriverPage, CastMyPage } from "./tabs/FieldPages.jsx";
 import { SettingsTab } from "./tabs/SettingsTab.jsx";
-import { StaffScheduleTab } from "./tabs/StaffScheduleTab.jsx";
+import { DriverScheduleTab } from "./tabs/StaffScheduleTab.jsx";
 
 // ============================================================
 function CtiPopup({ customer, onClose, onReserve }) {
@@ -70,7 +70,7 @@ const TAB_GROUPS = [
     { key: "driverpage", label: "ドライバーページ" }, { key: "mypage", label: "キャストマイページ" },
   ] },
   { group: "管理", tabs: [
-    { key: "std", label: "STD検査" }, { key: "staffschedule", label: "スタッフスケジュール" }, { key: "settings", label: "設定" },
+    { key: "std", label: "STD検査" }, { key: "driverschedule", label: "ドライバースケジュール" }, { key: "settings", label: "設定" },
   ] },
 ];
 const ALL_TABS = TAB_GROUPS.flatMap((g) => g.tabs);
@@ -171,7 +171,7 @@ export default function KanriApp() {
           {tab === "driverpage" && <DriverPage reservations={reservations} casts={casts} drivers={drivers} />}
           {tab === "mypage" && <CastMyPage casts={casts} reservations={reservations} />}
           {tab === "std" && <StdManagement casts={casts} />}
-          {tab === "staffschedule" && <StaffScheduleTab staff={staff} />}
+          {tab === "driverschedule" && <DriverScheduleTab drivers={drivers} />}
           {tab === "settings" && <SettingsTab setCasts={setCasts} drivers={drivers} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} staff={staff} setStaff={setStaff} courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} setReservations={setReservations} syncMsg={syncMsg} />}
         </div>
       </div>

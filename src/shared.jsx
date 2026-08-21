@@ -10,6 +10,12 @@ export const COLORS = {
   green: "#3E9C74", blue: "#3E7CA6", purple: "#7B77C4", red: "#C0492B",
 };
 
+// 所属店舗(受付表のシートと対応)
+export const SHOP_OPTIONS = [
+  { key: "hitozuma", label: "人妻専科" },
+  { key: "hakata", label: "博多ココ" },
+];
+
 export const CAST_STATUS = {
   before_shift: { label: "出勤前", color: "#7B77C4", bg: "rgba(123,119,196,0.12)" },
   waiting: { label: "待機中", color: "#3E9C74", bg: "rgba(62,156,116,0.12)" },
@@ -196,7 +202,7 @@ export function generateCasts() {
       joinDate,
       itakuRate: 0.5 + (i % 3) * 0.05, idVerified: i % 7 !== 0,
       stdLast: stdLast.toISOString().slice(0, 10),
-      okOptions, comment: "",
+      okOptions, comment: "", shops: ["hakata"], // 所属店舗(人妻専科/博多ココ、複数可)。現状は全員博多ココ
     };
   });
 }

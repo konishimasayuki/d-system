@@ -37,11 +37,11 @@ const W = {
 };
 
 const emptyRow = () => ({
-  bikoL: "", taiki: "", time: "", depart: "出発", cast: "", shimeiN: "",
+  bikoL: "", bikoL2: "", taiki: "", time: "", depart: "出発", cast: "", shimeiN: "",
   kaiin: "会員", shimeiType: "本指", name: "", tel: "", hotel: "",
   kotsu: "", course: "", op1: "なし", op2: "なし", op3: "なし", op4: "なし",
-  taishutsu: "", otoshi: "", joshi: "", biko: "", okuri: "", mukae: "",
-  ryoshu: "", baitai: "", bikoR: "",
+  taishutsu: "", otoshi: "", joshi: "", biko: "", biko2: "", okuri: "", mukae: "",
+  ryoshu: "", baitai: "", bikoR: "", bikoR2: "",
   styles: {}, // { [フィールド名]: { bg, color } } ユーザーが選んだセル色
 });
 
@@ -183,28 +183,34 @@ function Th({ children, width, bg = "#EDF3FA" }) {
   );
 }
 
+const SHEETS = [
+  { key: "hitozuma", label: "人妻専科" },
+  { key: "hakata", label: "博多ココ" },
+];
+
 export function UketsukeTab({ casts, courses, drivers }) {
+  const [sheetKey, setSheetKey] = useState("hitozuma");
   const [dateStr, setDateStr] = useState(isoDate(new Date()));
   const [sheet, setSheet] = useState(emptySheet());
   const [loaded, setLoaded] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // 日付が変わったら読み込み
+  // シート・日付が変わったら読み込み
   useEffect(() => {
     setLoaded(false);
-    fetch(`/api/state?key=uketsuke:${dateStr}`).then((r) => r.json()).then((d) => {
+    fetch(`/api/state?key=uketsuke:${sheetKey}:${dateStr}`).then((r) => r.json()).then((d) => {
       if (d && d.value && d.value.rows) setSheet(d.value);
       else setSheet(emptySheet());
       setLoaded(true);
     }).catch(() => { setSheet(emptySheet()); setLoaded(true); });
-  }, [dateStr]);
+  }, [sheetKey, dateStr]);
 
   // 保存(デバウンス)
   const save = (next) => {
     setSheet(next);
     clearTimeout(window.__uketsukeTimer);
     window.__uketsukeTimer = setTimeout(() => {
-      fetch(`/api/state?key=uketsuke:${dateStr}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: next }) })
+      fetch(`/api/state?key=uketsuke:${sheetKey}:${dateStr}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: next }) })
         .then(() => { setMsg("保存しました"); setTimeout(() => setMsg(""), 1200); })
         .catch(() => setMsg("保存に失敗しました"));
     }, 600);
@@ -246,12 +252,26 @@ export function UketsukeTab({ casts, courses, drivers }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
-        <SectionTitle sub="スプレッドシートと同じ形式で入力できます。1日1シート・変更は自動保存されます">受付表</SectionTitle>
+        <SectionTitle>受付表</SectionTitle>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: COLORS.accent }}>{msg}</span>
           <input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)}
             style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontWeight: 700, color: COLORS.textMain, background: "#FFF" }} />
         </div>
+      </div>
+
+      {/* シート(店舗)切り替え */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+        {SHEETS.map((s) => (
+          <button key={s.key} onClick={() => setSheetKey(s.key)}
+            style={{
+              padding: "8px 20px", borderRadius: "8px 8px 0 0", border: `1px solid ${COLORS.border}`,
+              borderBottom: sheetKey === s.key ? "none" : `1px solid ${COLORS.border}`,
+              background: sheetKey === s.key ? "#FFF" : "#EDF3FA",
+              color: sheetKey === s.key ? COLORS.accent : COLORS.textSub,
+              fontWeight: 700, fontSize: 13, cursor: "pointer", position: "relative", top: 1,
+            }}>{s.label}</button>
+        ))}
       </div>
 
       {!loaded ? (
@@ -328,9 +348,14 @@ export function UketsukeTab({ casts, courses, drivers }) {
             {/* ===== 明細(2行1セット) ===== */}
             {sheet.rows.map((r, i) => (
               <div key={i} style={{ display: "flex", borderBottom: `2px solid ${COLORS.border}` }}>
-                {/* A 備考(左) */}
-                <div style={{ width: W.bikoL, minWidth: W.bikoL, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.bikoL} onChange={(v) => setRow(i, "bikoL", v)} width={W.bikoL - 2} align="left" fontSize={11}  customStyle={r.styles?.["bikoL"]} onStyleChange={(s) => setRowStyle(i, "bikoL", s)}/>
+                {/* A 備考(左)・上下2段 */}
+                <div style={{ width: W.bikoL, minWidth: W.bikoL, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
+                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
+                    <Cell value={r.bikoL} onChange={(v) => setRow(i, "bikoL", v)} width={W.bikoL - 2} align="left" fontSize={11} customStyle={r.styles?.["bikoL"]} onStyleChange={(s) => setRowStyle(i, "bikoL", s)} />
+                  </div>
+                  <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
+                    <Cell value={r.bikoL2} onChange={(v) => setRow(i, "bikoL2", v)} width={W.bikoL - 2} align="left" fontSize={11} customStyle={r.styles?.["bikoL2"]} onStyleChange={(s) => setRowStyle(i, "bikoL2", s)} />
+                  </div>
                 </div>
                 {/* B 待機場 */}
                 <div style={{ width: W.taiki, minWidth: W.taiki, borderRight: `1px solid ${COLORS.border}`, background: "#FFFFFF", display: "flex", alignItems: "center" }}>
@@ -428,9 +453,14 @@ export function UketsukeTab({ casts, courses, drivers }) {
                   <Cell value={r.joshi} onChange={(v) => setRow(i, "joshi", v)} width={W.joshi - 2} mono bold fontSize={12}  customStyle={r.styles?.["joshi"]} onStyleChange={(s) => setRowStyle(i, "joshi", s)}/>
                 </div>
 
-                {/* T 備考(結合) */}
-                <div style={{ width: W.biko, minWidth: W.biko, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.biko} onChange={(v) => setRow(i, "biko", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11}  customStyle={r.styles?.["biko"]} onStyleChange={(s) => setRowStyle(i, "biko", s)}/>
+                {/* T 備考・上下2段 */}
+                <div style={{ width: W.biko, minWidth: W.biko, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
+                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
+                    <Cell value={r.biko} onChange={(v) => setRow(i, "biko", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko"]} onStyleChange={(s) => setRowStyle(i, "biko", s)} />
+                  </div>
+                  <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
+                    <Cell value={r.biko2} onChange={(v) => setRow(i, "biko2", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko2"]} onStyleChange={(s) => setRowStyle(i, "biko2", s)} />
+                  </div>
                 </div>
 
                 {/* U 送り(結合) */}
@@ -453,9 +483,14 @@ export function UketsukeTab({ casts, courses, drivers }) {
                   <Cell value={r.baitai} onChange={(v) => setRow(i, "baitai", v)} width={W.baitai - 2} fontSize={10.5}  customStyle={r.styles?.["baitai"]} onStyleChange={(s) => setRowStyle(i, "baitai", s)}/>
                 </div>
 
-                {/* Y 備考(NG等・赤文字) */}
-                <div style={{ width: W.bikoR, minWidth: W.bikoR, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.bikoR} onChange={(v) => setRow(i, "bikoR", v)} width={W.bikoR - 2} align="left" color="#C00000" fontSize={10.5}  customStyle={r.styles?.["bikoR"]} onStyleChange={(s) => setRowStyle(i, "bikoR", s)}/>
+                {/* Y 備考(NG等・赤文字)・上下2段 */}
+                <div style={{ width: W.bikoR, minWidth: W.bikoR, display: "flex", flexDirection: "column" }}>
+                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
+                    <Cell value={r.bikoR} onChange={(v) => setRow(i, "bikoR", v)} width={W.bikoR - 2} align="left" color="#C00000" fontSize={10.5} customStyle={r.styles?.["bikoR"]} onStyleChange={(s) => setRowStyle(i, "bikoR", s)} />
+                  </div>
+                  <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
+                    <Cell value={r.bikoR2} onChange={(v) => setRow(i, "bikoR2", v)} width={W.bikoR - 2} align="left" color="#C00000" fontSize={10.5} customStyle={r.styles?.["bikoR2"]} onStyleChange={(s) => setRowStyle(i, "bikoR2", s)} />
+                  </div>
                 </div>
               </div>
             ))}

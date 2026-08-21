@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, isoDate } from "../shared.jsx";
+import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, isoDate } from "../shared.jsx";
 
 // キャストの写真管理(最大10枚・縦3:4)。詳細モーダル内で使用
 function CastPhotoManager({ castId }) {
@@ -77,10 +77,11 @@ function CastPhotoManager({ castId }) {
 
 // ============================================================
 export function CastDetailModal({ cast, onClose, onSave }) {
-  const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、") });
+  const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、"), shops: cast.shops || [] });
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
   const save = () => {
-    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, itakuRate: (Number(f.ratePct) || Math.round(cast.itakuRate * 100)) / 100, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean) });
+    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, itakuRate: (Number(f.ratePct) || Math.round(cast.itakuRate * 100)) / 100, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops });
     onClose();
   };
   return (
@@ -88,6 +89,16 @@ export function CastDetailModal({ cast, onClose, onSave }) {
       <CastPhotoManager castId={cast.id} />
       <TextField label="キャスト名" value={f.name} onChange={(v) => set("name", v)} />
       <TextField label="本名" value={f.honmyo} onChange={(v) => set("honmyo", v)} />
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 6, fontWeight: 600 }}>所属店舗(複数選択可)</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {SHOP_OPTIONS.map((s) => (
+            <button key={s.key} onClick={() => toggleShop(s.key)} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `2px solid ${f.shops.includes(s.key) ? COLORS.accent : COLORS.border}`, background: f.shops.includes(s.key) ? COLORS.accentBg : "#FFF", color: f.shops.includes(s.key) ? COLORS.accentDark : COLORS.textSub, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              {f.shops.includes(s.key) ? "✓ " : ""}{s.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="生年月日" value={f.birthday} onChange={(v) => set("birthday", v)} placeholder="2000-01-01" /></div>
         <div style={{ flex: 1 }}><TextField label="年齢" value={f.age} onChange={(v) => set("age", v)} type="number" /></div>
@@ -114,13 +125,15 @@ export function CastDetailModal({ cast, onClose, onSave }) {
   );
 }
 
-export function CastRegisterModal({ onClose, onCreate }) {
+export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
   const [f, setF] = useState({
     name: "", honmyo: "", birthday: "", age: "20", phone: "", address: "",
     idType: "運転免許証", idNo: "", joinDate: isoDate(new Date()), ratePct: "55", okText: "指名", idVerified: false,
+    shops: defaultShop ? [defaultShop] : [],
   });
   const [msg, setMsg] = useState("");
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
   const submit = () => {
     if (!f.name.trim()) { setMsg("キャスト名を入力してください"); return; }
     onCreate({
@@ -131,6 +144,7 @@ export function CastRegisterModal({ onClose, onCreate }) {
       shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0,
       itakuRate: (Number(f.ratePct) || 55) / 100, idVerified: f.idVerified,
       stdLast: isoDate(new Date()), okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), comment: "",
+      shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []),
     });
     onClose();
   };
@@ -138,6 +152,16 @@ export function CastRegisterModal({ onClose, onCreate }) {
     <Modal title="キャスト新規登録" onClose={onClose} wide>
       <TextField label="キャスト名" value={f.name} onChange={(v) => set("name", v)} placeholder="例: みさき" />
       <TextField label="本名" value={f.honmyo} onChange={(v) => set("honmyo", v)} placeholder="例: 山田 花子" />
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 6, fontWeight: 600 }}>所属店舗(複数選択可)</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {SHOP_OPTIONS.map((s) => (
+            <button key={s.key} onClick={() => toggleShop(s.key)} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `2px solid ${f.shops.includes(s.key) ? COLORS.accent : COLORS.border}`, background: f.shops.includes(s.key) ? COLORS.accentBg : "#FFF", color: f.shops.includes(s.key) ? COLORS.accentDark : COLORS.textSub, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              {f.shops.includes(s.key) ? "✓ " : ""}{s.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="生年月日" value={f.birthday} onChange={(v) => set("birthday", v)} placeholder="2000-01-01" /></div>
         <div style={{ flex: 1 }}><TextField label="年齢" value={f.age} onChange={(v) => set("age", v)} type="number" /></div>
@@ -167,17 +191,34 @@ export function CastRegisterModal({ onClose, onCreate }) {
 }
 
 export function CastList({ casts, setCasts }) {
+  const [shopKey, setShopKey] = useState("hitozuma");
   const [query, setQuery] = useState("");
   const [detailId, setDetailId] = useState(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const nq = kanaNormalize(query);
-  const rows = casts.filter((c) => kanaNormalize(castFullName(c)).includes(nq) || kanaNormalize(c.honmyo).includes(nq));
+  const shopCasts = casts.filter((c) => (c.shops || []).includes(shopKey));
+  const rows = shopCasts.filter((c) => kanaNormalize(castFullName(c)).includes(nq) || kanaNormalize(c.honmyo).includes(nq));
   const detailCast = casts.find((c) => c.id === detailId);
   const thumbs = useCastThumbs(rows.map((c) => c.id));
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
-        <SectionTitle sub={`在籍キャストの名簿。詳細ボタンで個人情報の確認・編集(全${casts.length}名)`}>キャスト一覧</SectionTitle>
+      <SectionTitle sub={`在籍キャストの名簿。詳細ボタンで個人情報の確認・編集(全${casts.length}名)`}>キャスト一覧</SectionTitle>
+
+      {/* 所属店舗タブ */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+        {SHOP_OPTIONS.map((s) => (
+          <button key={s.key} onClick={() => setShopKey(s.key)}
+            style={{
+              padding: "8px 20px", borderRadius: "8px 8px 0 0", border: `1px solid ${COLORS.border}`,
+              borderBottom: shopKey === s.key ? "none" : `1px solid ${COLORS.border}`,
+              background: shopKey === s.key ? "#FFF" : "#EDF3FA",
+              color: shopKey === s.key ? COLORS.accent : COLORS.textSub,
+              fontWeight: 700, fontSize: 13, cursor: "pointer", position: "relative", top: 1,
+            }}>{s.label}（{casts.filter((c) => (c.shops || []).includes(s.key)).length}）</button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
         <PrimaryButton onClick={() => setRegisterOpen(true)}>＋ 新規登録</PrimaryButton>
       </div>
       <input placeholder="キャスト名・本名で検索" value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#FFFFFF", color: COLORS.textMain, fontSize: 14, marginBottom: 16, boxSizing: "border-box" }} />
@@ -205,13 +246,14 @@ export function CastList({ casts, setCasts }) {
                   </td>
                 </tr>
               ))}
+              {rows.length === 0 && <tr><td colSpan={6} style={{ padding: 28, textAlign: "center", color: COLORS.textSub, fontSize: 13 }}>該当するキャストがいません。</td></tr>}
             </tbody>
           </table>
         </div>
       </Card>
       <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 10 }}>※本名・生年月日・住所・身分証は個人情報です。役職に応じた操作制限(設定→セキュリティ)の対象です。</div>
       {detailCast && <CastDetailModal cast={detailCast} onClose={() => setDetailId(null)} onSave={(u) => setCasts((prev) => prev.map((x) => x.id === u.id ? u : x))} />}
-      {registerOpen && <CastRegisterModal onClose={() => setRegisterOpen(false)} onCreate={(newCast) => setCasts((prev) => [...prev, newCast])} />}
+      {registerOpen && <CastRegisterModal defaultShop={shopKey} onClose={() => setRegisterOpen(false)} onCreate={(newCast) => setCasts((prev) => [...prev, newCast])} />}
     </div>
   );
 }

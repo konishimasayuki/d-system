@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, isoDate } from "../shared.jsx";
+import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, TAIKI_OPTIONS, isoDate } from "../shared.jsx";
 
 // ============================================================
 // 受付表タブ(スプレッドシート再現・1日1シート)
@@ -293,6 +293,12 @@ export function UketsukeTab({ casts, courses, drivers }) {
     const rows = sheet.rows.map((r, idx) => idx === i ? { ...r, [key]: val } : r);
     save({ ...sheet, rows });
   };
+  // キャストを選んだら、そのキャストの設定済み待機場も自動で入れる
+  const setCastForRow = (i, castName) => {
+    const matched = casts.find((c) => castFullName(c) === castName);
+    const rows = sheet.rows.map((r, idx) => idx === i ? { ...r, cast: castName, taiki: matched?.taikiba || r.taiki } : r);
+    save({ ...sheet, rows });
+  };
   const setRowStyle = (i, key, styleObj) => {
     const rows = sheet.rows.map((r, idx) => idx === i ? { ...r, styles: { ...(r.styles || {}), [key]: styleObj } } : r);
     save({ ...sheet, rows });
@@ -322,7 +328,7 @@ export function UketsukeTab({ casts, courses, drivers }) {
   const castNames = ["", ...casts.filter((c) => castShops(c).includes(sheetKey)).map((c) => castFullName(c))];
   const courseNames = ["", "60", "90", "120", "D150", "150", "180"];
   const driverNames = ["", ...drivers.map((dr) => dr.name)];
-  const taikiOptions = ["", "2階車", "駅南", "220", "1階", "自宅", "住吉", "車"];
+  const taikiOptions = TAIKI_OPTIONS;
 
   // 1セットの高さ
   const ROW_H = 26;
@@ -456,7 +462,7 @@ export function UketsukeTab({ casts, courses, drivers }) {
 
                 {/* F キャスト(結合) */}
                 <div style={{ width: W.cast, minWidth: W.cast, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", background: "#FFF" }}>
-                  <AutoCompleteCell value={r.cast} onChange={(v) => setRow(i, "cast", v)} options={castNames} width={W.cast - 2} bold fontSize={10.5} customStyle={r.styles?.["cast"]} onStyleChange={(s) => setRowStyle(i, "cast", s)} />
+                  <AutoCompleteCell value={r.cast} onChange={(v) => setCastForRow(i, v)} options={castNames} width={W.cast - 2} bold fontSize={10.5} customStyle={r.styles?.["cast"]} onStyleChange={(s) => setRowStyle(i, "cast", s)} />
                 </div>
 
                 {/* G 指名数(上段のみ・オレンジ) */}

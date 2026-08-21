@@ -35,8 +35,8 @@ export const ROLES = ["オーナー", "統括部長", "店長", "主任", "内�
 
 // 役割別ビュー(阿修羅「全員参加」思想)
 export const VIEW_ROLES = {
-  owner: { label: "経営者", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "dispatch", "customer", "media", "report", "accounting", "payout", "std", "staffschedule", "settings"] },
-  operator: { label: "オペレーター", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "dispatch", "customer", "media", "staffschedule"] },
+  owner: { label: "経営者", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "dispatch", "customer", "media", "report", "accounting", "payout", "std", "driverschedule", "settings"] },
+  operator: { label: "オペレーター", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "dispatch", "customer", "media", "driverschedule"] },
   driver: { label: "ドライバー", tabs: ["driverpage"] },
   cast: { label: "キャスト", tabs: ["mypage"] },
   accountant: { label: "経理", tabs: ["report", "accounting", "payout"] },

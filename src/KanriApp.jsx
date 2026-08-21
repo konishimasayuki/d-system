@@ -21,6 +21,7 @@ import { StdManagement } from "./tabs/StdTab.jsx";
 import { DriverPage, CastMyPage } from "./tabs/FieldPages.jsx";
 import { SettingsTab } from "./tabs/SettingsTab.jsx";
 import { DriverScheduleTab } from "./tabs/StaffScheduleTab.jsx";
+import { UketsukeTab } from "./tabs/UketsukeTab.jsx";
 
 // ============================================================
 function CtiPopup({ customer, onClose, onReserve }) {
@@ -58,7 +59,7 @@ const TAB_GROUPS = [
   { group: "業務", tabs: [
     { key: "dashboard", label: "ダッシュボード" }, { key: "timetable", label: "タイムテーブル" },
     { key: "shift", label: "出勤管理" }, { key: "castlist", label: "キャスト一覧" },
-    { key: "reservation", label: "予約管理" }, { key: "dispatch", label: "配車管理" },
+    { key: "reservation", label: "予約管理" }, { key: "uketsuke", label: "受付表" }, { key: "dispatch", label: "配車管理" },
   ] },
   { group: "顧客・媒体", tabs: [
     { key: "customer", label: "顧客名簿" }, { key: "media", label: "媒体・HP更新" },
@@ -171,6 +172,7 @@ export default function KanriApp() {
           {tab === "driverpage" && <DriverPage reservations={reservations} casts={casts} drivers={drivers} />}
           {tab === "mypage" && <CastMyPage casts={casts} reservations={reservations} />}
           {tab === "std" && <StdManagement casts={casts} />}
+          {tab === "uketsuke" && <UketsukeTab casts={casts} courses={courses} drivers={drivers} />}
           {tab === "driverschedule" && <DriverScheduleTab drivers={drivers} />}
           {tab === "settings" && <SettingsTab setCasts={setCasts} drivers={drivers} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} staff={staff} setStaff={setStaff} courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} setReservations={setReservations} syncMsg={syncMsg} />}
         </div>

@@ -15,6 +15,11 @@ export const SHOP_OPTIONS = [
   { key: "hitozuma", label: "人妻専科" },
   { key: "hakata", label: "博多ココ" },
 ];
+// 旧データ(shopsフィールド未保存)との互換：未設定なら博多ココ扱いにする
+export function castShops(c) {
+  if (Array.isArray(c.shops) && c.shops.length > 0) return c.shops;
+  return ["hakata"];
+}
 
 export const CAST_STATUS = {
   before_shift: { label: "出勤前", color: "#7B77C4", bg: "rgba(123,119,196,0.12)" },

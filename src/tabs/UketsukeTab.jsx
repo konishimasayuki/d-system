@@ -38,7 +38,7 @@ const W = {
 
 const emptyRow = () => ({
   bikoL: "", bikoL2: "", taiki: "", time: "", depart: "", cast: "", shimeiN: "",
-  kaiin: "会員", shimeiType: "本指", name: "", tel: "", hotel: "",
+  kaiin: "", shimeiType: "F", name: "", tel: "", hotel: "",
   kotsu: "", course: "", op1: "なし", op2: "なし", op3: "なし", op4: "なし",
   taishutsu: "", otoshi: "", joshi: "", biko: "", biko2: "", okuri: "", mukae: "",
   ryoshu: "", baitai: "", bikoR: "", bikoR2: "",
@@ -46,7 +46,7 @@ const emptyRow = () => ({
 });
 
 const emptySheet = () => ({
-  header: { soumukou: "", zairyou: "", ryokin: "", cardTotal: "", tesuryo: "" },
+  header: { soumukou: "", zairyou: "寮滞在者：清川【松山0】住吉【】ルネス【】エレガンテ住吉【】ライベ【宇野休・鷹木0・賀川0・浅香0】グリーンヒル博多【安西2】駅前ロマネスク【】ダイナコート【】ライオンズP【】※寮費0=無料 1=1.000円 2=2.000円", ryokin: "", cardTotal: "", tesuryo: "" },
   rows: Array.from({ length: ROWS }, () => emptyRow()),
 });
 
@@ -465,7 +465,7 @@ export function UketsukeTab({ casts, courses, drivers }) {
                     <Cell value={r.time} onChange={(v) => setRow(i, "time", v)} width={W.time - 2} bold placeholder="8:30" mono fontSize={12}  customStyle={r.styles?.["time"]} onStyleChange={(s) => setRowStyle(i, "time", s)}/>
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.depart} onChange={(v) => setRow(i, "depart", v)} width={W.time - 2} fontSize={10} placeholder="出発" customStyle={r.styles?.["depart"]} onStyleChange={(s) => setRowStyle(i, "depart", s)} />
+                    <SelCell value={r.depart} onChange={(v) => setRow(i, "depart", v)} options={["", "出発", "到着", "指定", "到着次第", "以降", "ごろ", "入室後出発"]} width={W.time - 2} fontSize={10} customStyle={r.styles?.["depart"]} onStyleChange={(s) => setRowStyle(i, "depart", s)} />
                   </div>
                 </div>
 
@@ -494,11 +494,11 @@ export function UketsukeTab({ casts, courses, drivers }) {
 
                 {/* H 会員 / 本指・写指 */}
                 <div style={{ width: W.kaiin, minWidth: W.kaiin, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
-                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, background: "#FFFF00", display: "flex", alignItems: "center" }}>
-                    <SelCell value={r.kaiin} onChange={(v) => setRow(i, "kaiin", v)} options={["会員", "新規", ""]} width={W.kaiin - 2} bg="#FFFF00" bold fontSize={10}  customStyle={r.styles?.["kaiin"]} onStyleChange={(s) => setRowStyle(i, "kaiin", s)}/>
+                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, background: "#FFFFFF", display: "flex", alignItems: "center" }}>
+                    <SelCell value={r.kaiin} onChange={(v) => setRow(i, "kaiin", v)} options={["", "新規", "会員"]} width={W.kaiin - 2} bg="#FFFFFF" bold fontSize={10} customStyle={r.styles?.["kaiin"]} onStyleChange={(s) => setRowStyle(i, "kaiin", s)} />
                   </div>
-                  <div style={{ height: ROW_H, background: "#FFFF00", display: "flex", alignItems: "center" }}>
-                    <SelCell value={r.shimeiType} onChange={(v) => setRow(i, "shimeiType", v)} options={["本指", "写指", "フリー", ""]} width={W.kaiin - 2} bg="#FFFF00" bold fontSize={10}  customStyle={r.styles?.["shimeiType"]} onStyleChange={(s) => setRowStyle(i, "shimeiType", s)}/>
+                  <div style={{ height: ROW_H, background: "#FFFFFF", display: "flex", alignItems: "center" }}>
+                    <SelCell value={r.shimeiType} onChange={(v) => setRow(i, "shimeiType", v)} options={["F", "写指", "本指"]} width={W.kaiin - 2} bg="#FFFFFF" bold fontSize={10} customStyle={r.styles?.["shimeiType"]} onStyleChange={(s) => setRowStyle(i, "shimeiType", s)} />
                   </div>
                 </div>
 

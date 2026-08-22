@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, TAIKI_OPTIONS, isoDate } from "../shared.jsx";
+import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, isoDate } from "../shared.jsx";
 
 // キャストの写真管理(最大10枚・縦3:4)。詳細モーダル内で使用
 function CastPhotoManager({ castId }) {
@@ -99,7 +99,7 @@ export function CastDetailModal({ cast, onClose, onSave }) {
           ))}
         </div>
       </div>
-      <SelectField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} options={TAIKI_OPTIONS} />
+      <TextField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} placeholder="例: 住吉" />
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="生年月日" value={f.birthday} onChange={(v) => set("birthday", v)} placeholder="2000-01-01" /></div>
         <div style={{ flex: 1 }}><TextField label="年齢" value={f.age} onChange={(v) => set("age", v)} type="number" /></div>
@@ -163,7 +163,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
           ))}
         </div>
       </div>
-      <SelectField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} options={TAIKI_OPTIONS} />
+      <TextField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} placeholder="例: 住吉" />
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="生年月日" value={f.birthday} onChange={(v) => set("birthday", v)} placeholder="2000-01-01" /></div>
         <div style={{ flex: 1 }}><TextField label="年齢" value={f.age} onChange={(v) => set("age", v)} type="number" /></div>

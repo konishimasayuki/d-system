@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, TAIKI_OPTIONS, isoDate } from "../shared.jsx";
+import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, isoDate } from "../shared.jsx";
 
 // ============================================================
 // 受付表タブ(スプレッドシート再現・1日1シート)
@@ -37,7 +37,7 @@ const W = {
 };
 
 const emptyRow = () => ({
-  bikoL: "", bikoL2: "", taiki: "", time: "", depart: "出発", cast: "", shimeiN: "",
+  bikoL: "", bikoL2: "", taiki: "", time: "", depart: "", cast: "", shimeiN: "",
   kaiin: "会員", shimeiType: "本指", name: "", tel: "", hotel: "",
   kotsu: "", course: "", op1: "なし", op2: "なし", op3: "なし", op4: "なし",
   taishutsu: "", otoshi: "", joshi: "", biko: "", biko2: "", okuri: "", mukae: "",
@@ -338,7 +338,6 @@ export function UketsukeTab({ casts, courses, drivers }) {
   const castNames = ["", ...casts.filter((c) => castShops(c).includes(sheetKey)).map((c) => castFullName(c))];
   const courseNames = ["", "60", "90", "120", "D150", "150", "180"];
   const driverNames = ["", ...drivers.map((dr) => dr.name)];
-  const taikiOptions = TAIKI_OPTIONS;
 
   // 1セットの高さ
   const ROW_H = 26;
@@ -453,7 +452,7 @@ export function UketsukeTab({ casts, courses, drivers }) {
                 </div>
                 {/* B 待機場 */}
                 <div style={{ width: W.taiki, minWidth: W.taiki, borderRight: `1px solid ${COLORS.border}`, background: "#FFFFFF", display: "flex", alignItems: "center" }}>
-                  <SelCell value={r.taiki} onChange={(v) => setRow(i, "taiki", v)} options={taikiOptions} width={W.taiki - 2} bg="#FFFFFF" fontSize={10.5} bold  customStyle={r.styles?.["taiki"]} onStyleChange={(s) => setRowStyle(i, "taiki", s)}/>
+                  <Cell value={r.taiki} onChange={(v) => setRow(i, "taiki", v)} width={W.taiki - 2} bg="#FFFFFF" fontSize={10.5} bold customStyle={r.styles?.["taiki"]} onStyleChange={(s) => setRowStyle(i, "taiki", s)} />
                 </div>
                 {/* C 番号 */}
                 <div style={{ width: W.no, minWidth: W.no, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: COLORS.textMain }}>
@@ -466,7 +465,7 @@ export function UketsukeTab({ casts, courses, drivers }) {
                     <Cell value={r.time} onChange={(v) => setRow(i, "time", v)} width={W.time - 2} bold placeholder="8:30" mono fontSize={12}  customStyle={r.styles?.["time"]} onStyleChange={(s) => setRowStyle(i, "time", s)}/>
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
-                    <SelCell value={r.depart} onChange={(v) => setRow(i, "depart", v)} options={["出発", "到着次第"]} width={W.time - 2} fontSize={10}  customStyle={r.styles?.["depart"]} onStyleChange={(s) => setRowStyle(i, "depart", s)}/>
+                    <Cell value={r.depart} onChange={(v) => setRow(i, "depart", v)} width={W.time - 2} fontSize={10} placeholder="出発" customStyle={r.styles?.["depart"]} onStyleChange={(s) => setRowStyle(i, "depart", s)} />
                   </div>
                 </div>
 
@@ -557,10 +556,10 @@ export function UketsukeTab({ casts, courses, drivers }) {
                   <Cell value={r.joshi} onChange={(v) => setRow(i, "joshi", v)} width={W.joshi - 2} mono bold fontSize={12}  customStyle={r.styles?.["joshi"]} onStyleChange={(s) => setRowStyle(i, "joshi", s)}/>
                 </div>
 
-                {/* T 備考・上下2段 */}
+                {/* T 備考・上下2段(上段：1本目のキャストは自動で-500を赤文字表示) */}
                 <div style={{ width: W.biko, minWidth: W.biko, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.biko} onChange={(v) => setRow(i, "biko", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko"]} onStyleChange={(s) => setRowStyle(i, "biko", s)} />
+                    <Cell value={r.biko || (shimeiCounts[i] === 1 ? "-500" : "")} onChange={(v) => setRow(i, "biko", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko"]} onStyleChange={(s) => setRowStyle(i, "biko", s)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
                     <Cell value={r.biko2} onChange={(v) => setRow(i, "biko2", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko2"]} onStyleChange={(s) => setRowStyle(i, "biko2", s)} />

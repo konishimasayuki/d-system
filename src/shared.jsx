@@ -837,12 +837,12 @@ export function TextField({ label, value, onChange, placeholder, type }) {
     </div>
   );
 }
-export function SelectField({ label, value, onChange, options }) {
+export function SelectField({ label, value, onChange, options, optionLabels }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <label style={{ display: "block", fontSize: 12, color: COLORS.textSub, marginBottom: 4 }}>{label}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#FFFFFF", color: COLORS.textMain, fontSize: 14 }}>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+        {options.map((o) => <option key={o} value={o}>{(optionLabels && optionLabels[o]) || o || "未設定"}</option>)}
       </select>
     </div>
   );

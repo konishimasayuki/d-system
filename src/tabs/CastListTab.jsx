@@ -99,7 +99,7 @@ export function CastDetailModal({ cast, onClose, onSave }) {
           ))}
         </div>
       </div>
-      <SelectField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} options={TAIKI_OPTIONS.filter(Boolean)} />
+      <SelectField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} options={TAIKI_OPTIONS} />
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="生年月日" value={f.birthday} onChange={(v) => set("birthday", v)} placeholder="2000-01-01" /></div>
         <div style={{ flex: 1 }}><TextField label="年齢" value={f.age} onChange={(v) => set("age", v)} type="number" /></div>
@@ -163,7 +163,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
           ))}
         </div>
       </div>
-      <SelectField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} options={TAIKI_OPTIONS.filter(Boolean)} />
+      <SelectField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} options={TAIKI_OPTIONS} />
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="生年月日" value={f.birthday} onChange={(v) => set("birthday", v)} placeholder="2000-01-01" /></div>
         <div style={{ flex: 1 }}><TextField label="年齢" value={f.age} onChange={(v) => set("age", v)} type="number" /></div>

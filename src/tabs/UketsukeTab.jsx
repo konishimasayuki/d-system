@@ -321,6 +321,16 @@ export function UketsukeTab({ casts, courses, drivers }) {
   const cardTotal = Math.round(ryokinNum * 1.15);
   const tesuryo = cardTotal - ryokinNum;
 
+  // 指名数：同じキャストが上から何本目かを自動カウント(1本目=赤文字、2本目以降=緑背景+黒文字)
+  const shimeiCounts = useMemo(() => {
+    const seen = {};
+    return sheet.rows.map((r) => {
+      if (!r.cast) return 0;
+      seen[r.cast] = (seen[r.cast] || 0) + 1;
+      return seen[r.cast];
+    });
+  }, [sheet.rows]);
+
   const d = new Date(dateStr);
   const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
   const wareki = d.getFullYear() - 2018; // 令和
@@ -465,12 +475,22 @@ export function UketsukeTab({ casts, courses, drivers }) {
                   <AutoCompleteCell value={r.cast} onChange={(v) => setCastForRow(i, v)} options={castNames} width={W.cast - 2} bold fontSize={10.5} customStyle={r.styles?.["cast"]} onStyleChange={(s) => setRowStyle(i, "cast", s)} />
                 </div>
 
-                {/* G 指名数(上段のみ・オレンジ) */}
+                {/* G 指名数：同じキャストが本日何本目かを自動表示(1本目=赤文字/白背景、2本目以降=黒文字/緑背景) */}
                 <div style={{ width: W.shimeiN, minWidth: W.shimeiN, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
-                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, background: "#FF0000", display: "flex", alignItems: "center" }}>
-                    <Cell value={r.shimeiN} onChange={(v) => setRow(i, "shimeiN", v)} width={W.shimeiN - 2} bg="#FF0000" color="#FFF" bold fontSize={11}  customStyle={r.styles?.["shimeiN"]} onStyleChange={(s) => setRowStyle(i, "shimeiN", s)}/>
-                  </div>
-                  <div style={{ height: ROW_H, background: "#ED7D31" }} />
+                  {(() => {
+                    const n = shimeiCounts[i];
+                    const isFirst = n === 1;
+                    const bg = n === 0 ? "#FFFFFF" : (isFirst ? "#FFFFFF" : "#A9D18E");
+                    const color = n === 0 ? COLORS.textMain : (isFirst ? "#FF0000" : "#000000");
+                    return (
+                      <>
+                        <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontWeight: 700, fontSize: 13, color }}>{n > 0 ? n : ""}</span>
+                        </div>
+                        <div style={{ height: ROW_H, background: "#FFFFFF" }} />
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* H 会員 / 本指・写指 */}

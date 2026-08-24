@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { loadGoogleMaps, HOTEL_COORDS, OFFICE_LATLNG } from "./mapsLoader.js";
 import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName } from "./shared.jsx";
+import { useDriverSchedule, getCell, weekDays } from "./tabs/StaffScheduleTab.jsx";
 
 // ============================================================
 // サーバー(Upstash経由 /api/state)との簡易読み書き
@@ -104,10 +105,6 @@ function Icon({ name, size = 22, color = "currentColor" }) {
 const CAST_WEEK = [
   { d: "7/17(木)", t: "18:00〜26:00" }, { d: "7/18(金)", t: "19:00〜27:00" },
   { d: "7/19(土)", t: "17:00〜25:00" }, { d: "7/20(日)", t: "休み" },
-];
-const DRIVER_WEEK = [
-  { d: "7/17(木)", t: "17:00〜25:00" }, { d: "7/18(金)", t: "17:00〜26:00" },
-  { d: "7/19(土)", t: "16:00〜25:00" }, { d: "7/20(日)", t: "休み" },
 ];
 
 // ============================================================
@@ -381,6 +378,8 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
   const [filter, setFilter] = useState("すべて");
   const [toast, setToast] = useState("");
   const [routeJob, setRouteJob] = useState(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const { schedule, loaded: scheduleLoaded } = useDriverSchedule();
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(""), 2200); };
 
   const me = drivers.find((d) => d.id === driverId);
@@ -404,7 +403,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
 
   const nav = [
     { key: "jobs", label: "配車", icon: "car" },
-    { key: "shift", label: "シフト", icon: "calendar" },
+    { key: "shift", label: "スケジュール", icon: "calendar" },
     { key: "me", label: "マイページ", icon: "user" },
   ];
 
@@ -453,13 +452,30 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
 
       {tab === "shift" && (
         <div>
-          <Eyebrow>今週のシフト(参考表示)</Eyebrow>
-          {DRIVER_WEEK.map((s) => (
-            <Card key={s.d} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: 14, color: INK, fontWeight: 600 }}>{s.d}</span>
-              <span style={{ fontSize: 14, color: s.t === "休み" ? SUB : theme.accentDark, fontWeight: 700 }}>{s.t}</span>
-            </Card>
-          ))}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, marginBottom: 4 }}>
+            <button onClick={() => setWeekOffset((w) => w - 1)} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${LINE}`, background: "#FFF", color: INK, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>‹</button>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: INK }}>{weekOffset === 0 ? "今週" : weekOffset > 0 ? `${weekOffset}週間後` : `${-weekOffset}週間前`}</div>
+            <button onClick={() => setWeekOffset((w) => w + 1)} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${LINE}`, background: "#FFF", color: INK, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>›</button>
+          </div>
+          <Eyebrow>自分のスケジュール</Eyebrow>
+          {!scheduleLoaded ? (
+            <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: 20 }}>読み込み中…</div>
+          ) : (
+            weekDays(weekOffset).map((d) => {
+              const dateStr = isoDate(d);
+              const cell = getCell(schedule, driverId, dateStr);
+              const isOff = cell.type === "off";
+              const isToday = dateStr === isoDate(new Date());
+              const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+              return (
+                <Card key={dateStr} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: isToday ? `2px solid ${theme.accent}` : undefined }}>
+                  <span style={{ fontSize: 14, color: INK, fontWeight: 600 }}>{d.getMonth() + 1}/{d.getDate()}({w}){isToday ? " ・今日" : ""}</span>
+                  <span style={{ fontSize: 14, color: isOff ? SUB : theme.accentDark, fontWeight: 700 }}>{isOff ? "休み" : `${cell.start}〜${cell.end}`}</span>
+                </Card>
+              );
+            })
+          )}
+          <div style={{ fontSize: 11, color: SUB, textAlign: "center", marginTop: 10 }}>※スケジュールの変更は事務所にご連絡ください</div>
         </div>
       )}
 

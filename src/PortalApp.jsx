@@ -378,6 +378,7 @@ function ScheduleEditModal({ theme, driverName, dateStr, cell, saving, onSave, o
   const isOff = cell.type === "off";
   const d = new Date(dateStr);
   const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+  const [note, setNote] = useState(cell.note || "");
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,35,0.45)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: "100%", maxWidth: 340, padding: 20, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
@@ -394,10 +395,14 @@ function ScheduleEditModal({ theme, driverName, dateStr, cell, saving, onSave, o
             </select>
             <span style={{ fontSize: 13, color: SUB }}>〜</span>
             <select value={cell.end} onChange={(e) => onSave("end", e.target.value)} style={{ flex: 1, padding: "8px 6px", borderRadius: 8, border: `1px solid ${LINE}`, fontSize: 13 }}>
+              <option value="">未定</option>
               {HALF_HOURS.filter((t) => t > cell.start).map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
         )}
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} onBlur={() => onSave("note", note)} rows={3}
+          placeholder="メモ(例：現場直行、他店舗ヘルプなど)"
+          style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${LINE}`, fontSize: 12.5, boxSizing: "border-box", resize: "vertical", fontFamily: "inherit", marginBottom: 10 }} />
         <div style={{ fontSize: 11, color: theme.accent, textAlign: "center", marginBottom: 10, minHeight: 14 }}>{saving ? "保存中…" : ""}</div>
         <button onClick={onClose} style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: SUB, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>閉じる</button>
       </div>
@@ -501,15 +506,19 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
               const isOff = cell.type === "off";
               const isToday = dateStr === isoDate(new Date());
               const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+              const hasNote = !!(cell.note && cell.note.trim());
               return (
-                <Card key={dateStr} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: isToday ? `2px solid ${theme.accent}` : undefined }}>
-                  <span style={{ fontSize: 14, color: INK, fontWeight: 600 }}>{d.getMonth() + 1}/{d.getDate()}({w}){isToday ? " ・今日" : ""}</span>
-                  <span style={{ fontSize: 14, color: isOff ? SUB : theme.accentDark, fontWeight: 700 }}>{isOff ? "休み" : `${cell.start}〜${cell.end}`}</span>
+                <Card key={dateStr} onClick={() => setEditCell({ driverId, dateStr, driverName: me?.name || "" })} style={{ marginBottom: 8, border: isToday ? `2px solid ${theme.accent}` : undefined, cursor: "pointer" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 14, color: INK, fontWeight: 600 }}>{d.getMonth() + 1}/{d.getDate()}({w}){isToday ? " ・今日" : ""}</span>
+                    <span style={{ fontSize: 14, color: isOff ? SUB : theme.accentDark, fontWeight: 700 }}>{isOff ? "休み" : `${cell.start}〜${cell.end || "未定"}`}</span>
+                  </div>
+                  {hasNote && <div style={{ fontSize: 12, color: SUB, marginTop: 6, whiteSpace: "pre-wrap", background: "#F4F6F9", borderRadius: 8, padding: "6px 8px" }}>📝 {cell.note}</div>}
                 </Card>
               );
             })
           )}
-          <div style={{ fontSize: 11, color: SUB, textAlign: "center", marginTop: 10 }}>※スケジュールの変更は事務所にご連絡ください</div>
+          <div style={{ fontSize: 11, color: SUB, textAlign: "center", marginTop: 10 }}>※カードをタップして時間・メモを編集できます</div>
 
           {/* 全員のスケジュール */}
           <Eyebrow>全員のスケジュール</Eyebrow>
@@ -539,10 +548,12 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                       const dateStr = isoDate(day);
                       const cell = getCell(schedule, d.id, dateStr);
                       const isOff = cell.type === "off";
+                      const hasNote = !!(cell.note && cell.note.trim());
                       return (
                         <button key={dateStr} onClick={() => setEditCell({ driverId: d.id, dateStr, driverName: d.name })}
-                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer" }}>
+                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative" }}>
                           {isOff ? "休" : cell.start}
+                          {hasNote && <span style={{ position: "absolute", top: 1, right: 3, fontSize: 7 }}>📝</span>}
                         </button>
                       );
                     })}
@@ -557,10 +568,12 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                       const dateStr = isoDate(day);
                       const cell = getCell(schedule, d.id, dateStr);
                       const isOff = cell.type === "off";
+                      const hasNote = !!(cell.note && cell.note.trim());
                       return (
                         <button key={dateStr} onClick={() => setEditCell({ driverId: d.id, dateStr, driverName: d.name })}
-                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer" }}>
+                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative" }}>
                           {isOff ? "休" : cell.start}
+                          {hasNote && <span style={{ position: "absolute", top: 1, right: 3, fontSize: 7 }}>📝</span>}
                         </button>
                       );
                     })}

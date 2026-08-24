@@ -467,16 +467,15 @@ function UketsukeViewer({ theme, myName }) {
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.kaiin} width={W.kaiin} bold fontSize={10} /></div>
                     <div style={{ height: ROW_H }}><ViewCell value={r.shimeiType} width={W.kaiin} bold fontSize={10} /></div>
                   </div>
-                  {/* ラベル(氏名/TEL) */}
+                  {/* ラベル(氏名) */}
                   <div style={{ width: W.label, minWidth: W.label, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column", fontSize: 8, color: SUB, background: "#F4F6F9" }}>
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}>氏名</div>
-                    <div style={{ height: ROW_H, display: "flex", alignItems: "center", justifyContent: "center" }}>TEL</div>
+                    <div style={{ height: ROW_H }} />
                   </div>
-                  {/* 氏名+TEL / ホテル名(上下2段) */}
+                  {/* 氏名 / ホテル名(上下2段) */}
                   <div style={{ width: W.name, minWidth: W.name, display: "flex", flexDirection: "column" }}>
-                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}`, display: "flex" }}>
-                      <ViewCell value={r.name} width={100} bold fontSize={12} />
-                      <ViewCell value={r.tel} width={W.name - 100} mono fontSize={11.5} />
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}>
+                      <ViewCell value={r.name} width={W.name} align="left" bold fontSize={12} />
                     </div>
                     <div style={{ height: ROW_H }}><ViewCell value={r.hotel} width={W.name} bold fontSize={11.5} /></div>
                   </div>

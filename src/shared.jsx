@@ -1037,3 +1037,12 @@ export async function markThreadRead(threadId, messages, viewpoint) {
   await saveThread(threadId, next);
   return next;
 }
+
+// 受付表データを取得する共通ヘルパー(管理画面・ポータル閲覧で共用)
+export async function fetchUketsukeSheet(sheetKey, dateStr) {
+  try {
+    const r = await fetch(`/api/state?key=uketsuke:${sheetKey}:${dateStr}`);
+    const d = await r.json();
+    return (d && d.value && d.value.rows) ? d.value : null;
+  } catch (e) { return null; }
+}

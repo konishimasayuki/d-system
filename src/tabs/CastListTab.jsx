@@ -81,7 +81,7 @@ export function CastDetailModal({ cast, onClose, onSave }) {
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
   const save = () => {
-    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, itakuRate: (Number(f.ratePct) || Math.round(cast.itakuRate * 100)) / 100, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
+    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
     onClose();
   };
   return (
@@ -118,7 +118,6 @@ export function CastDetailModal({ cast, onClose, onSave }) {
       </div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="入店日" value={f.joinDate} onChange={(v) => set("joinDate", v)} /></div>
-        <div style={{ flex: 1 }}><TextField label="委託率(%)" value={f.ratePct ?? Math.round(cast.itakuRate * 100)} onChange={(v) => set("ratePct", v)} type="number" /></div>
       </div>
       <TextField label="対応可能オプション(、区切り)" value={f.okText} onChange={(v) => set("okText", v)} placeholder="指名、本指名、延長30分" />
       <div style={{ display: "flex", gap: 10 }}>
@@ -194,7 +193,6 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
       </div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="入店日" value={f.joinDate} onChange={(v) => set("joinDate", v)} /></div>
-        <div style={{ flex: 1 }}><TextField label="委託率(%)" value={f.ratePct} onChange={(v) => set("ratePct", v)} type="number" /></div>
       </div>
       <TextField label="対応可能オプション(、区切り)" value={f.okText} onChange={(v) => set("okText", v)} placeholder="指名、本指名、延長30分" />
       <div style={{ display: "flex", gap: 10 }}>
@@ -227,14 +225,14 @@ export function CastList({ casts, setCasts }) {
   const detailCast = casts.find((c) => c.id === detailId);
   const thumbs = useCastThumbs(rows.map((c) => c.id));
 
-  // CSV列: name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba
-  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba,loginId,password,biko1,biko2,castClass";
+  // CSV列: name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,okOptions,shops,taikiba
+  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,okOptions,shops,taikiba,loginId,password,biko1,biko2,castClass";
   const classLabelMap = Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]));
   const classKeyMap = Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.label, o.key]));
   const exportCSV = () => {
     const body = casts.map((c) => [
       c.name, c.honmyo, c.age, c.birthday, c.phone, c.address, c.idType, c.idNo, c.joinDate,
-      Math.round((c.itakuRate || 0) * 100), (c.okOptions || []).join("・"), castShops(c).join("・"), c.taikiba || "",
+      (c.okOptions || []).join("・"), castShops(c).join("・"), c.taikiba || "",
       c.loginId || "", c.password || "", c.biko1 || "", c.biko2 || "", classLabelMap[castClass(c)] || "スタンダード",
     ].map(csvEscape).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + CSV_HEADER + "\n" + body], { type: "text/csv;charset=utf-8;" });
@@ -250,37 +248,38 @@ export function CastList({ casts, setCasts }) {
     if (rowsRaw[0] && (rowsRaw[0][0] || "").trim().toLowerCase() === "name") start = 1;
     const shopKeyMap = { 人妻専科: "hitozuma", 博多ココ: "hakata", hitozuma: "hitozuma", hakata: "hakata" };
     const incoming = rowsRaw.slice(start).map((r) => ({
-      name: (r[0] || "").trim(), honmyo: (r[1] || "").trim(), age: Number(r[2]) || 20, birthday: (r[3] || "").trim() || "-",
-      phone: (r[4] || "").trim() || "090-0000-0000", address: (r[5] || "").trim() || "-",
-      idType: (r[6] || "").trim() || "運転免許証", idNo: (r[7] || "").trim() || "-", joinDate: (r[8] || "").trim() || isoDate(new Date()),
-      ratePct: Number(r[9]) || 55, okOptions: (r[10] || "").split("・").map((s) => s.trim()).filter(Boolean),
-      shops: (r[11] || "").split("・").map((s) => shopKeyMap[s.trim()] || s.trim()).filter(Boolean),
-      taikiba: (r[12] || "").trim(), loginId: (r[13] || "").trim(), password: (r[14] || "").trim(),
-      biko1: (r[15] || "").trim(), biko2: (r[16] || "").trim(),
-      castClass: classKeyMap[(r[17] || "").trim()] || (r[17] || "").trim() || "",
+      name: (r[0] || "").trim(), honmyo: (r[1] || "").trim(), age: (r[2] || "").trim(), birthday: (r[3] || "").trim(),
+      phone: (r[4] || "").trim(), address: (r[5] || "").trim(),
+      idType: (r[6] || "").trim(), idNo: (r[7] || "").trim(), joinDate: (r[8] || "").trim(),
+      okOptions: (r[9] || "").split("・").map((s) => s.trim()).filter(Boolean),
+      shops: (r[10] || "").split("・").map((s) => shopKeyMap[s.trim()] || s.trim()).filter(Boolean),
+      taikiba: (r[11] || "").trim(), loginId: (r[12] || "").trim(), password: (r[13] || "").trim(),
+      biko1: (r[14] || "").trim(), biko2: (r[15] || "").trim(),
+      castClass: classKeyMap[(r[16] || "").trim()] || (r[16] || "").trim(),
     })).filter((r) => r.name);
     if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,...)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
 
-    // 差分判定はキャスト名(name)で行う：同名は上書き、CSVに無い名前の既存キャストは保持、新規名は追加
+    // 差分判定はキャスト名(name)で行う：同名は上書き(CSVで空欄にした項目はそのまま空にする)、CSVに無い名前の既存キャストは保持、新規名は追加
     const byName = new Map(casts.map((c) => [c.name, c]));
     let updated = 0, added = 0;
     incoming.forEach((inc) => {
       const ex = byName.get(inc.name);
       if (ex) {
         byName.set(inc.name, {
-          ...ex, honmyo: inc.honmyo || ex.honmyo, age: inc.age, birthday: inc.birthday, phone: inc.phone, address: inc.address,
-          idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate, itakuRate: inc.ratePct / 100,
-          okOptions: inc.okOptions.length ? inc.okOptions : ex.okOptions, shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba || ex.taikiba,
-          loginId: inc.loginId || ex.loginId, password: inc.password || ex.password,
-          biko1: inc.biko1 || ex.biko1 || "", biko2: inc.biko2 || ex.biko2 || "",
-          castClass: inc.castClass || castClass(ex),
+          ...ex,
+          honmyo: inc.honmyo, age: inc.age === "" ? "" : (Number(inc.age) || 0), birthday: inc.birthday, phone: inc.phone, address: inc.address,
+          idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
+          okOptions: inc.okOptions, shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba,
+          loginId: inc.loginId, password: inc.password,
+          biko1: inc.biko1, biko2: inc.biko2,
+          castClass: inc.castClass || "standard",
         });
         updated++;
       } else {
         byName.set(inc.name, {
-          id: `c${Date.now()}${added}`, name: inc.name, honmyo: inc.honmyo, age: inc.age, birthday: inc.birthday,
+          id: `c${Date.now()}${added}`, name: inc.name, honmyo: inc.honmyo, age: inc.age === "" ? "" : (Number(inc.age) || 0), birthday: inc.birthday,
           status: "before_shift", phone: inc.phone, address: inc.address, idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
-          shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, itakuRate: inc.ratePct / 100, idVerified: false,
+          shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, idVerified: false,
           stdLast: isoDate(new Date()), okOptions: inc.okOptions, comment: "", shops: inc.shops.length ? inc.shops : ["hakata"], taikiba: inc.taikiba,
           loginId: inc.loginId, password: inc.password, biko1: inc.biko1, biko2: inc.biko2, castClass: inc.castClass || "standard",
         });

@@ -3,14 +3,47 @@ import { AREAS, COLORS, Card, DRIVER_STATUS, PrimaryButton, ROLES, SectionTitle,
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
+// ドライバー編集モーダル
+function DriverEditModal({ driver, onClose, onSave }) {
+  const [f, setF] = useState({ ...driver });
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const save = () => {
+    onSave({ ...driver, name: f.name.trim() || driver.name, car: f.car.trim(), area: f.area.trim(), wage: f.wage === "" ? "" : Number(f.wage) || 0, loginId: f.loginId.trim(), password: f.password.trim() });
+    onClose();
+  };
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,35,0.45)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: "100%", maxWidth: 420, padding: 24, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.textMain, marginBottom: 16 }}>ドライバー編集</div>
+        <TextField label="ドライバー名" value={f.name} onChange={(v) => set("name", v)} />
+        <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ flex: 1 }}><TextField label="車両番号" value={f.car} onChange={(v) => set("car", v)} placeholder="例: 5号車" /></div>
+          <div style={{ flex: 1 }}><TextField label="エリア" value={f.area || ""} onChange={(v) => set("area", v)} placeholder="例: 中央区" /></div>
+        </div>
+        <TextField label="時給(円)" value={f.wage === 0 ? "" : String(f.wage ?? "")} onChange={(v) => set("wage", v)} type="number" placeholder="未設定" />
+        <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>ドライバーアプリ ログイン情報</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ flex: 1 }}><TextField label="ログインID" value={f.loginId || ""} onChange={(v) => set("loginId", v)} /></div>
+          <div style={{ flex: 1 }}><TextField label="パスワード" value={f.password || ""} onChange={(v) => set("password", v)} type="password" /></div>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.textSub, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>キャンセル</button>
+          <PrimaryButton onClick={save} style={{ flex: 1 }}>保存する</PrimaryButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DriverRegisterForm({ drivers, setDrivers }) {
-  const [name, setName] = useState(""); const [car, setCar] = useState(""); const [wage, setWage] = useState("1300");
+  const [name, setName] = useState(""); const [car, setCar] = useState(""); const [wage, setWage] = useState("");
   const [loginId, setLoginId] = useState(""); const [password, setPassword] = useState(""); const [msg, setMsg] = useState("");
+  const [editTarget, setEditTarget] = useState(null);
   const submit = () => {
-    if (!name.trim() || !car.trim()) { setMsg("名前と車両番号を入力してください"); return; }
+    if (!name.trim()) { setMsg("ドライバー名を入力してください"); return; }
     if (!loginId.trim() || !password.trim()) { setMsg("ログインID・パスワードを入力してください(ドライバーアプリのログインに使用します)"); return; }
-    setDrivers((prev) => [...prev, { id: `d${Date.now()}`, name: name.trim(), car: car.trim(), status: "waiting", area: "中央区", pos: { x: 50, y: 50 }, note: "待機中", wage: Number(wage) || 1300, hours: 0, loginId: loginId.trim(), password: password.trim() }]);
-    setMsg(`${name}(${car}) を登録しました`); setName(""); setCar(""); setLoginId(""); setPassword("");
+    setDrivers((prev) => [...prev, { id: `d${Date.now()}`, name: name.trim(), car: car.trim(), status: "waiting", area: "", pos: { x: 50, y: 50 }, note: "待機中", wage: wage === "" ? "" : (Number(wage) || 0), hours: 0, loginId: loginId.trim(), password: password.trim() }]);
+    setMsg(`${name}を登録しました`); setName(""); setCar(""); setWage(""); setLoginId(""); setPassword("");
   };
   const removeDriver = (id) => { if (window.confirm("このドライバーを削除しますか？")) setDrivers((prev) => prev.filter((d) => d.id !== id)); };
   return (
@@ -20,18 +53,21 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
           <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>ドライバー一覧(全{drivers.length}名)</div>
         </div>
         <div className="table-scroll" style={{ maxHeight: 320, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 10 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
             <thead><tr style={{ background: "#EDF3FA" }}>{["車両", "氏名", "状態", "エリア", "時給", "ログインID", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 11, color: COLORS.textSub, fontWeight: 600, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#EDF3FA" }}>{h}</th>)}</tr></thead>
             <tbody>
               {drivers.map((d) => (
                 <tr key={d.id} style={{ borderTop: `1px solid ${COLORS.border}` }}>
-                  <td style={{ padding: "8px 10px", fontSize: 13, fontWeight: 600, color: COLORS.textMain, whiteSpace: "nowrap" }}>{d.car}</td>
+                  <td style={{ padding: "8px 10px", fontSize: 13, fontWeight: 600, color: COLORS.textMain, whiteSpace: "nowrap" }}>{d.car || "-"}</td>
                   <td style={{ padding: "8px 10px", fontSize: 13, color: COLORS.textMain, whiteSpace: "nowrap" }}>{d.name}</td>
                   <td style={{ padding: "8px 10px", fontSize: 11 }}><span style={{ fontWeight: 700, color: DRIVER_STATUS[d.status]?.color }}>{DRIVER_STATUS[d.status]?.label}</span></td>
                   <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub }}>{d.area || "-"}</td>
-                  <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textMain }}><Yen value={d.wage} /></td>
+                  <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textMain }}>{d.wage === "" || d.wage == null ? "-" : <Yen value={d.wage} />}</td>
                   <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub, fontFamily: "'JetBrains Mono', monospace" }}>{d.loginId || "-"}</td>
-                  <td style={{ padding: "8px 10px" }}><button onClick={() => removeDriver(d.id)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>削除</button></td>
+                  <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>
+                    <button onClick={() => setEditTarget(d)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontSize: 11, fontWeight: 600, cursor: "pointer", marginRight: 6 }}>編集</button>
+                    <button onClick={() => removeDriver(d.id)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>削除</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -43,8 +79,8 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
       <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 14 }}>ドライバー登録</div>
       <TextField label="ドライバー名" value={name} onChange={setName} placeholder="例: 山田" />
       <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}><TextField label="車両番号" value={car} onChange={setCar} placeholder="例: 5号車" /></div>
-        <div style={{ flex: 1 }}><TextField label="時給(円)" value={wage} onChange={setWage} type="number" /></div>
+        <div style={{ flex: 1 }}><TextField label="車両番号(空欄可)" value={car} onChange={setCar} placeholder="例: 5号車" /></div>
+        <div style={{ flex: 1 }}><TextField label="時給(円・空欄可)" value={wage} onChange={setWage} type="number" placeholder="未設定" /></div>
       </div>
       <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>ドライバーアプリ ログイン情報</div>
       <div style={{ display: "flex", gap: 10 }}>
@@ -55,6 +91,11 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
       {msg && <div style={{ marginTop: 10, fontSize: 12, color: COLORS.green }}>{msg}</div>}
       <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 8 }}>※このID・パスワードは今後ドライバーアプリのログインに使用する想定です(現在アプリ側は仮ログインのままです)。</div>
       </Card>
+
+      {editTarget && (
+        <DriverEditModal driver={editTarget} onClose={() => setEditTarget(null)}
+          onSave={(updated) => setDrivers((prev) => prev.map((d) => d.id === updated.id ? updated : d))} />
+      )}
     </div>
   );
 }

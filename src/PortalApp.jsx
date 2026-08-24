@@ -427,21 +427,21 @@ function UketsukeViewer({ theme }) {
               return (
                 <div key={i} style={{ display: "flex", borderBottom: `2px solid ${LINE}` }}>
                   {/* 待機場 */}
-                  <div style={{ width: W.taiki, minWidth: W.taiki, borderRight: `1px solid ${LINE}` }}>
-                    <ViewCell value={r.taiki} width={W.taiki - 1} fontSize={10.5} bold />
+                  <div style={{ width: W.taiki, minWidth: W.taiki }}>
+                    <ViewCell value={r.taiki} width={W.taiki} fontSize={10.5} bold />
                   </div>
                   {/* 番号 */}
                   <div style={{ width: W.no, minWidth: W.no, borderRight: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: INK }}>
                     {i + 1}
                   </div>
                   {/* 時間(上下2段) */}
-                  <div style={{ width: W.time, minWidth: W.time, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
-                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.time} width={W.time - 1} bold mono fontSize={12} /></div>
-                    <div style={{ height: ROW_H }}><ViewCell value={r.depart} width={W.time - 1} fontSize={10} /></div>
+                  <div style={{ width: W.time, minWidth: W.time, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.time} width={W.time} bold mono fontSize={12} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.depart} width={W.time} fontSize={10} /></div>
                   </div>
                   {/* キャスト */}
-                  <div style={{ width: W.cast, minWidth: W.cast, borderRight: `1px solid ${LINE}` }}>
-                    <ViewCell value={r.cast} width={W.cast - 1} bold fontSize={10.5} />
+                  <div style={{ width: W.cast, minWidth: W.cast }}>
+                    <ViewCell value={r.cast} width={W.cast} bold fontSize={10.5} />
                   </div>
                   {/* 指名数 */}
                   <div style={{ width: W.shimeiN, minWidth: W.shimeiN, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
@@ -451,9 +451,9 @@ function UketsukeViewer({ theme }) {
                     <div style={{ height: ROW_H, background: "#FFFFFF" }} />
                   </div>
                   {/* 会員/指名種別(上下2段) */}
-                  <div style={{ width: W.kaiin, minWidth: W.kaiin, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
-                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.kaiin} width={W.kaiin - 1} bold fontSize={10} /></div>
-                    <div style={{ height: ROW_H }}><ViewCell value={r.shimeiType} width={W.kaiin - 1} bold fontSize={10} /></div>
+                  <div style={{ width: W.kaiin, minWidth: W.kaiin, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.kaiin} width={W.kaiin} bold fontSize={10} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.shimeiType} width={W.kaiin} bold fontSize={10} /></div>
                   </div>
                   {/* ラベル(氏名/TEL) */}
                   <div style={{ width: W.label, minWidth: W.label, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column", fontSize: 8, color: SUB, background: "#F4F6F9" }}>
@@ -461,19 +461,19 @@ function UketsukeViewer({ theme }) {
                     <div style={{ height: ROW_H, display: "flex", alignItems: "center", justifyContent: "center" }}>TEL</div>
                   </div>
                   {/* 氏名+TEL / ホテル名(上下2段) */}
-                  <div style={{ width: W.name, minWidth: W.name, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
+                  <div style={{ width: W.name, minWidth: W.name, display: "flex", flexDirection: "column" }}>
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}`, display: "flex" }}>
                       <ViewCell value={r.name} width={100} bold fontSize={12} />
-                      <ViewCell value={r.tel} width={W.name - 100 - 1} mono fontSize={11.5} />
+                      <ViewCell value={r.tel} width={W.name - 100} mono fontSize={11.5} />
                     </div>
-                    <div style={{ height: ROW_H }}><ViewCell value={r.hotel} width={W.name - 1} bold fontSize={11.5} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.hotel} width={W.name} bold fontSize={11.5} /></div>
                   </div>
                   {/* 交通費 */}
-                  <div style={{ width: W.kotsu, minWidth: W.kotsu, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.kotsu} width={W.kotsu - 1} mono /></div>
+                  <div style={{ width: W.kotsu, minWidth: W.kotsu }}><ViewCell value={r.kotsu} width={W.kotsu} mono /></div>
                   {/* コース */}
-                  <div style={{ width: W.course, minWidth: W.course, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.course} width={W.course - 1} bold fontSize={12} /></div>
+                  <div style={{ width: W.course, minWidth: W.course }}><ViewCell value={r.course} width={W.course} bold fontSize={12} /></div>
                   {/* OP(上下2段×2列) */}
-                  <div style={{ width: W.op * 2, minWidth: W.op * 2, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
+                  <div style={{ width: W.op * 2, minWidth: W.op * 2, display: "flex", flexDirection: "column" }}>
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}`, display: "flex" }}>
                       <ViewCell value={r.op1} width={W.op} fontSize={10.5} />
                       <ViewCell value={r.op2} width={W.op} fontSize={10.5} />
@@ -484,28 +484,28 @@ function UketsukeViewer({ theme }) {
                     </div>
                   </div>
                   {/* 退出(緑) */}
-                  <div style={{ width: W.taishutsu, minWidth: W.taishutsu, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.taishutsu} width={W.taishutsu - 1} bg="#00B050" color="#FFF" bold mono fontSize={12} /></div>
+                  <div style={{ width: W.taishutsu, minWidth: W.taishutsu }}><ViewCell value={r.taishutsu} width={W.taishutsu} bg="#00B050" color="#FFF" bold mono fontSize={12} /></div>
                   {/* 落とし */}
-                  <div style={{ width: W.otoshi, minWidth: W.otoshi, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.otoshi} width={W.otoshi - 1} mono bold fontSize={12} /></div>
+                  <div style={{ width: W.otoshi, minWidth: W.otoshi }}><ViewCell value={r.otoshi} width={W.otoshi} mono bold fontSize={12} /></div>
                   {/* 女子給 */}
-                  <div style={{ width: W.joshi, minWidth: W.joshi, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.joshi} width={W.joshi - 1} mono bold fontSize={12} /></div>
+                  <div style={{ width: W.joshi, minWidth: W.joshi }}><ViewCell value={r.joshi} width={W.joshi} mono bold fontSize={12} /></div>
                   {/* 備考(上下2段) */}
-                  <div style={{ width: W.biko, minWidth: W.biko, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
-                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.biko || (isFirst ? "-500" : "")} width={W.biko - 1} color="#C00000" bold mono fontSize={11} /></div>
-                    <div style={{ height: ROW_H }}><ViewCell value={r.biko2} width={W.biko - 1} color="#C00000" bold mono fontSize={11} /></div>
+                  <div style={{ width: W.biko, minWidth: W.biko, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.biko || (isFirst ? "-500" : "")} width={W.biko} color="#C00000" bold mono fontSize={11} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.biko2} width={W.biko} color="#C00000" bold mono fontSize={11} /></div>
                   </div>
                   {/* 送り */}
-                  <div style={{ width: W.okuri, minWidth: W.okuri, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.okuri} width={W.okuri - 1} fontSize={10.5} /></div>
+                  <div style={{ width: W.okuri, minWidth: W.okuri }}><ViewCell value={r.okuri} width={W.okuri} fontSize={10.5} /></div>
                   {/* 迎え */}
-                  <div style={{ width: W.mukae, minWidth: W.mukae, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.mukae} width={W.mukae - 1} fontSize={10.5} /></div>
+                  <div style={{ width: W.mukae, minWidth: W.mukae }}><ViewCell value={r.mukae} width={W.mukae} fontSize={10.5} /></div>
                   {/* 領収書 */}
-                  <div style={{ width: W.ryoshu, minWidth: W.ryoshu, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.ryoshu} width={W.ryoshu - 1} fontSize={10.5} /></div>
+                  <div style={{ width: W.ryoshu, minWidth: W.ryoshu }}><ViewCell value={r.ryoshu} width={W.ryoshu} fontSize={10.5} /></div>
                   {/* 媒体 */}
-                  <div style={{ width: W.baitai, minWidth: W.baitai, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.baitai} width={W.baitai - 1} fontSize={10.5} /></div>
+                  <div style={{ width: W.baitai, minWidth: W.baitai }}><ViewCell value={r.baitai} width={W.baitai} fontSize={10.5} /></div>
                   {/* 備考(NG等・上下2段) */}
                   <div style={{ width: W.bikoR, minWidth: W.bikoR, display: "flex", flexDirection: "column" }}>
-                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.bikoR} width={W.bikoR - 1} align="left" color="#C00000" fontSize={10.5} /></div>
-                    <div style={{ height: ROW_H }}><ViewCell value={r.bikoR2} width={W.bikoR - 1} align="left" color="#C00000" fontSize={10.5} /></div>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.bikoR} width={W.bikoR} align="left" color="#C00000" fontSize={10.5} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.bikoR2} width={W.bikoR} align="left" color="#C00000" fontSize={10.5} /></div>
                   </div>
                 </div>
               );
@@ -827,11 +827,11 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
               <div style={{ minWidth: 96 + 62 * 7 }}>
                 {/* 日付ヘッダ */}
                 <div style={{ display: "flex", borderBottom: `1px solid ${LINE}` }}>
-                  <div style={{ width: 96, flexShrink: 0, padding: "8px 10px", fontSize: 10.5, fontWeight: 700, color: SUB, background: "#F4F6F9", position: "sticky", left: 0 }}>ドライバー</div>
+                  <div style={{ width: 96, flexShrink: 0, padding: "8px 10px", fontSize: 10.5, fontWeight: 700, color: SUB, background: "#F4F6F9", position: "sticky", left: 0 , boxSizing: "border-box" }}>ドライバー</div>
                   {weekDays(weekOffset).map((d) => {
                     const isToday = isoDate(d) === isoDate(new Date());
                     return (
-                      <div key={isoDate(d)} style={{ width: 62, flexShrink: 0, padding: "8px 2px", textAlign: "center", background: isToday ? theme.accent : "#F4F6F9", color: isToday ? "#FFF" : SUB, fontWeight: 700, fontSize: 10.5, borderLeft: `1px solid ${LINE}` }}>
+                      <div key={isoDate(d)} style={{ width: 62, flexShrink: 0, padding: "8px 2px", textAlign: "center", background: isToday ? theme.accent : "#F4F6F9", color: isToday ? "#FFF" : SUB, fontWeight: 700, fontSize: 10.5, borderLeft: `1px solid ${LINE}`, boxSizing: "border-box" }}>
                         {d.getMonth() + 1}/{d.getDate()}
                       </div>
                     );
@@ -841,7 +841,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                 <div style={{ padding: "5px 10px", fontSize: 10.5, fontWeight: 700, color: "#B5720A", background: "#FFF6E9" }}>☀ 昼</div>
                 {drivers.filter((d) => (d.shift || "day") === "day").map((d) => (
                   <div key={d.id} style={{ display: "flex", borderTop: `1px solid ${LINE}`, background: d.id === driverId ? theme.accentSoft : "#FFF" }}>
-                    <div style={{ width: 96, flexShrink: 0, padding: "7px 10px", fontSize: 11.5, fontWeight: d.id === driverId ? 800 : 600, color: INK, position: "sticky", left: 0, background: d.id === driverId ? theme.accentSoft : "#FFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.name}</div>
+                    <div style={{ width: 96, flexShrink: 0, padding: "7px 10px", fontSize: 11.5, fontWeight: d.id === driverId ? 800 : 600, color: INK, position: "sticky", left: 0, background: d.id === driverId ? theme.accentSoft : "#FFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" , boxSizing: "border-box" }}>{d.name}</div>
                     {weekDays(weekOffset).map((day) => {
                       const dateStr = isoDate(day);
                       const cell = getCell(schedule, d.id, dateStr);
@@ -849,7 +849,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                       const hasNote = !!(cell.note && cell.note.trim());
                       return (
                         <button key={dateStr} onClick={() => setEditCell({ driverId: d.id, dateStr, driverName: d.name })}
-                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative" }}>
+                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative", boxSizing: "border-box" }}>
                           {isOff ? "休" : cell.start}
                           {hasNote && <span style={{ position: "absolute", top: 1, right: 3, fontSize: 7 }}>📝</span>}
                         </button>
@@ -861,7 +861,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                 <div style={{ padding: "5px 10px", fontSize: 10.5, fontWeight: 700, color: "#3B54A8", background: "#EAF0FC", borderTop: `2px solid ${INK}` }}>🌙 夜</div>
                 {drivers.filter((d) => (d.shift || "day") === "night").map((d) => (
                   <div key={d.id} style={{ display: "flex", borderTop: `1px solid ${LINE}`, background: d.id === driverId ? theme.accentSoft : "#FFF" }}>
-                    <div style={{ width: 96, flexShrink: 0, padding: "7px 10px", fontSize: 11.5, fontWeight: d.id === driverId ? 800 : 600, color: INK, position: "sticky", left: 0, background: d.id === driverId ? theme.accentSoft : "#FFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.name}</div>
+                    <div style={{ width: 96, flexShrink: 0, padding: "7px 10px", fontSize: 11.5, fontWeight: d.id === driverId ? 800 : 600, color: INK, position: "sticky", left: 0, background: d.id === driverId ? theme.accentSoft : "#FFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" , boxSizing: "border-box" }}>{d.name}</div>
                     {weekDays(weekOffset).map((day) => {
                       const dateStr = isoDate(day);
                       const cell = getCell(schedule, d.id, dateStr);
@@ -869,7 +869,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                       const hasNote = !!(cell.note && cell.note.trim());
                       return (
                         <button key={dateStr} onClick={() => setEditCell({ driverId: d.id, dateStr, driverName: d.name })}
-                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative" }}>
+                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative", boxSizing: "border-box" }}>
                           {isOff ? "休" : cell.start}
                           {hasNote && <span style={{ position: "absolute", top: 1, right: 3, fontSize: 7 }}>📝</span>}
                         </button>

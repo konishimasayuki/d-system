@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES, INITIAL_STAFF } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, SectionTitle, SelectField, TextField, Yen, parseCSV, csvEscape, readCSVFile, INITIAL_STAFF } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
@@ -201,17 +201,9 @@ export function StaffRegisterForm({ staff, setStaff, isOwner, myStaffId }) {
     setStaff((prev) => prev.map((s) => s.id === id ? { ...s, viewRole: vr } : s));
   };
 
-  const resetStaff = () => {
-    if (!window.confirm("スタッフデータを初期値(近藤/白石/大西)に戻します。よろしいですか？")) return;
-    setStaff(INITIAL_STAFF);
-  };
-
   return (
     <Card>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>スタッフ登録</div>
-        {isOwner && <button onClick={resetStaff} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>初期データにリセット</button>}
-      </div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 4 }}>スタッフ登録</div>
       {!isOwner && <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 10 }}>※スタッフの追加・削除・権限変更は経営者のみ行えます。</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
         {staff.map((s) => (
@@ -253,12 +245,6 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
 
   const filtered = courses.filter((c) => c.shop === shop && c.castClass === cls);
 
-  const resetPricing = () => {
-    if (!window.confirm("コース料金・指名料を初期値に戻します(現在の入力内容は失われます)。よろしいですか？")) return;
-    setCourses(INITIAL_COURSES);
-    setOptions(INITIAL_OPTIONS);
-  };
-
   const updateCourseField = (id, field, val) => {
     setCourses((prev) => prev.map((c) => c.id === id ? { ...c, [field]: field === "code" || field === "label" ? val : (Number(val) || 0) } : c));
   };
@@ -277,10 +263,7 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
 
   return (
     <Card>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>項目登録(コース料金・指名料)</div>
-        <button onClick={resetPricing} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>初期料金にリセット</button>
-      </div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 6 }}>項目登録(コース料金・指名料)</div>
       <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>店舗・クラスごとに料金表を管理できます。受付表でキャストを選ぶと、そのキャストの所属店舗・クラスに応じたコースが選べます。</div>
 
       {/* 店舗・クラス切り替え */}
@@ -357,17 +340,10 @@ export function TransportFeeForm({ transportFees, setTransportFees }) {
     const area = areaFilter === "すべて" ? (areas[1] || "博多区") : areaFilter;
     setTransportFees((prev) => [...prev, { id: `tf_new${Date.now()}`, area, name: "新規地名", reading: "", price: 0 }]);
   };
-  const resetTransport = () => {
-    if (!window.confirm("交通費データを初期値(福岡市内453件)に戻します。よろしいですか？")) return;
-    setTransportFees(INITIAL_TRANSPORT_FEES);
-  };
 
   return (
     <Card>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>交通費設定(区・地名・ホテル別)</div>
-        <button onClick={resetTransport} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>初期データにリセット</button>
-      </div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 6 }}>交通費設定(区・地名・ホテル別)</div>
       <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>全{transportFees.length}件。読みを登録しておくと検索しやすくなります。受付表の交通費欄の参考にする金額を管理できます。</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
@@ -455,16 +431,9 @@ export function ViewRolePermissionForm({ viewRoles, setViewRoles, isOwner }) {
       return { ...prev, [roleKey]: { ...cur, tabs: nextTabs } };
     });
   };
-  const resetDefaults = () => {
-    if (!window.confirm("権限設定を初期値に戻します。よろしいですか？")) return;
-    setViewRoles(INITIAL_VIEW_ROLES);
-  };
   return (
     <Card>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>権限管理(経営者のみ変更可)</div>
-        <button onClick={resetDefaults} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>初期値にリセット</button>
-      </div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 6 }}>権限管理(経営者のみ変更可)</div>
       <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>権限グループごとに、どのタブを閲覧できるか設定できます。経営者・オペレーター・キャスト・ドライバーの4種です。</div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
@@ -659,31 +628,12 @@ export const SETTINGS_SUBTABS = [
 ];
 export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, transportFees, setTransportFees, setReservations, syncMsg, viewRoles, setViewRoles, isOwner, myStaffId }) {
   const [sub, setSub] = useState("driver");
-  const resetDemoData = () => {
-    const coordHotels = hotels.filter((h) => h.lat != null);
-    const usingReal = coordHotels.length > 15;
-    const extra = usingReal
-      ? `\n\n登録済みの座標付きホテル${coordHotels.length}件からデモ予約を作成します。`
-      : "\n\n※現在、座標付きホテルが少ないため、デモは基本ホテルで作成されます。実ホテルも使いたい場合は、先にホテル一覧の「未取得の座標をまとめて取得」を実行してください。";
-    if (!window.confirm(`キャスト・予約(本日〜10日後まで)・ドライバーを初期デモデータで上書きします。よろしいですか？(保存済みの内容は失われます)${extra}`)) return;
-    const freshBase = generateCasts();
-    const freshReservations = generateAllReservations(freshBase, hotels);
-    const freshCasts = applyDay0State(freshBase, freshReservations);
-    const freshDrivers = generateDrivers();
-    const seeded = seedDemoDispatch(freshDrivers, freshReservations, isoDate(DAY_DATES[0]));
-    setCasts(freshCasts);
-    setReservations(seeded.reservations);
-    setDrivers(seeded.drivers);
-  };
   return (
     <div>
       <SectionTitle sub="ドライバー・ホテル・スタッフ・項目・セキュリティの管理。キャスト登録はキャスト一覧から行います">設定</SectionTitle>
       {syncMsg && <div style={{ marginBottom: 12, fontSize: 12, color: COLORS.red, background: "#FBEAE5", padding: "8px 12px", borderRadius: 8 }}>{syncMsg}</div>}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {SETTINGS_SUBTABS.map((t) => <button key={t.key} onClick={() => setSub(t.key)} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${sub === t.key ? COLORS.accent : COLORS.border}`, background: sub === t.key ? COLORS.accent : "#FFF", color: sub === t.key ? "#FFF" : COLORS.textMain, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.label}</button>)}
-        </div>
-        <button onClick={resetDemoData} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>キャスト・予約・ドライバーを初期デモデータにリセット</button>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        {SETTINGS_SUBTABS.map((t) => <button key={t.key} onClick={() => setSub(t.key)} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${sub === t.key ? COLORS.accent : COLORS.border}`, background: sub === t.key ? COLORS.accent : "#FFF", color: sub === t.key ? "#FFF" : COLORS.textMain, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.label}</button>)}
       </div>
       {sub === "driver" && <DriverRegisterForm drivers={drivers} setDrivers={setDrivers} />}
       {sub === "hotel" && <HotelForm hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} />}

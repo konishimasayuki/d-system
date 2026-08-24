@@ -32,7 +32,7 @@ export function weekDays(weekOffset = 0) {
 export function emptySchedule() { return {}; }
 
 export function getCell(schedule, staffId, dateStr) {
-  return schedule?.[staffId]?.[dateStr] || { type: "off", start: "10:00", end: "20:00", note: "" };
+  return schedule?.[staffId]?.[dateStr] || { type: "off", start: "10:00", end: "", note: "" };
 }
 
 export function setCell(schedule, staffId, dateStr, cell) {

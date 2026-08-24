@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { COLORS, Card, SectionTitle, DRIVER_SHIFT, dayLabel, isoDate } from "../shared.jsx";
+import { COLORS, Card, PrimaryButton, SectionTitle, DRIVER_SHIFT, dayLabel, isoDate } from "../shared.jsx";
 
 // ============================================================
 // スタッフスケジュールタブ(旧ドライバースケジュール)
@@ -18,6 +18,8 @@ export const HALF_HOURS = (() => {
   }
   return opts;
 })();
+// 終了時刻の選択肢(空欄=未定を先頭に追加)
+export const END_TIME_OPTIONS = ["", ...HALF_HOURS];
 
 // weekOffset=0が今週。7日ぶんの日付配列を返す
 export function weekDays(weekOffset = 0) {
@@ -26,11 +28,11 @@ export function weekDays(weekOffset = 0) {
   });
 }
 
-// デフォルトの空スケジュール: { staffId: { dateStr: { type: "off"|"work", start: "10:00", end: "20:00" } } }
+// デフォルトの空スケジュール: { staffId: { dateStr: { type: "off"|"work", start: "10:00", end: "20:00", note: "" } } }
 export function emptySchedule() { return {}; }
 
 export function getCell(schedule, staffId, dateStr) {
-  return schedule?.[staffId]?.[dateStr] || { type: "off", start: "10:00", end: "20:00" };
+  return schedule?.[staffId]?.[dateStr] || { type: "off", start: "10:00", end: "20:00", note: "" };
 }
 
 export function setCell(schedule, staffId, dateStr, cell) {
@@ -98,6 +100,7 @@ export function DriverScheduleTab({ drivers }) {
 
   const dayDrivers = drivers.filter((d) => (d.shift || "day") === "day");
   const nightDrivers = drivers.filter((d) => (d.shift || "day") === "night");
+  const [memoTarget, setMemoTarget] = useState(null); // { staffId, dateStr, staffName }
 
   const renderRow = (s) => (
     <div key={s.id} style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}` }}>
@@ -109,6 +112,7 @@ export function DriverScheduleTab({ drivers }) {
         const dateStr = isoDate(d);
         const cell = getCell(schedule, s.id, dateStr);
         const isOff = cell.type === "off";
+        const hasNote = !!(cell.note && cell.note.trim());
         return (
           <div key={dateStr} style={{ width: colW, flexShrink: 0, padding: "10px 8px", borderLeft: `1px solid ${COLORS.border}`, background: isOff ? "#F4F5F7" : "#FFFFFF", display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", gap: 4 }}>
@@ -122,10 +126,15 @@ export function DriverScheduleTab({ drivers }) {
                 </select>
                 <span style={{ fontSize: 11, color: COLORS.textSub, flexShrink: 0 }}>〜</span>
                 <select value={cell.end} onChange={(e) => update(s.id, dateStr, "end", e.target.value)} style={SELECT_STYLE}>
+                  <option value="">未定</option>
                   {HALF_HOURS.filter((t) => t > cell.start).map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
             )}
+            <button onClick={() => setMemoTarget({ staffId: s.id, dateStr, staffName: s.name })}
+              style={{ padding: "4px 0", borderRadius: 7, border: `1px solid ${hasNote ? COLORS.accent : COLORS.border}`, background: hasNote ? COLORS.accent : "#FFF", color: hasNote ? "#FFF" : COLORS.border, opacity: hasNote ? 1 : 0.55, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
+              📝 メモ{hasNote ? "あり" : ""}
+            </button>
           </div>
         );
       })}
@@ -193,6 +202,36 @@ export function DriverScheduleTab({ drivers }) {
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 14, height: 14, borderRadius: 3, background: "#98A2B0" }} />休み</div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 14, height: 14, borderRadius: 3, background: "#EDF3FA", border: `1px solid ${COLORS.border}` }} />今日</div>
         <div style={{ color: COLORS.textSub }}>※ 変更はリアルタイムで保存されます</div>
+      </div>
+
+      {memoTarget && (
+        <MemoEditModal
+          staffName={memoTarget.staffName}
+          dateStr={memoTarget.dateStr}
+          note={getCell(schedule, memoTarget.staffId, memoTarget.dateStr).note || ""}
+          onSave={(text) => { update(memoTarget.staffId, memoTarget.dateStr, "note", text); setMemoTarget(null); }}
+          onClose={() => setMemoTarget(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// シフトメモ編集モーダル(その日の備考を3行程度で入力)
+function MemoEditModal({ staffName, dateStr, note, onSave, onClose }) {
+  const [text, setText] = useState(note);
+  const d = new Date(dateStr);
+  const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,35,0.45)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 14, width: "100%", maxWidth: 360, padding: 20, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 2 }}>{staffName}</div>
+        <div style={{ fontSize: 12.5, color: COLORS.textSub, marginBottom: 14 }}>{d.getMonth() + 1}/{d.getDate()}({w}) のメモ</div>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="例：この日は現場直行、他店舗ヘルプなど" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box", resize: "vertical", fontFamily: "inherit", marginBottom: 14 }} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.textSub, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>キャンセル</button>
+          <PrimaryButton onClick={() => onSave(text)} style={{ flex: 1 }}>保存する</PrimaryButton>
+        </div>
       </div>
     </div>
   );

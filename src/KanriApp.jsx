@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  COLORS, GLOBAL_CSS, CUSTOMER_COLORS, VIEW_ROLES, DAY_DATES, DEFAULT_OFFICE,
+  COLORS, GLOBAL_CSS, CUSTOMER_COLORS, VIEW_ROLES, INITIAL_VIEW_ROLES, TAB_DEFS, RESTRICTED_TAB_PASSWORD, DAY_DATES, DEFAULT_OFFICE,
   INITIAL_CASTS, INITIAL_RESERVATIONS, INITIAL_DRIVERS, INITIAL_CUSTOMERS,
   INITIAL_HOTELS, INITIAL_STAFF, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES, INITIAL_EXPENSES,
   usePersistedState, usePersistedReservations, PrimaryButton,
@@ -90,8 +90,78 @@ function HamburgerIcon({ onClick }) {
 
 
 
+// 本部システムのログイン状態をlocalStorageに保存し、ログアウトするまで保持する
+function loadKanriLogin() {
+  try {
+    const raw = localStorage.getItem("kanri_login");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.staffId ? parsed : null;
+  } catch (e) { return null; }
+}
+function saveKanriLogin(staffId) {
+  try { localStorage.setItem("kanri_login", JSON.stringify({ staffId })); } catch (e) {}
+}
+function clearKanriLogin() {
+  try { localStorage.removeItem("kanri_login"); } catch (e) {}
+}
+
+// ログイン画面
+function KanriLoginScreen({ staff, onLogin }) {
+  const [id, setId] = useState("");
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState("");
+  const submit = () => {
+    const match = staff.find((s) => s.loginId === id.trim() && s.password === pw.trim());
+    if (!match) { setErr("IDまたはパスワードが違います。"); return; }
+    setErr("");
+    onLogin(match.id);
+  };
+  return (
+    <div style={{ minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Noto Sans JP', sans-serif" }}>
+      <div style={{ width: "100%", maxWidth: 360, padding: 32, background: "#FFF", borderRadius: 16, boxShadow: "0 12px 40px rgba(20,30,45,0.12)" }}>
+        <div style={{ fontFamily: "'Zen Old Mincho', serif", fontSize: 22, color: COLORS.accent, marginBottom: 4, textAlign: "center" }}>業務管理システム</div>
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 24, textAlign: "center" }}>ログインしてください</div>
+        <div style={{ marginBottom: 12 }}>
+          <input value={id} onChange={(e) => setId(e.target.value)} placeholder="ログインID" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, fontSize: 14, boxSizing: "border-box" }} />
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <input value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} type="password" placeholder="パスワード" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, fontSize: 14, boxSizing: "border-box" }} />
+        </div>
+        {err && <div style={{ color: "#C0492B", fontSize: 12.5, marginBottom: 10 }}>{err}</div>}
+        <button onClick={submit} style={{ width: "100%", padding: "13px 0", borderRadius: 10, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>ログイン</button>
+      </div>
+    </div>
+  );
+}
+
+// 閲覧制限タブのロック解除モーダル(共通パスワード)
+function RestrictedTabModal({ onUnlock, onClose }) {
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState("");
+  const submit = () => {
+    if (pw.trim() === RESTRICTED_TAB_PASSWORD) { onUnlock(); return; }
+    setErr("パスワードが違います。");
+  };
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,35,0.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: "100%", maxWidth: 320, padding: 24, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 4 }}>閲覧制限がかかっています</div>
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 16 }}>パスワードを入力してください</div>
+        <input value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} type="password" autoFocus
+          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 14, boxSizing: "border-box", marginBottom: 8 }} />
+        {err && <div style={{ color: "#C0492B", fontSize: 12, marginBottom: 8 }}>{err}</div>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.textSub, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>キャンセル</button>
+          <button onClick={submit} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>解除</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function KanriApp() {
-  const [role, setRole] = useState("owner");
+  const [staffId, setStaffId] = useState(() => loadKanriLogin()?.staffId || null);
   const [tab, setTab] = useState("dashboard");
   const [casts, setCasts, castsSync] = usePersistedState("casts", INITIAL_CASTS);
   const [customers, setCustomers, customersSync] = usePersistedState("customers", INITIAL_CUSTOMERS);
@@ -100,11 +170,12 @@ export default function KanriApp() {
   const [hotels, setHotels, hotelsSync] = usePersistedState("hotels", INITIAL_HOTELS);
   const [office, setOffice, officeSync] = usePersistedState("office", DEFAULT_OFFICE);
   const [staff, setStaff, staffSync] = usePersistedState("staff", INITIAL_STAFF);
+  const [viewRoles, setViewRoles, viewRolesSync] = usePersistedState("viewroles", INITIAL_VIEW_ROLES);
   const [courses, setCourses, coursesSync] = usePersistedState("courses", INITIAL_COURSES);
   const [options, setOptions, optionsSync] = usePersistedState("options", INITIAL_OPTIONS);
   const [transportFees, setTransportFees, transportFeesSync] = usePersistedState("transportfees", INITIAL_TRANSPORT_FEES);
   const [expenses, setExpenses, expensesSync] = usePersistedState("expenses", INITIAL_EXPENSES);
-  const syncErrors = [castsSync, customersSync, driversSync, reservationsSync, hotelsSync, officeSync, staffSync, coursesSync, optionsSync, transportFeesSync, expensesSync].map((s) => s.err).filter(Boolean);
+  const syncErrors = [castsSync, customersSync, driversSync, reservationsSync, hotelsSync, officeSync, staffSync, viewRolesSync, coursesSync, optionsSync, transportFeesSync, expensesSync].map((s) => s.err).filter(Boolean);
   const syncMsg = syncErrors[0] || "";
   const [menuOpen, setMenuOpen] = useState(false);
   const [ctiCustomer, setCtiCustomer] = useState(null);
@@ -129,17 +200,34 @@ export default function KanriApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  const allowed = VIEW_ROLES[role].tabs;
+  const me = staff.find((s) => s.id === staffId);
+  const myViewRole = me?.viewRole || "operator";
+  const allowed = (viewRoles[myViewRole] || viewRoles.operator).tabs;
   const visibleGroups = TAB_GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => allowed.includes(t.key)) })).filter((g) => g.tabs.length > 0);
   const currentLabel = ALL_TABS.find((t) => t.key === tab)?.label ?? "";
 
-  const changeRole = (r) => {
-    setRole(r);
-    const firstTab = VIEW_ROLES[r].tabs[0];
-    setTab(firstTab); setMenuOpen(false);
+  const [restrictedTarget, setRestrictedTarget] = useState(null); // ロック解除待ちのタブキー
+  const [unlockedTabs, setUnlockedTabs] = useState(() => new Set()); // このセッションで解除済みのタブ
+
+  const tabDef = (key) => TAB_DEFS.find((t) => t.key === key);
+  const requestTab = (key) => {
+    const def = tabDef(key);
+    if (def?.restricted && !unlockedTabs.has(key)) { setRestrictedTarget(key); return; }
+    setTab(key); setMenuOpen(false);
   };
+  const unlockAndOpen = () => {
+    if (!restrictedTarget) return;
+    setUnlockedTabs((prev) => new Set([...prev, restrictedTarget]));
+    setTab(restrictedTarget); setMenuOpen(false); setRestrictedTarget(null);
+  };
+
+  const logout = () => { setStaffId(null); clearKanriLogin(); setUnlockedTabs(new Set()); };
   const simulateCall = () => setCtiCustomer(customers[Math.floor(Math.random() * customers.length)]);
   const startQuote = (cust) => { setCtiCustomer(null); setQuoteCustomer(cust); };
+
+  if (!staffId || !me) {
+    return <KanriLoginScreen staff={staff} onLogin={(id) => { setStaffId(id); saveKanriLogin(id); }} />;
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.textMain, fontFamily: "'Noto Sans JP', sans-serif" }}>
@@ -155,14 +243,9 @@ export default function KanriApp() {
         <div className={`overlay ${menuOpen ? "open" : ""}`} onClick={() => setMenuOpen(false)} />
         <div className={`sidebar ${menuOpen ? "open" : ""}`}>
           <div style={{ fontFamily: "'Zen Old Mincho', serif", fontSize: 18, color: COLORS.accent, marginBottom: 2 }}>業務管理システム</div>
-          <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 14 }}>DEMO ・ サンプルデータ表示中</div>
+          <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 14 }}>{me.name}({INITIAL_VIEW_ROLES[myViewRole]?.label || myViewRole})</div>
 
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ display: "block", fontSize: 11, color: COLORS.textSub, fontWeight: 700, marginBottom: 5, letterSpacing: 1 }}>ログイン権限(切替)</label>
-            <select value={role} onChange={(e) => changeRole(e.target.value)} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#FFF", color: COLORS.textMain, fontSize: 13 }}>
-              {Object.entries(VIEW_ROLES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-            </select>
-          </div>
+          <button onClick={logout} style={{ width: "100%", padding: "8px 0", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.textSub, fontSize: 12.5, fontWeight: 700, cursor: "pointer", marginBottom: 14 }}>ログアウト</button>
 
           {allowed.includes("customer") || allowed.includes("dashboard") ? (
             <button onClick={simulateCall} style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 16 }}>📞 着信テスト(CTI)</button>
@@ -171,12 +254,15 @@ export default function KanriApp() {
           {visibleGroups.map((g) => (
             <div key={g.group} style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, color: COLORS.textSub, fontWeight: 700, padding: "0 6px 6px", letterSpacing: 1 }}>{g.group}</div>
-              {g.tabs.map((t) => (
-                <div key={t.key} onClick={() => { setTab(t.key); setMenuOpen(false); }} style={{ padding: "9px 14px", borderRadius: 8, marginBottom: 3, cursor: "pointer", fontSize: 14, fontWeight: tab === t.key ? 700 : 400, color: tab === t.key ? "#FFFFFF" : COLORS.textMain, background: tab === t.key ? COLORS.accent : "transparent", transition: "background 0.15s", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>{t.label}</span>
-                  {t.key === "messages" && officeUnread > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: "#FFF", background: COLORS.red, borderRadius: 999, padding: "1px 7px", minWidth: 16, textAlign: "center" }}>{officeUnread}</span>}
-                </div>
-              ))}
+              {g.tabs.map((t) => {
+                const locked = tabDef(t.key)?.restricted && !unlockedTabs.has(t.key);
+                return (
+                  <div key={t.key} onClick={() => requestTab(t.key)} style={{ padding: "9px 14px", borderRadius: 8, marginBottom: 3, cursor: "pointer", fontSize: 14, fontWeight: tab === t.key ? 700 : 400, color: tab === t.key ? "#FFFFFF" : COLORS.textMain, background: tab === t.key ? COLORS.accent : "transparent", transition: "background 0.15s", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>{locked ? "🔒 " : ""}{t.label}</span>
+                    {t.key === "messages" && officeUnread > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: "#FFF", background: COLORS.red, borderRadius: 999, padding: "1px 7px", minWidth: 16, textAlign: "center" }}>{officeUnread}</span>}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -199,9 +285,13 @@ export default function KanriApp() {
           {tab === "std" && <StdManagement casts={casts} />}
           {tab === "uketsuke" && <UketsukeTab casts={casts} courses={courses} options={options} drivers={drivers} transportFees={transportFees} />}
           {tab === "driverschedule" && <DriverScheduleTab drivers={drivers} />}
-          {tab === "settings" && <SettingsTab setCasts={setCasts} drivers={drivers} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} staff={staff} setStaff={setStaff} courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} transportFees={transportFees} setTransportFees={setTransportFees} setReservations={setReservations} syncMsg={syncMsg} />}
+          {tab === "settings" && <SettingsTab setCasts={setCasts} drivers={drivers} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} staff={staff} setStaff={setStaff} courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} transportFees={transportFees} setTransportFees={setTransportFees} setReservations={setReservations} syncMsg={syncMsg} viewRoles={viewRoles} setViewRoles={setViewRoles} isOwner={myViewRole === "owner"} myStaffId={staffId} />}
         </div>
       </div>
+
+      {restrictedTarget && (
+        <RestrictedTabModal onUnlock={unlockAndOpen} onClose={() => setRestrictedTarget(null)} />
+      )}
 
       {ctiCustomer && <CtiPopup customer={ctiCustomer} onClose={() => setCtiCustomer(null)} onReserve={startQuote} />}
       {quoteCustomer && <NewReservationModal prefillCustomer={quoteCustomer} casts={casts} drivers={drivers} reservations={reservations} courses={courses} options={options} hotels={hotels} onClose={() => setQuoteCustomer(null)} onCreate={(r) => { setReservations((prev) => [...prev, r]); setTab("reservation"); }} />}

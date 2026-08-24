@@ -282,20 +282,22 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
       <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, marginBottom: 8 }}>
         {SHOP_OPTIONS.find((s) => s.key === shop)?.label} ・ {CAST_CLASS_OPTIONS.find((c) => c.key === cls)?.label} のコース
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-        <div style={{ display: "flex", gap: 6, fontSize: 11, color: COLORS.textSub, padding: "0 4px" }}>
-          <div style={{ width: 70 }}>記号</div><div style={{ width: 90 }}>表示名</div><div style={{ flex: 1 }}>落とし(円)</div><div style={{ flex: 1 }}>女子給(円)</div><div style={{ width: 30 }} />
-        </div>
-        {filtered.map((c) => (
-          <div key={c.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input value={c.code} onChange={(e) => updateCourseField(c.id, "code", e.target.value)} style={{ width: 70, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }} />
-            <input value={c.label} onChange={(e) => updateCourseField(c.id, "label", e.target.value)} style={{ width: 90, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
-            <input value={c.price} onChange={(e) => updateCourseField(c.id, "price", e.target.value)} type="number" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
-            <input value={c.joshi} onChange={(e) => updateCourseField(c.id, "joshi", e.target.value)} type="number" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
-            <button onClick={() => removeCourse(c.id)} style={{ width: 30, border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>
+      <div style={{ overflowX: "auto", marginBottom: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 480 }}>
+          <div style={{ display: "flex", gap: 6, fontSize: 11, color: COLORS.textSub, padding: "0 4px" }}>
+            <div style={{ width: 56 }}>記号</div><div style={{ width: 70 }}>表示名</div><div style={{ width: 100 }}>落とし(円)</div><div style={{ width: 100 }}>女子給(円)</div><div style={{ width: 26 }} />
           </div>
-        ))}
-        {filtered.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub, padding: "8px 4px" }}>コースがまだ登録されていません。</div>}
+          {filtered.map((c) => (
+            <div key={c.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input value={c.code} onChange={(e) => updateCourseField(c.id, "code", e.target.value)} style={{ width: 56, padding: "6px 6px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", boxSizing: "border-box" }} />
+              <input value={c.label} onChange={(e) => updateCourseField(c.id, "label", e.target.value)} style={{ width: 70, padding: "6px 6px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, boxSizing: "border-box" }} />
+              <input value={c.price} onChange={(e) => updateCourseField(c.id, "price", e.target.value)} type="number" style={{ width: 100, padding: "6px 6px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, boxSizing: "border-box" }} />
+              <input value={c.joshi} onChange={(e) => updateCourseField(c.id, "joshi", e.target.value)} type="number" style={{ width: 100, padding: "6px 6px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, boxSizing: "border-box" }} />
+              <button onClick={() => removeCourse(c.id)} style={{ width: 26, flexShrink: 0, border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>
+            </div>
+          ))}
+          {filtered.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub, padding: "8px 4px" }}>コースがまだ登録されていません。</div>}
+        </div>
       </div>
       <button onClick={addCourse} style={{ padding: "8px 16px", borderRadius: 8, border: `1px dashed ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 22 }}>＋ コースを追加</button>
 

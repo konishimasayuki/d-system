@@ -71,7 +71,7 @@ const TAB_GROUPS = [
     { key: "driverpage", label: "ドライバーページ" }, { key: "mypage", label: "キャストマイページ" },
   ] },
   { group: "管理", tabs: [
-    { key: "std", label: "STD検査" }, { key: "driverschedule", label: "ドライバースケジュール" }, { key: "settings", label: "設定" },
+    { key: "std", label: "STD検査" }, { key: "driverschedule", label: "スタッフスケジュール" }, { key: "settings", label: "設定" },
   ] },
 ];
 const ALL_TABS = TAB_GROUPS.flatMap((g) => g.tabs);

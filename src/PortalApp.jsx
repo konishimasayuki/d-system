@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { loadGoogleMaps, HOTEL_COORDS, OFFICE_LATLNG } from "./mapsLoader.js";
 import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName, staffThreadId, castThreadId, fetchThread, sendMessage, unreadCount, markThreadRead, fetchUketsukeSheet } from "./shared.jsx";
 import { useDriverSchedule, getCell, weekDays, saveScheduleCell, HALF_HOURS } from "./tabs/StaffScheduleTab.jsx";
-import { SHEETS } from "./tabs/UketsukeTab.jsx";
+import { SHEETS, W, Th, computeShimeiCounts } from "./tabs/UketsukeTab.jsx";
 
 // ============================================================
 // サーバー(Upstash経由 /api/state)との簡易読み書き
@@ -338,11 +338,28 @@ function ChatPanel({ theme, threadId, onUnreadChange }) {
 // 受付表(閲覧専用・当日のみ・スタッフポータル用)
 //  編集は一切できない。人妻専科／博多ココを切り替えて見られる
 // ============================================================
+// 閲覧専用の値表示セル(入力欄なし・スプレッドと同じ見た目)
+function ViewCell({ value, width, align = "center", color, bold, fontSize = 11.5, bg, mono }) {
+  return (
+    <div style={{
+      width, minWidth: width, maxWidth: width, boxSizing: "border-box",
+      padding: "3px 4px", borderRight: `1px solid ${LINE}`,
+      background: bg || "transparent", color: color || INK,
+      fontWeight: bold ? 700 : 400, fontSize, textAlign: align,
+      fontFamily: mono ? "'JetBrains Mono', monospace" : "inherit",
+      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      display: "flex", alignItems: "center", justifyContent: align === "left" ? "flex-start" : "center",
+      height: "100%",
+    }}>{value}</div>
+  );
+}
+
 function UketsukeViewer({ theme }) {
   const [sheetKey, setSheetKey] = useState("hitozuma");
   const [sheet, setSheet] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const todayStr = isoDate(new Date());
+  const ROW_H = 26;
 
   useEffect(() => {
     let cancelled = false;
@@ -352,7 +369,10 @@ function UketsukeViewer({ theme }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetKey]);
 
-  const rows = (sheet?.rows || []).filter((r) => r.cast || r.name || r.hotel);
+  const rowsAll = sheet?.rows || [];
+  const shimeiCounts = computeShimeiCounts(rowsAll);
+  // 表示は入力がある行のみ(未入力の空行は隠す。ただし番号は元の行番号を維持)
+  const visibleIdx = rowsAll.map((r, i) => i).filter((i) => rowsAll[i].cast || rowsAll[i].name || rowsAll[i].hotel);
 
   return (
     <div>
@@ -365,25 +385,133 @@ function UketsukeViewer({ theme }) {
           </button>
         ))}
       </div>
+
       {!loaded ? (
         <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, padding: 24 }}>読み込み中…</div>
-      ) : rows.length === 0 ? (
+      ) : visibleIdx.length === 0 ? (
         <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, padding: 24 }}>本日の受付データはありません</div>
       ) : (
-        rows.map((r, i) => (
-          <Card key={i} style={{ marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: INK }}>{r.time || "-"} <span style={{ fontSize: 11.5, color: SUB, fontWeight: 600 }}>{r.depart}</span></div>
-              <div style={{ fontSize: 11.5, color: theme.accentDark, fontWeight: 700 }}>{r.taiki}</div>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", border: `1px solid ${LINE}`, borderRadius: 10 }}>
+          <div style={{ minWidth: W.taiki + W.no + W.time + W.cast + W.shimeiN + W.kaiin + W.label + W.name + W.kotsu + W.course + W.op * 2 + W.taishutsu + W.otoshi + W.joshi + W.biko + W.okuri + W.mukae + W.ryoshu + W.baitai + W.bikoR }}>
+            {/* 見出し行 */}
+            <div style={{ display: "flex", position: "sticky", top: 0, zIndex: 2 }}>
+              <Th width={W.taiki}>待機場</Th>
+              <Th width={W.no}>番号</Th>
+              <Th width={W.time}>時間</Th>
+              <Th width={W.cast}>キャスト</Th>
+              <Th width={W.shimeiN} />
+              <Th width={W.kaiin}>指名</Th>
+              <Th width={W.label} />
+              <Th width={W.name}>連絡先</Th>
+              <Th width={W.kotsu}>交通費</Th>
+              <Th width={W.course}>コース</Th>
+              <Th width={W.op * 2}>OP</Th>
+              <Th width={W.taishutsu}>退出</Th>
+              <Th width={W.otoshi}>落とし</Th>
+              <Th width={W.joshi}>女子給</Th>
+              <Th width={W.biko}>備考</Th>
+              <Th width={W.okuri}>送り</Th>
+              <Th width={W.mukae}>迎え</Th>
+              <Th width={W.ryoshu}>領収書</Th>
+              <Th width={W.baitai}>媒体</Th>
+              <Th width={W.bikoR}>備考(NG等)</Th>
             </div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: INK, marginBottom: 2 }}>{r.cast || "(キャスト未設定)"}</div>
-            <div style={{ fontSize: 12.5, color: SUB }}>{r.name}様 ・ {r.hotel}{r.room ? ` ${r.room}` : ""}</div>
-            {(r.okuri || r.mukae) && <div style={{ fontSize: 11.5, color: SUB, marginTop: 4 }}>送り: {r.okuri || "-"} ／ 迎え: {r.mukae || "-"}</div>}
-            {(r.bikoR || r.bikoR2) && (
-              <div style={{ fontSize: 11.5, color: "#C0492B", marginTop: 6, whiteSpace: "pre-wrap" }}>{[r.bikoR, r.bikoR2].filter(Boolean).join("\n")}</div>
-            )}
-          </Card>
-        ))
+
+            {/* 明細(2行1セット・入力があった行のみ表示) */}
+            {visibleIdx.map((i) => {
+              const r = rowsAll[i];
+              const n = shimeiCounts[i];
+              const isFirst = n === 1;
+              const shimeiBg = n === 0 ? "#FFFFFF" : (isFirst ? "#FFFFFF" : "#A9D18E");
+              const shimeiColor = n === 0 ? INK : (isFirst ? "#FF0000" : "#000000");
+              return (
+                <div key={i} style={{ display: "flex", borderBottom: `2px solid ${LINE}` }}>
+                  {/* 待機場 */}
+                  <div style={{ width: W.taiki, minWidth: W.taiki, borderRight: `1px solid ${LINE}` }}>
+                    <ViewCell value={r.taiki} width={W.taiki - 1} fontSize={10.5} bold />
+                  </div>
+                  {/* 番号 */}
+                  <div style={{ width: W.no, minWidth: W.no, borderRight: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: INK }}>
+                    {i + 1}
+                  </div>
+                  {/* 時間(上下2段) */}
+                  <div style={{ width: W.time, minWidth: W.time, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.time} width={W.time - 1} bold mono fontSize={12} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.depart} width={W.time - 1} fontSize={10} /></div>
+                  </div>
+                  {/* キャスト */}
+                  <div style={{ width: W.cast, minWidth: W.cast, borderRight: `1px solid ${LINE}` }}>
+                    <ViewCell value={r.cast} width={W.cast - 1} bold fontSize={10.5} />
+                  </div>
+                  {/* 指名数 */}
+                  <div style={{ width: W.shimeiN, minWidth: W.shimeiN, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}`, background: shimeiBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: shimeiColor }}>{n > 0 ? n : ""}</span>
+                    </div>
+                    <div style={{ height: ROW_H, background: "#FFFFFF" }} />
+                  </div>
+                  {/* 会員/指名種別(上下2段) */}
+                  <div style={{ width: W.kaiin, minWidth: W.kaiin, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.kaiin} width={W.kaiin - 1} bold fontSize={10} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.shimeiType} width={W.kaiin - 1} bold fontSize={10} /></div>
+                  </div>
+                  {/* ラベル(氏名/TEL) */}
+                  <div style={{ width: W.label, minWidth: W.label, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column", fontSize: 8, color: SUB, background: "#F4F6F9" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}>氏名</div>
+                    <div style={{ height: ROW_H, display: "flex", alignItems: "center", justifyContent: "center" }}>TEL</div>
+                  </div>
+                  {/* 氏名+TEL / ホテル名(上下2段) */}
+                  <div style={{ width: W.name, minWidth: W.name, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}`, display: "flex" }}>
+                      <ViewCell value={r.name} width={100} bold fontSize={12} />
+                      <ViewCell value={r.tel} width={W.name - 100 - 1} mono fontSize={11.5} />
+                    </div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.hotel} width={W.name - 1} bold fontSize={11.5} /></div>
+                  </div>
+                  {/* 交通費 */}
+                  <div style={{ width: W.kotsu, minWidth: W.kotsu, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.kotsu} width={W.kotsu - 1} mono /></div>
+                  {/* コース */}
+                  <div style={{ width: W.course, minWidth: W.course, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.course} width={W.course - 1} bold fontSize={12} /></div>
+                  {/* OP(上下2段×2列) */}
+                  <div style={{ width: W.op * 2, minWidth: W.op * 2, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}`, display: "flex" }}>
+                      <ViewCell value={r.op1} width={W.op} fontSize={10.5} />
+                      <ViewCell value={r.op2} width={W.op} fontSize={10.5} />
+                    </div>
+                    <div style={{ height: ROW_H, display: "flex" }}>
+                      <ViewCell value={r.op3} width={W.op} fontSize={10.5} />
+                      <ViewCell value={r.op4} width={W.op} fontSize={10.5} />
+                    </div>
+                  </div>
+                  {/* 退出(緑) */}
+                  <div style={{ width: W.taishutsu, minWidth: W.taishutsu, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.taishutsu} width={W.taishutsu - 1} bg="#00B050" color="#FFF" bold mono fontSize={12} /></div>
+                  {/* 落とし */}
+                  <div style={{ width: W.otoshi, minWidth: W.otoshi, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.otoshi} width={W.otoshi - 1} mono bold fontSize={12} /></div>
+                  {/* 女子給 */}
+                  <div style={{ width: W.joshi, minWidth: W.joshi, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.joshi} width={W.joshi - 1} mono bold fontSize={12} /></div>
+                  {/* 備考(上下2段) */}
+                  <div style={{ width: W.biko, minWidth: W.biko, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.biko || (isFirst ? "-500" : "")} width={W.biko - 1} color="#C00000" bold mono fontSize={11} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.biko2} width={W.biko - 1} color="#C00000" bold mono fontSize={11} /></div>
+                  </div>
+                  {/* 送り */}
+                  <div style={{ width: W.okuri, minWidth: W.okuri, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.okuri} width={W.okuri - 1} fontSize={10.5} /></div>
+                  {/* 迎え */}
+                  <div style={{ width: W.mukae, minWidth: W.mukae, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.mukae} width={W.mukae - 1} fontSize={10.5} /></div>
+                  {/* 領収書 */}
+                  <div style={{ width: W.ryoshu, minWidth: W.ryoshu, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.ryoshu} width={W.ryoshu - 1} fontSize={10.5} /></div>
+                  {/* 媒体 */}
+                  <div style={{ width: W.baitai, minWidth: W.baitai, borderRight: `1px solid ${LINE}` }}><ViewCell value={r.baitai} width={W.baitai - 1} fontSize={10.5} /></div>
+                  {/* 備考(NG等・上下2段) */}
+                  <div style={{ width: W.bikoR, minWidth: W.bikoR, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.bikoR} width={W.bikoR - 1} align="left" color="#C00000" fontSize={10.5} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.bikoR2} width={W.bikoR - 1} align="left" color="#C00000" fontSize={10.5} /></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
       <div style={{ fontSize: 10.5, color: SUB, textAlign: "center", marginTop: 8 }}>※この画面では編集できません(内容は事務所にお問い合わせください)</div>
     </div>

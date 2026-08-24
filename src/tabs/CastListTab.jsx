@@ -81,7 +81,7 @@ export function CastDetailModal({ cast, onClose, onSave }) {
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
   const save = () => {
-    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, itakuRate: (Number(f.ratePct) || Math.round(cast.itakuRate * 100)) / 100, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops, taikiba: f.taikiba });
+    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, itakuRate: (Number(f.ratePct) || Math.round(cast.itakuRate * 100)) / 100, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops, taikiba: f.taikiba, loginId: f.loginId.trim(), password: f.password.trim() });
     onClose();
   };
   return (
@@ -100,6 +100,11 @@ export function CastDetailModal({ cast, onClose, onSave }) {
         </div>
       </div>
       <TextField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} placeholder="例: 住吉" />
+      <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>キャストアプリ ログイン情報</div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}><TextField label="ログインID" value={f.loginId || ""} onChange={(v) => set("loginId", v)} /></div>
+        <div style={{ flex: 1 }}><TextField label="パスワード" value={f.password || ""} onChange={(v) => set("password", v)} type="password" /></div>
+      </div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="生年月日" value={f.birthday} onChange={(v) => set("birthday", v)} placeholder="2000-01-01" /></div>
         <div style={{ flex: 1 }}><TextField label="年齢" value={f.age} onChange={(v) => set("age", v)} type="number" /></div>
@@ -130,13 +135,14 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
   const [f, setF] = useState({
     name: "", honmyo: "", birthday: "", age: "20", phone: "", address: "",
     idType: "運転免許証", idNo: "", joinDate: isoDate(new Date()), ratePct: "55", okText: "指名", idVerified: false,
-    shops: defaultShop ? [defaultShop] : [], taikiba: "",
+    shops: defaultShop ? [defaultShop] : [], taikiba: "", loginId: "", password: "",
   });
   const [msg, setMsg] = useState("");
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
   const submit = () => {
     if (!f.name.trim()) { setMsg("キャスト名を入力してください"); return; }
+    if (!f.loginId.trim() || !f.password.trim()) { setMsg("ログインID・パスワードを入力してください(キャストアプリのログインに使用します)"); return; }
     onCreate({
       id: `c${Date.now()}`, name: f.name.trim(), honmyo: f.honmyo.trim(),
       age: Number(f.age) || 20, birthday: f.birthday || "-", status: "before_shift",
@@ -146,6 +152,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
       itakuRate: (Number(f.ratePct) || 55) / 100, idVerified: f.idVerified,
       stdLast: isoDate(new Date()), okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), comment: "",
       shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba,
+      loginId: f.loginId.trim(), password: f.password.trim(),
     });
     onClose();
   };
@@ -164,6 +171,11 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
         </div>
       </div>
       <TextField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} placeholder="例: 住吉" />
+      <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>キャストアプリ ログイン情報</div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}><TextField label="ログインID" value={f.loginId} onChange={(v) => set("loginId", v)} placeholder="例: cast001" /></div>
+        <div style={{ flex: 1 }}><TextField label="パスワード" value={f.password} onChange={(v) => set("password", v)} type="password" placeholder="半角英数字" /></div>
+      </div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="生年月日" value={f.birthday} onChange={(v) => set("birthday", v)} placeholder="2000-01-01" /></div>
         <div style={{ flex: 1 }}><TextField label="年齢" value={f.age} onChange={(v) => set("age", v)} type="number" /></div>
@@ -206,11 +218,12 @@ export function CastList({ casts, setCasts }) {
   const thumbs = useCastThumbs(rows.map((c) => c.id));
 
   // CSV列: name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba
-  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba";
+  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba,loginId,password";
   const exportCSV = () => {
     const body = casts.map((c) => [
       c.name, c.honmyo, c.age, c.birthday, c.phone, c.address, c.idType, c.idNo, c.joinDate,
       Math.round((c.itakuRate || 0) * 100), (c.okOptions || []).join("・"), castShops(c).join("・"), c.taikiba || "",
+      c.loginId || "", c.password || "",
     ].map(csvEscape).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + CSV_HEADER + "\n" + body], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "casts.csv"; a.click();
@@ -230,7 +243,7 @@ export function CastList({ casts, setCasts }) {
       idType: (r[6] || "").trim() || "運転免許証", idNo: (r[7] || "").trim() || "-", joinDate: (r[8] || "").trim() || isoDate(new Date()),
       ratePct: Number(r[9]) || 55, okOptions: (r[10] || "").split("・").map((s) => s.trim()).filter(Boolean),
       shops: (r[11] || "").split("・").map((s) => shopKeyMap[s.trim()] || s.trim()).filter(Boolean),
-      taikiba: (r[12] || "").trim(),
+      taikiba: (r[12] || "").trim(), loginId: (r[13] || "").trim(), password: (r[14] || "").trim(),
     })).filter((r) => r.name);
     if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,...)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
 
@@ -244,6 +257,7 @@ export function CastList({ casts, setCasts }) {
           ...ex, honmyo: inc.honmyo || ex.honmyo, age: inc.age, birthday: inc.birthday, phone: inc.phone, address: inc.address,
           idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate, itakuRate: inc.ratePct / 100,
           okOptions: inc.okOptions.length ? inc.okOptions : ex.okOptions, shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba || ex.taikiba,
+          loginId: inc.loginId || ex.loginId, password: inc.password || ex.password,
         });
         updated++;
       } else {
@@ -252,6 +266,7 @@ export function CastList({ casts, setCasts }) {
           status: "before_shift", phone: inc.phone, address: inc.address, idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
           shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, itakuRate: inc.ratePct / 100, idVerified: false,
           stdLast: isoDate(new Date()), okOptions: inc.okOptions, comment: "", shops: inc.shops.length ? inc.shops : ["hakata"], taikiba: inc.taikiba,
+          loginId: inc.loginId, password: inc.password,
         });
         added++;
       }
@@ -289,7 +304,7 @@ export function CastList({ casts, setCasts }) {
         <PrimaryButton onClick={() => setRegisterOpen(true)}>＋ 新規登録</PrimaryButton>
       </div>
       {csvMsg && <div style={{ marginBottom: 10, fontSize: 12, color: COLORS.accent, background: "#EDF3FA", padding: "8px 12px", borderRadius: 8 }}>{csvMsg}</div>}
-      <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 10 }}>CSV列：name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba ／ 差分は<strong>キャスト名</strong>で判定(同名は上書き・新規名は追加・CSVに無い既存は保持)</div>
+      <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 10 }}>CSV列：name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba,loginId,password ／ 差分は<strong>キャスト名</strong>で判定(同名は上書き・新規名は追加・CSVに無い既存は保持)</div>
       <input placeholder="キャスト名・本名で検索" value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#FFFFFF", color: COLORS.textMain, fontSize: 14, marginBottom: 16, boxSizing: "border-box" }} />
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">

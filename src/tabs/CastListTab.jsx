@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, isoDate, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
+import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, CAST_CLASS_OPTIONS, castClass, castClassInfo, isoDate, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
 
 // キャストの写真管理(最大10枚・縦3:4)。詳細モーダル内で使用
 function CastPhotoManager({ castId }) {
@@ -77,11 +77,11 @@ function CastPhotoManager({ castId }) {
 
 // ============================================================
 export function CastDetailModal({ cast, onClose, onSave }) {
-  const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、"), shops: castShops(cast) });
+  const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、"), shops: castShops(cast), castClass: castClass(cast) });
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
   const save = () => {
-    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, itakuRate: (Number(f.ratePct) || Math.round(cast.itakuRate * 100)) / 100, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops, taikiba: f.taikiba, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
+    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, itakuRate: (Number(f.ratePct) || Math.round(cast.itakuRate * 100)) / 100, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
     onClose();
   };
   return (
@@ -100,6 +100,7 @@ export function CastDetailModal({ cast, onClose, onSave }) {
         </div>
       </div>
       <TextField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} placeholder="例: 住吉" />
+      <SelectField label="クラス" value={f.castClass} onChange={(v) => set("castClass", v)} options={CAST_CLASS_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]))} />
       <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>キャストアプリ ログイン情報</div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="ログインID" value={f.loginId || ""} onChange={(v) => set("loginId", v)} /></div>
@@ -139,7 +140,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
   const [f, setF] = useState({
     name: "", honmyo: "", birthday: "", age: "20", phone: "", address: "",
     idType: "運転免許証", idNo: "", joinDate: isoDate(new Date()), ratePct: "55", okText: "指名", idVerified: false,
-    shops: defaultShop ? [defaultShop] : [], taikiba: "", loginId: "", password: "", biko1: "", biko2: "",
+    shops: defaultShop ? [defaultShop] : [], taikiba: "", castClass: "standard", loginId: "", password: "", biko1: "", biko2: "",
   });
   const [msg, setMsg] = useState("");
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
@@ -155,7 +156,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
       shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0,
       itakuRate: (Number(f.ratePct) || 55) / 100, idVerified: f.idVerified,
       stdLast: isoDate(new Date()), okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), comment: "",
-      shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba,
+      shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba, castClass: f.castClass,
       loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "",
     });
     onClose();
@@ -175,6 +176,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
         </div>
       </div>
       <TextField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} placeholder="例: 住吉" />
+      <SelectField label="クラス" value={f.castClass} onChange={(v) => set("castClass", v)} options={CAST_CLASS_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]))} />
       <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>キャストアプリ ログイン情報</div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="ログインID" value={f.loginId} onChange={(v) => set("loginId", v)} placeholder="例: cast001" /></div>
@@ -226,12 +228,14 @@ export function CastList({ casts, setCasts }) {
   const thumbs = useCastThumbs(rows.map((c) => c.id));
 
   // CSV列: name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba
-  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba,loginId,password,biko1,biko2";
+  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba,loginId,password,biko1,biko2,castClass";
+  const classLabelMap = Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]));
+  const classKeyMap = Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.label, o.key]));
   const exportCSV = () => {
     const body = casts.map((c) => [
       c.name, c.honmyo, c.age, c.birthday, c.phone, c.address, c.idType, c.idNo, c.joinDate,
       Math.round((c.itakuRate || 0) * 100), (c.okOptions || []).join("・"), castShops(c).join("・"), c.taikiba || "",
-      c.loginId || "", c.password || "", c.biko1 || "", c.biko2 || "",
+      c.loginId || "", c.password || "", c.biko1 || "", c.biko2 || "", classLabelMap[castClass(c)] || "スタンダード",
     ].map(csvEscape).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + CSV_HEADER + "\n" + body], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "casts.csv"; a.click();
@@ -253,6 +257,7 @@ export function CastList({ casts, setCasts }) {
       shops: (r[11] || "").split("・").map((s) => shopKeyMap[s.trim()] || s.trim()).filter(Boolean),
       taikiba: (r[12] || "").trim(), loginId: (r[13] || "").trim(), password: (r[14] || "").trim(),
       biko1: (r[15] || "").trim(), biko2: (r[16] || "").trim(),
+      castClass: classKeyMap[(r[17] || "").trim()] || (r[17] || "").trim() || "",
     })).filter((r) => r.name);
     if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,...)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
 
@@ -268,6 +273,7 @@ export function CastList({ casts, setCasts }) {
           okOptions: inc.okOptions.length ? inc.okOptions : ex.okOptions, shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba || ex.taikiba,
           loginId: inc.loginId || ex.loginId, password: inc.password || ex.password,
           biko1: inc.biko1 || ex.biko1 || "", biko2: inc.biko2 || ex.biko2 || "",
+          castClass: inc.castClass || castClass(ex),
         });
         updated++;
       } else {
@@ -276,7 +282,7 @@ export function CastList({ casts, setCasts }) {
           status: "before_shift", phone: inc.phone, address: inc.address, idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
           shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, itakuRate: inc.ratePct / 100, idVerified: false,
           stdLast: isoDate(new Date()), okOptions: inc.okOptions, comment: "", shops: inc.shops.length ? inc.shops : ["hakata"], taikiba: inc.taikiba,
-          loginId: inc.loginId, password: inc.password, biko1: inc.biko1, biko2: inc.biko2,
+          loginId: inc.loginId, password: inc.password, biko1: inc.biko1, biko2: inc.biko2, castClass: inc.castClass || "standard",
         });
         added++;
       }
@@ -314,20 +320,25 @@ export function CastList({ casts, setCasts }) {
         <PrimaryButton onClick={() => setRegisterOpen(true)}>＋ 新規登録</PrimaryButton>
       </div>
       {csvMsg && <div style={{ marginBottom: 10, fontSize: 12, color: COLORS.accent, background: "#EDF3FA", padding: "8px 12px", borderRadius: 8 }}>{csvMsg}</div>}
-      <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 10 }}>CSV列：name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba,loginId,password,biko1,biko2 ／ 差分は<strong>キャスト名</strong>で判定(同名は上書き・新規名は追加・CSVに無い既存は保持)</div>
+      <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 10 }}>CSV列：name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba,loginId,password,biko1,biko2,castClass(スタンダード/シルバー/ゴールド/プラチナ/ダイヤモンド) ／ 差分は<strong>キャスト名</strong>で判定(同名は上書き・新規名は追加・CSVに無い既存は保持)</div>
       <input placeholder="キャスト名・本名で検索" value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#FFFFFF", color: COLORS.textMain, fontSize: 14, marginBottom: 16, boxSizing: "border-box" }} />
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
-            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "年齢", "電話番号", "身分証", "対応可能オプション", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "クラス", "年齢", "電話番号", "身分証", "対応可能オプション", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
             <tbody>
-              {rows.map((c) => (
+              {rows.map((c) => {
+                const cls = castClassInfo(c);
+                return (
                 <tr key={c.id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <CastAvatar cast={c} photo={thumbs[c.id]} size={60} radius={8} />
                       <span title={castFullName(c)}>{truncateName(castFullName(c), 8)}</span>
                     </div>
+                  </td>
+                  <td style={{ padding: "12px 14px", fontSize: 11.5, whiteSpace: "nowrap" }}>
+                    <span style={{ fontWeight: 700, color: cls.color, background: `${cls.color}1F`, padding: "3px 9px", borderRadius: 999 }}>{cls.label}</span>
                   </td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13 }}>{c.age}</td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" }}>{c.phone}</td>
@@ -339,7 +350,8 @@ export function CastList({ casts, setCasts }) {
                     <button onClick={() => setDetailId(c.id)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>詳細</button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {rows.length === 0 && <tr><td colSpan={6} style={{ padding: 28, textAlign: "center", color: COLORS.textSub, fontSize: 13 }}>該当するキャストがいません。</td></tr>}
             </tbody>
           </table>

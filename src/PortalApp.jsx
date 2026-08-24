@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { loadGoogleMaps, HOTEL_COORDS, OFFICE_LATLNG } from "./mapsLoader.js";
 import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName } from "./shared.jsx";
-import { useDriverSchedule, getCell, weekDays } from "./tabs/StaffScheduleTab.jsx";
+import { useDriverSchedule, getCell, weekDays, saveScheduleCell, HALF_HOURS } from "./tabs/StaffScheduleTab.jsx";
 
 // ============================================================
 // サーバー(Upstash経由 /api/state)との簡易読み書き
@@ -373,13 +373,47 @@ function CastApp({ theme, onLogout, casts, drivers, reservations, castId, update
 // ============================================================
 // ドライバーポータル
 // ============================================================
+// 全員のスケジュール表からセルをタップした時の簡易編集モーダル
+function ScheduleEditModal({ theme, driverName, dateStr, cell, saving, onSave, onClose }) {
+  const isOff = cell.type === "off";
+  const d = new Date(dateStr);
+  const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,35,0.45)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: "100%", maxWidth: 340, padding: 20, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: INK, marginBottom: 2 }}>{driverName}</div>
+        <div style={{ fontSize: 12.5, color: SUB, marginBottom: 16 }}>{d.getMonth() + 1}/{d.getDate()}({w})</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          <button onClick={() => onSave("type", "work")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1.5px solid ${!isOff ? theme.accent : LINE}`, background: !isOff ? theme.accent : "#FFF", color: !isOff ? "#FFF" : SUB, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>出勤</button>
+          <button onClick={() => onSave("type", "off")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1.5px solid ${isOff ? "#98A2B0" : LINE}`, background: isOff ? "#98A2B0" : "#FFF", color: isOff ? "#FFF" : SUB, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>休み</button>
+        </div>
+        {!isOff && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
+            <select value={cell.start} onChange={(e) => onSave("start", e.target.value)} style={{ flex: 1, padding: "8px 6px", borderRadius: 8, border: `1px solid ${LINE}`, fontSize: 13 }}>
+              {HALF_HOURS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <span style={{ fontSize: 13, color: SUB }}>〜</span>
+            <select value={cell.end} onChange={(e) => onSave("end", e.target.value)} style={{ flex: 1, padding: "8px 6px", borderRadius: 8, border: `1px solid ${LINE}`, fontSize: 13 }}>
+              {HALF_HOURS.filter((t) => t > cell.start).map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: theme.accent, textAlign: "center", marginBottom: 10, minHeight: 14 }}>{saving ? "保存中…" : ""}</div>
+        <button onClick={onClose} style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: SUB, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>閉じる</button>
+      </div>
+    </div>
+  );
+}
+
 function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservations, driverId, updateReservations }) {
   const [tab, setTab] = useState("jobs");
   const [filter, setFilter] = useState("すべて");
   const [toast, setToast] = useState("");
   const [routeJob, setRouteJob] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
-  const { schedule, loaded: scheduleLoaded } = useDriverSchedule();
+  const { schedule, setSchedule, loaded: scheduleLoaded } = useDriverSchedule();
+  const [editCell, setEditCell] = useState(null); // { driverId, dateStr }
+  const [scheduleSaving, setScheduleSaving] = useState(false);
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(""), 2200); };
 
   const me = drivers.find((d) => d.id === driverId);
@@ -506,9 +540,10 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                       const cell = getCell(schedule, d.id, dateStr);
                       const isOff = cell.type === "off";
                       return (
-                        <div key={dateStr} style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark }}>
+                        <button key={dateStr} onClick={() => setEditCell({ driverId: d.id, dateStr, driverName: d.name })}
+                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer" }}>
                           {isOff ? "休" : cell.start}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -523,9 +558,10 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                       const cell = getCell(schedule, d.id, dateStr);
                       const isOff = cell.type === "off";
                       return (
-                        <div key={dateStr} style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark }}>
+                        <button key={dateStr} onClick={() => setEditCell({ driverId: d.id, dateStr, driverName: d.name })}
+                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer" }}>
                           {isOff ? "休" : cell.start}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -533,8 +569,23 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
               </div>
             </div>
           )}
-          <div style={{ fontSize: 10.5, color: SUB, textAlign: "center", marginTop: 8 }}>※出勤の場合は開始時刻のみ表示(横にスクロールできます)</div>
+          <div style={{ fontSize: 10.5, color: SUB, textAlign: "center", marginTop: 8 }}>※セルをタップすると誰でも編集できます(横にスクロールできます)</div>
         </div>
+      )}
+
+      {editCell && (
+        <ScheduleEditModal
+          theme={theme}
+          driverName={editCell.driverName}
+          dateStr={editCell.dateStr}
+          cell={getCell(schedule, editCell.driverId, editCell.dateStr)}
+          saving={scheduleSaving}
+          onSave={(field, val) => {
+            setScheduleSaving(true);
+            saveScheduleCell(schedule, setSchedule, editCell.driverId, editCell.dateStr, field, val, () => setScheduleSaving(false));
+          }}
+          onClose={() => setEditCell(null)}
+        />
       )}
 
       {tab === "me" && me && (
@@ -642,13 +693,30 @@ function RouteMap({ dest, destName, theme, onClose }) {
 }
 
 // ============================================================
+// ログイン状態をlocalStorageに保存し、ログアウトするまで保持する
+function loadLoginState(app) {
+  try {
+    const raw = localStorage.getItem(`portal_login_${app}`);
+    if (!raw) return { authed: false, driverId: null, castId: null };
+    const parsed = JSON.parse(raw);
+    return { authed: !!parsed.authed, driverId: parsed.driverId || null, castId: parsed.castId || null };
+  } catch (e) { return { authed: false, driverId: null, castId: null }; }
+}
+function saveLoginState(app, state) {
+  try { localStorage.setItem(`portal_login_${app}`, JSON.stringify(state)); } catch (e) {}
+}
+function clearLoginState(app) {
+  try { localStorage.removeItem(`portal_login_${app}`); } catch (e) {}
+}
+
 // ルート
 // ============================================================
 export default function PortalApp() {
   const [app, setApp] = useState(resolveApp());
-  const [authed, setAuthed] = useState(false);
-  const [driverId, setDriverId] = useState(null);
-  const [castId, setCastId] = useState(null);
+  const initialLogin = app ? loadLoginState(app) : { authed: false, driverId: null, castId: null };
+  const [authed, setAuthed] = useState(initialLogin.authed);
+  const [driverId, setDriverId] = useState(initialLogin.driverId);
+  const [castId, setCastId] = useState(initialLogin.castId);
   const [data, setData] = useState({ casts: [], drivers: [], hotels: [], office: null, reservations: [], loaded: false });
 
   useEffect(() => {
@@ -679,14 +747,18 @@ export default function PortalApp() {
   const theme = THEMES[app];
 
   if (!authed) {
-    return <Login theme={theme} app={app} drivers={data.drivers} onLogin={(id) => { setAuthed(true); if (app === "driver" && id) setDriverId(id); }} />;
+    return <Login theme={theme} app={app} drivers={data.drivers} onLogin={(id) => {
+      setAuthed(true);
+      if (app === "driver" && id) setDriverId(id);
+      saveLoginState(app, { authed: true, driverId: app === "driver" ? id : null, castId: null });
+    }} />;
   }
 
   if (app === "driver" && !driverId) {
     return (
       <IdentityPicker theme={theme} title="あなたを選択してください"
         options={data.drivers.map((d) => ({ value: d.id, label: `${d.car}・${d.name}` }))}
-        onPick={setDriverId}
+        onPick={(id) => { setDriverId(id); saveLoginState(app, { authed: true, driverId: id, castId: null }); }}
       />
     );
   }
@@ -694,12 +766,12 @@ export default function PortalApp() {
     return (
       <IdentityPicker theme={theme} title="あなたの源氏名を選択してください"
         options={data.casts.map((c) => ({ value: c.id, label: castFullName(c) }))}
-        onPick={setCastId}
+        onPick={(id) => { setCastId(id); saveLoginState(app, { authed: true, driverId: null, castId: id }); }}
       />
     );
   }
 
-  const logout = () => { setAuthed(false); setDriverId(null); setCastId(null); };
+  const logout = () => { setAuthed(false); setDriverId(null); setCastId(null); clearLoginState(app); };
 
   return app === "cast"
     ? <CastApp theme={theme} onLogout={logout} casts={data.casts} drivers={data.drivers} reservations={data.reservations} castId={castId} updateReservations={updateReservations} />

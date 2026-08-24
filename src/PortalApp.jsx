@@ -170,6 +170,7 @@ function MobileShell({ theme, app, subtitle, children, nav, active, onNav, onLog
       </div>
       <style>{`
         html, body{ margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none; }
+        ::placeholder{ color:#B7C0CC; opacity:1; }
         .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
         .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; overscroll-behavior:contain; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
         @media (max-width:480px){ .pa-page{ padding:0; } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); box-sizing:border-box; } }
@@ -222,6 +223,7 @@ function Login({ theme, app, drivers, casts, onLogin }) {
       </div>
       <style>{`
         html, body{ margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none; }
+        ::placeholder{ color:#B7C0CC; opacity:1; }
         .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
         .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; overscroll-behavior:contain; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
         @media (max-width:480px){ .pa-page{ padding:0; } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); box-sizing:border-box; } }
@@ -255,6 +257,7 @@ function IdentityPicker({ theme, title, options, onPick }) {
       </div>
       <style>{`
         html, body{ margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none; }
+        ::placeholder{ color:#B7C0CC; opacity:1; }
         .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
         .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; overscroll-behavior:contain; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
         @media (max-width:480px){ .pa-page{ padding:0; } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); box-sizing:border-box; } }
@@ -493,7 +496,7 @@ function UketsukeViewer({ theme }) {
                     </div>
                   </div>
                   {/* 退出(緑) */}
-                  <div style={{ width: W.taishutsu, minWidth: W.taishutsu }}><ViewCell value={r.taishutsu} width={W.taishutsu} bg="#00B050" color="#FFF" bold mono fontSize={12} /></div>
+                  <div style={{ width: W.taishutsu, minWidth: W.taishutsu }}><ViewCell value={r.taishutsu} width={W.taishutsu} bg="#FFFFFF" color={INK} bold mono fontSize={12} /></div>
                   {/* 落とし */}
                   <div style={{ width: W.otoshi, minWidth: W.otoshi }}><ViewCell value={r.otoshi} width={W.otoshi} mono bold fontSize={12} /></div>
                   {/* 女子給 */}

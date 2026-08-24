@@ -212,6 +212,7 @@ export function generateCasts() {
       stdLast: stdLast.toISOString().slice(0, 10),
       okOptions, comment: "", shops: ["hakata"], taikiba: "", // 所属店舗・待機場(受付表の待機場列と対応)
       loginId: `cast${String(i + 1).padStart(3, "0")}`, password: String(1000 + ((i * 37) % 9000)).padStart(4, "0"), // キャストアプリのログイン情報
+      biko1: "", biko2: "", // 備考1・備考2(自由記述)
     };
   });
 }

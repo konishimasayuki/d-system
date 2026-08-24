@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { loadGoogleMaps, HOTEL_COORDS, OFFICE_LATLNG } from "./mapsLoader.js";
-import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName, staffThreadId, castThreadId, fetchThread, sendMessage, unreadCount, markThreadRead } from "./shared.jsx";
+import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName, staffThreadId, castThreadId, fetchThread, sendMessage, unreadCount, markThreadRead, fetchUketsukeSheet } from "./shared.jsx";
 import { useDriverSchedule, getCell, weekDays, saveScheduleCell, HALF_HOURS } from "./tabs/StaffScheduleTab.jsx";
+import { SHEETS } from "./tabs/UketsukeTab.jsx";
 
 // ============================================================
 // サーバー(Upstash経由 /api/state)との簡易読み書き
@@ -333,6 +334,62 @@ function ChatPanel({ theme, threadId, onUnreadChange }) {
   );
 }
 
+// ============================================================
+// 受付表(閲覧専用・当日のみ・スタッフポータル用)
+//  編集は一切できない。人妻専科／博多ココを切り替えて見られる
+// ============================================================
+function UketsukeViewer({ theme }) {
+  const [sheetKey, setSheetKey] = useState("hitozuma");
+  const [sheet, setSheet] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const todayStr = isoDate(new Date());
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoaded(false);
+    fetchUketsukeSheet(sheetKey, todayStr).then((s) => { if (!cancelled) { setSheet(s); setLoaded(true); } });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetKey]);
+
+  const rows = (sheet?.rows || []).filter((r) => r.cast || r.name || r.hotel);
+
+  return (
+    <div>
+      <Eyebrow>本日の受付表(閲覧専用)</Eyebrow>
+      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+        {SHEETS.map((s) => (
+          <button key={s.key} onClick={() => setSheetKey(s.key)}
+            style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: `1.5px solid ${sheetKey === s.key ? theme.accent : LINE}`, background: sheetKey === s.key ? theme.accent : "#FFF", color: sheetKey === s.key ? "#FFF" : SUB, fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+      {!loaded ? (
+        <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, padding: 24 }}>読み込み中…</div>
+      ) : rows.length === 0 ? (
+        <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, padding: 24 }}>本日の受付データはありません</div>
+      ) : (
+        rows.map((r, i) => (
+          <Card key={i} style={{ marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: INK }}>{r.time || "-"} <span style={{ fontSize: 11.5, color: SUB, fontWeight: 600 }}>{r.depart}</span></div>
+              <div style={{ fontSize: 11.5, color: theme.accentDark, fontWeight: 700 }}>{r.taiki}</div>
+            </div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: INK, marginBottom: 2 }}>{r.cast || "(キャスト未設定)"}</div>
+            <div style={{ fontSize: 12.5, color: SUB }}>{r.name}様 ・ {r.hotel}{r.room ? ` ${r.room}` : ""}</div>
+            {(r.okuri || r.mukae) && <div style={{ fontSize: 11.5, color: SUB, marginTop: 4 }}>送り: {r.okuri || "-"} ／ 迎え: {r.mukae || "-"}</div>}
+            {(r.bikoR || r.bikoR2) && (
+              <div style={{ fontSize: 11.5, color: "#C0492B", marginTop: 6, whiteSpace: "pre-wrap" }}>{[r.bikoR, r.bikoR2].filter(Boolean).join("\n")}</div>
+            )}
+          </Card>
+        ))
+      )}
+      <div style={{ fontSize: 10.5, color: SUB, textAlign: "center", marginTop: 8 }}>※この画面では編集できません(内容は事務所にお問い合わせください)</div>
+    </div>
+  );
+}
+
 function CastApp({ theme, onLogout, casts, drivers, reservations, castId, updateReservations }) {
   const [tab, setTab] = useState("home");
   const [toast, setToast] = useState("");
@@ -525,6 +582,9 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
   const nextJob = allJobs.find((j) => j.jobStatus !== "arrived");
   const restJobs = allJobs.filter((j) => j.id !== nextJob?.id);
 
+  // 本日、少しでもシフト(出勤)に入っているか(受付表の閲覧可否に使用)
+  const isWorkingToday = getCell(schedule, driverId, todayStr).type === "work";
+
   const advance = (job) => {
     const next = job.jobStatus === "assigned" ? "enroute" : "arrived";
     updateReservations(advanceJobStatus(job.reservationId, job.kind, next));
@@ -550,6 +610,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
 
   const nav = [
     { key: "jobs", label: "配車", icon: "car" },
+    { key: "uketsuke", label: "受付表", icon: "doc" },
     { key: "shift", label: "スケジュール", icon: "calendar" },
     { key: "chat", label: "メッセージ", icon: "chat", badge: msgUnread },
     { key: "me", label: "マイページ", icon: "user" },
@@ -710,6 +771,18 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
         />
       )}
 
+      {tab === "uketsuke" && (
+        !scheduleLoaded ? (
+          <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: "60px 20px" }}>読み込み中…</div>
+        ) : isWorkingToday ? (
+          <UketsukeViewer theme={theme} />
+        ) : (
+          <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: "60px 20px" }}>
+            本日出勤の方のみ閲覧できます。<br />シフトに入っている日にご確認ください。
+          </div>
+        )
+      )}
+
       {tab === "chat" && (
         <div style={{ height: "calc(100% - 4px)", display: "flex", flexDirection: "column" }}>
           <ChatPanel theme={theme} threadId={myThreadId} onUnreadChange={setMsgUnread} />
@@ -721,8 +794,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
           <Eyebrow>プロフィール</Eyebrow>
           <Card style={{ marginBottom: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><span style={{ color: SUB, fontSize: 13 }}>氏名</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{me.name}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><span style={{ color: SUB, fontSize: 13 }}>担当車両</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{me.car}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: SUB, fontSize: 13 }}>時給</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>¥{me.wage.toLocaleString()}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: SUB, fontSize: 13 }}>担当車両</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{me.car}</span></div>
           </Card>
         </div>
       )}

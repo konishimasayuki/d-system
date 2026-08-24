@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
 // ドライバー編集モーダル
 function DriverEditModal({ driver, onClose, onSave }) {
-  const [f, setF] = useState({ ...driver });
+  const [f, setF] = useState({ ...driver, shift: driver.shift || "day" });
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const save = () => {
-    onSave({ ...driver, name: f.name.trim() || driver.name, car: f.car.trim(), area: f.area.trim(), wage: f.wage === "" ? "" : Number(f.wage) || 0, loginId: f.loginId.trim(), password: f.password.trim() });
+    onSave({ ...driver, name: f.name.trim() || driver.name, car: f.car.trim(), area: f.area.trim(), wage: f.wage === "" ? "" : Number(f.wage) || 0, loginId: f.loginId.trim(), password: f.password.trim(), shift: f.shift });
     onClose();
   };
   return (
@@ -16,6 +16,16 @@ function DriverEditModal({ driver, onClose, onSave }) {
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: "100%", maxWidth: 420, padding: 24, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.textMain, marginBottom: 16 }}>ドライバー編集</div>
         <TextField label="ドライバー名" value={f.name} onChange={(v) => set("name", v)} />
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 6, fontWeight: 600 }}>昼夜区分</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {Object.entries(DRIVER_SHIFT).map(([key, label]) => (
+              <button key={key} onClick={() => set("shift", key)} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `2px solid ${f.shift === key ? COLORS.accent : COLORS.border}`, background: f.shift === key ? COLORS.accentBg : "#FFF", color: f.shift === key ? COLORS.accentDark : COLORS.textSub, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                {f.shift === key ? "✓ " : ""}{label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div style={{ display: "flex", gap: 10 }}>
           <div style={{ flex: 1 }}><TextField label="車両番号" value={f.car} onChange={(v) => set("car", v)} placeholder="例: 5号車" /></div>
           <div style={{ flex: 1 }}><TextField label="エリア" value={f.area || ""} onChange={(v) => set("area", v)} placeholder="例: 中央区" /></div>
@@ -38,20 +48,21 @@ function DriverEditModal({ driver, onClose, onSave }) {
 export function DriverRegisterForm({ drivers, setDrivers }) {
   const [name, setName] = useState(""); const [car, setCar] = useState(""); const [wage, setWage] = useState("");
   const [loginId, setLoginId] = useState(""); const [password, setPassword] = useState(""); const [msg, setMsg] = useState("");
+  const [driverShift, setDriverShift] = useState("day");
   const [editTarget, setEditTarget] = useState(null);
   const [csvMsg, setCsvMsg] = useState(""); const [csvBusy, setCsvBusy] = useState(false);
   const submit = () => {
     if (!name.trim()) { setMsg("ドライバー名を入力してください"); return; }
     if (!loginId.trim() || !password.trim()) { setMsg("ログインID・パスワードを入力してください(ドライバーアプリのログインに使用します)"); return; }
-    setDrivers((prev) => [...prev, { id: `d${Date.now()}`, name: name.trim(), car: car.trim(), status: "waiting", area: "", pos: { x: 50, y: 50 }, note: "待機中", wage: wage === "" ? "" : (Number(wage) || 0), hours: 0, loginId: loginId.trim(), password: password.trim() }]);
-    setMsg(`${name}を登録しました`); setName(""); setCar(""); setWage(""); setLoginId(""); setPassword("");
+    setDrivers((prev) => [...prev, { id: `d${Date.now()}`, name: name.trim(), car: car.trim(), status: "waiting", area: "", pos: { x: 50, y: 50 }, note: "待機中", wage: wage === "" ? "" : (Number(wage) || 0), hours: 0, loginId: loginId.trim(), password: password.trim(), shift: driverShift }]);
+    setMsg(`${name}を登録しました`); setName(""); setCar(""); setWage(""); setLoginId(""); setPassword(""); setDriverShift("day");
   };
   const removeDriver = (id) => { if (window.confirm("このドライバーを削除しますか？")) setDrivers((prev) => prev.filter((d) => d.id !== id)); };
 
   // CSV列: name,car,area,wage,loginId,password (差分はログインIDで判定：一意なため)
-  const DRIVER_CSV_HEADER = "name,car,area,wage,loginId,password";
+  const DRIVER_CSV_HEADER = "name,car,area,wage,loginId,password,shift";
   const exportDriverCSV = () => {
-    const body = drivers.map((d) => [d.name, d.car || "", d.area || "", d.wage === "" || d.wage == null ? "" : d.wage, d.loginId || "", d.password || ""].map(csvEscape).join(",")).join("\n");
+    const body = drivers.map((d) => [d.name, d.car || "", d.area || "", d.wage === "" || d.wage == null ? "" : d.wage, d.loginId || "", d.password || "", DRIVER_SHIFT[d.shift || "day"]].map(csvEscape).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + DRIVER_CSV_HEADER + "\n" + body], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "drivers.csv"; a.click();
   };
@@ -62,11 +73,13 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
     const rowsRaw = parseCSV(text);
     let start = 0;
     if (rowsRaw[0] && (rowsRaw[0][0] || "").trim().toLowerCase() === "name") start = 1;
+    const shiftMap = { 昼: "day", 夜: "night", day: "day", night: "night" };
     const incoming = rowsRaw.slice(start).map((r) => ({
       name: (r[0] || "").trim(), car: (r[1] || "").trim(), area: (r[2] || "").trim(),
       wage: (r[3] || "").trim(), loginId: (r[4] || "").trim(), password: (r[5] || "").trim(),
+      shift: shiftMap[(r[6] || "").trim()] || "day",
     })).filter((r) => r.name && r.loginId);
-    if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,car,area,wage,loginId,password)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
+    if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,car,area,wage,loginId,password,shift)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
 
     // 差分判定はログインID(loginId)で行う：同IDは上書き、CSVに無い既存IDは保持、新規IDは追加
     const byLogin = new Map(drivers.map((d) => [d.loginId, d]));
@@ -75,13 +88,13 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
       const ex = byLogin.get(inc.loginId);
       const wageVal = inc.wage === "" ? "" : (Number(inc.wage) || 0);
       if (ex) {
-        byLogin.set(inc.loginId, { ...ex, name: inc.name, car: inc.car, area: inc.area, wage: wageVal, password: inc.password || ex.password });
+        byLogin.set(inc.loginId, { ...ex, name: inc.name, car: inc.car, area: inc.area, wage: wageVal, password: inc.password || ex.password, shift: inc.shift });
         updated++;
       } else {
         byLogin.set(inc.loginId, {
           id: `d${Date.now()}${added}`, name: inc.name, car: inc.car, status: "waiting", area: inc.area,
           pos: { x: 50, y: 50 }, note: inc.area ? `${inc.area}で待機中` : "待機中", wage: wageVal, hours: 0,
-          loginId: inc.loginId, password: inc.password || "pass1234",
+          loginId: inc.loginId, password: inc.password || "pass1234", shift: inc.shift,
         });
         added++;
       }
@@ -106,15 +119,16 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
           </div>
         </div>
         {csvMsg && <div style={{ marginBottom: 10, fontSize: 12, color: COLORS.accent, background: "#EDF3FA", padding: "8px 12px", borderRadius: 8 }}>{csvMsg}</div>}
-        <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 10 }}>CSV列：{DRIVER_CSV_HEADER} ／ 差分は<strong>ログインID</strong>で判定(同IDは上書き・新規IDは追加・CSVに無い既存は保持)</div>
+        <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 10 }}>CSV列：{DRIVER_CSV_HEADER}(shiftは「昼」「夜」) ／ 差分は<strong>ログインID</strong>で判定(同IDは上書き・新規IDは追加・CSVに無い既存は保持)</div>
         <div className="table-scroll" style={{ maxHeight: 320, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 10 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
-            <thead><tr style={{ background: "#EDF3FA" }}>{["車両", "氏名", "状態", "エリア", "時給", "ログインID", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 11, color: COLORS.textSub, fontWeight: 600, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#EDF3FA" }}>{h}</th>)}</tr></thead>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["車両", "氏名", "昼夜", "状態", "エリア", "時給", "ログインID", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 11, color: COLORS.textSub, fontWeight: 600, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#EDF3FA" }}>{h}</th>)}</tr></thead>
             <tbody>
               {drivers.map((d) => (
                 <tr key={d.id} style={{ borderTop: `1px solid ${COLORS.border}` }}>
                   <td style={{ padding: "8px 10px", fontSize: 13, fontWeight: 600, color: COLORS.textMain, whiteSpace: "nowrap" }}>{d.car || "-"}</td>
                   <td style={{ padding: "8px 10px", fontSize: 13, color: COLORS.textMain, whiteSpace: "nowrap" }}>{d.name}</td>
+                  <td style={{ padding: "8px 10px", fontSize: 11 }}><span style={{ fontWeight: 700, color: (d.shift || "day") === "night" ? "#5C6BC0" : "#E08A1E" }}>{DRIVER_SHIFT[d.shift || "day"]}</span></td>
                   <td style={{ padding: "8px 10px", fontSize: 11 }}><span style={{ fontWeight: 700, color: DRIVER_STATUS[d.status]?.color }}>{DRIVER_STATUS[d.status]?.label}</span></td>
                   <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub }}>{d.area || "-"}</td>
                   <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textMain }}>{d.wage === "" || d.wage == null ? "-" : <Yen value={d.wage} />}</td>
@@ -133,6 +147,16 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
       <Card>
       <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 14 }}>ドライバー登録</div>
       <TextField label="ドライバー名" value={name} onChange={setName} placeholder="例: 山田" />
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 6, fontWeight: 600 }}>昼夜区分</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {Object.entries(DRIVER_SHIFT).map(([key, label]) => (
+            <button key={key} onClick={() => setDriverShift(key)} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `2px solid ${driverShift === key ? COLORS.accent : COLORS.border}`, background: driverShift === key ? COLORS.accentBg : "#FFF", color: driverShift === key ? COLORS.accentDark : COLORS.textSub, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              {driverShift === key ? "✓ " : ""}{label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="車両番号(空欄可)" value={car} onChange={setCar} placeholder="例: 5号車" /></div>
         <div style={{ flex: 1 }}><TextField label="時給(円・空欄可)" value={wage} onChange={setWage} type="number" placeholder="未設定" /></div>

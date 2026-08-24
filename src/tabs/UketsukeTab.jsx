@@ -525,7 +525,6 @@ export function UketsukeTab({ casts, courses, options, drivers }) {
               <Th width={W.cast}>キャスト</Th>
               <Th width={W.shimeiN} />
               <Th width={W.kaiin}>指名</Th>
-              <Th width={W.label} />
               <Th width={W.name}>連絡先</Th>
               <Th width={W.kotsu}>交通費</Th>
               <Th width={W.course}>コース</Th>
@@ -605,16 +604,11 @@ export function UketsukeTab({ casts, courses, options, drivers }) {
                   </div>
                 </div>
 
-                {/* I ラベル(氏名) */}
-                <div style={{ width: W.label, minWidth: W.label, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column", fontSize: 8, color: COLORS.textSub, background: "#F4F6F9" }}>
-                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>氏名</div>
-                  <div style={{ height: ROW_H }} />
-                </div>
-
-                {/* J 氏名 / ホテル名 */}
+                {/* J 氏名+電話番号 / ホテル名 */}
                 <div style={{ width: W.name, minWidth: W.name, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.name} onChange={(v) => setRow(i, "name", v)} width={W.name - 2} align="center" bold fontSize={12} placeholder="やまもと" customStyle={r.styles?.["name"]} onStyleChange={(s) => setRowStyle(i, "name", s)} />
+                    <Cell value={r.name} onChange={(v) => setRow(i, "name", v)} width={100} align="center" bold fontSize={12} placeholder="やまもと" customStyle={r.styles?.["name"]} onStyleChange={(s) => setRowStyle(i, "name", s)} />
+                    <Cell value={r.tel} onChange={(v) => setRow(i, "tel", v)} width={W.name - 102} align="center" mono fontSize={11.5} placeholder="09000000000" customStyle={r.styles?.["tel"]} onStyleChange={(s) => setRowStyle(i, "tel", s)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
                     <Cell value={r.hotel} onChange={(v) => setRow(i, "hotel", v)} width={W.name - 2} bold fontSize={11.5} placeholder="ホテル名　部屋番号"  customStyle={r.styles?.["hotel"]} onStyleChange={(s) => setRowStyle(i, "hotel", s)}/>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
@@ -137,20 +137,6 @@ export function SecurityForm() {
   );
 }
 // ---- CSVユーティリティ ----
-export function csvEscape(v) { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
-export function parseCSV(text) {
-  const rows = []; const lines = String(text).replace(/\r\n/g, "\n").split("\n").filter((l) => l.trim().length);
-  for (const line of lines) {
-    const cells = []; let cur = ""; let q = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
-      else { if (ch === ",") { cells.push(cur); cur = ""; } else if (ch === '"') { q = true; } else cur += ch; }
-    }
-    cells.push(cur); rows.push(cells);
-  }
-  return rows;
-}
 export function nextHotelId(hotels) { let max = 0; hotels.forEach((h) => { const n = parseInt(h.id, 10); if (!isNaN(n) && n > max) max = n; }); return String(max + 1).padStart(4, "0"); }
 
 export function HotelForm({ hotels, setHotels, office, setOffice }) {

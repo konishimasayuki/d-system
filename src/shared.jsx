@@ -31,6 +31,8 @@ export function castPassword(c) { return c.password || ""; }
 // 旧データ(castClass未保存)との互換：未設定ならスタンダード扱いにする
 export function castClass(c) { return c.castClass || "standard"; }
 export function castClassInfo(c) { return CAST_CLASS_OPTIONS.find((o) => o.key === castClass(c)) || CAST_CLASS_OPTIONS[0]; }
+// 旧データ(rewardRank未保存)との互換：未設定ならベース扱いにする(博多ココ・スタンダードのキャストのみ意味を持つ)
+export function castRewardRank(c) { return c.rewardRank || "base"; }
 
 export const CAST_STATUS = {
   before_shift: { label: "出勤前", color: "#7B77C4", bg: "rgba(123,119,196,0.12)" },
@@ -115,12 +117,29 @@ export const DEFAULT_OFFICE = { address: "福岡市博多区美野島2-18-10", l
 export const HOTELS_BY_AREA = INITIAL_HOTELS.reduce((acc, h) => { (acc[h.area] = acc[h.area] || []).push(h.name); return acc; }, {});
 export const ALL_HOTELS = INITIAL_HOTELS.map((h) => h.name);
 
-// コース料金表: { id, shop("hitozuma"/"hakata"), castClass("standard"/"diamond"), code(コース記号), label(表示名), price(落とし=お客様料金), joshi(女子給) }
+// コース料金表: { id, shop("hitozuma"/"hakata"), castClass("standard"/"diamond"), code(コース記号), label(表示名), price(落とし=お客様料金), joshi(女子給・通常) }
+//  ※博多ココ・スタンダードのみ joshi の代わりに joshiByRank(報酬ランク別の女子給)を持つ
 // コース記号のルール: 通常コースは分数のみ(60,90...)／インバウンドは"I"+分数(I50,I60...)／ダイヤモンドクラスは"D"+分数(D60,D90...)
 function makeCourseRows(shop, castClass, prefix, entries) {
   return entries.map(([mins, price, joshi], i) => {
     const code = `${prefix}${mins}`;
     return { id: `co_${shop}_${castClass}_${code}`, shop, castClass, code, label: `${mins}分`, price, joshi };
+  });
+}
+// 博多ココ・スタンダードの報酬ランク(女子給がランクごとに変わる。落としの金額は共通)
+export const REWARD_RANK_OPTIONS = [
+  { key: "base", label: "ベース" },
+  { key: "c", label: "C" },
+  { key: "b", label: "B" },
+  { key: "a", label: "A" },
+  { key: "s", label: "S" },
+];
+// 博多ココ・スタンダードのコース生成：落としは共通、女子給は5ランク分(初期値は全ランク同額)
+function makeHakataStandardRows(entries) {
+  return entries.map(([mins, price, joshi]) => {
+    const code = `${mins}`;
+    const joshiByRank = Object.fromEntries(REWARD_RANK_OPTIONS.map((r) => [r.key, joshi]));
+    return { id: `co_hakata_standard_${code}`, shop: "hakata", castClass: "standard", code, label: `${mins}分`, price, joshiByRank };
   });
 }
 export const INITIAL_COURSES = [
@@ -140,8 +159,8 @@ export const INITIAL_COURSES = [
     [180, 44000, 27000], [210, 50600, 31500], [240, 58300, 36000], [270, 64900, 40500],
     [300, 72600, 45000], [330, 79200, 49500],
   ]),
-  // 博多ココ・スタンダード(仮の料金。設定タブから変更してください)
-  ...makeCourseRows("hakata", "standard", "", [
+  // 博多ココ・スタンダード(仮の料金。設定タブから変更してください。女子給は報酬ランク別に設定可能)
+  ...makeHakataStandardRows([
     [60, 18000, 10000], [90, 25000, 14000], [120, 32000, 18000], [150, 39000, 22000], [180, 46000, 26000],
   ]),
   // 博多ココ・ダイヤモンド(仮の料金。設定タブから変更してください)
@@ -723,7 +742,7 @@ export function generateCasts() {
       joinDate,
       itakuRate: 0.5 + (i % 3) * 0.05, idVerified: i % 7 !== 0,
       stdLast: stdLast.toISOString().slice(0, 10),
-      okOptions, comment: "", shops: ["hakata"], taikiba: "", castClass: "standard", // 所属店舗・待機場・クラス(受付表の待機場列と対応)
+      okOptions, comment: "", shops: ["hakata"], taikiba: "", castClass: "standard", rewardRank: "base", // 所属店舗・待機場・クラス・報酬ランク(博多ココ・スタンダードのみ使用)
       loginId: `cast${String(i + 1).padStart(3, "0")}`, password: String(1000 + ((i * 37) % 9000)).padStart(4, "0"), // キャストアプリのログイン情報
       biko1: "", biko2: "", // 備考1・備考2(自由記述)
     };

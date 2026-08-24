@@ -187,7 +187,6 @@ function Login({ theme, app, drivers, casts, onLogin }) {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   const submit = () => {
-    if (id.trim() === "z" && pw.trim() === "z") { setErr(""); onLogin(null); return; }
     if (app === "driver") {
       const match = (drivers || []).find((d) => d.loginId === id.trim() && d.password === pw.trim());
       if (match) { setErr(""); onLogin(match.id); return; }
@@ -216,9 +215,6 @@ function Login({ theme, app, drivers, casts, onLogin }) {
           </div>
           {err && <div style={{ color: "#C0492B", fontSize: 12.5, marginBottom: 8 }}>{err}</div>}
           <Btn theme={theme} onClick={submit} style={{ width: "100%", padding: "13px", fontSize: 15, marginTop: 6 }}>ログイン</Btn>
-          <div style={{ marginTop: 18, padding: 12, background: theme.accentSoft, borderRadius: 10, fontSize: 12, color: theme.accentDark, textAlign: "center" }}>
-            デモ用ログイン　ID「z」／ パスワード「z」(または設定で登録した本人のログインID/パスワード)
-          </div>
         </div>
       </div>
       <style>{`

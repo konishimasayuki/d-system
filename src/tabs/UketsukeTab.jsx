@@ -256,7 +256,7 @@ function Th({ children, width, bg = "#EDF3FA" }) {
   );
 }
 
-const SHEETS = [
+export const SHEETS = [
   { key: "hitozuma", label: "人妻専科" },
   { key: "hakata", label: "博多ココ" },
 ];

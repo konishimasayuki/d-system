@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
@@ -207,23 +207,81 @@ export function StaffRegisterForm({ staff, setStaff }) {
   );
 }
 export function MasterForm({ courses, setCourses, options, setOptions }) {
-  const [cName, setCName] = useState(""); const [cPrice, setCPrice] = useState("");
+  const [shop, setShop] = useState("hitozuma");
+  const [cls, setCls] = useState("standard");
   const [oName, setOName] = useState(""); const [oPrice, setOPrice] = useState("");
-  const addCourse = () => { if (!cName.trim()) return; setCourses((p) => [...p, { id: `co${p.length + 1}`, name: cName.trim(), price: Number(cPrice) || 0 }]); setCName(""); setCPrice(""); };
-  const addOption = () => { if (!oName.trim()) return; setOptions((p) => [...p, { id: `op${p.length + 1}`, name: oName.trim(), price: Number(oPrice) || 0 }]); setOName(""); setOPrice(""); };
+
+  const filtered = courses.filter((c) => c.shop === shop && c.castClass === cls);
+
+  const updateCourseField = (id, field, val) => {
+    setCourses((prev) => prev.map((c) => c.id === id ? { ...c, [field]: field === "code" || field === "label" ? val : (Number(val) || 0) } : c));
+  };
+  const removeCourse = (id) => setCourses((prev) => prev.filter((c) => c.id !== id));
+  const addCourse = () => {
+    const prefix = cls === "diamond" ? "D" : "";
+    setCourses((prev) => [...prev, {
+      id: `co_${shop}_${cls}_new${Date.now()}`, shop, castClass: cls,
+      code: `${prefix}0`, label: "新コース", price: 0, joshi: 0,
+    }]);
+  };
+
+  const addOption = () => { if (!oName.trim()) return; setOptions((p) => [...p, { id: `op${Date.now()}`, name: oName.trim(), price: Number(oPrice) || 0 }]); setOName(""); setOPrice(""); };
+  const removeOption = (id) => setOptions((prev) => prev.filter((o) => o.id !== id));
+  const updateOptionPrice = (id, price) => setOptions((prev) => prev.map((o) => o.id === id ? { ...o, price: Number(price) || 0 } : o));
+
   return (
     <Card>
-      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 6 }}>項目登録(コース・オプション)</div>
-      <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>店舗の運営形態にあわせて自由に登録できます</div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, marginBottom: 8 }}>コース</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>{courses.map((c) => <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}><span>{c.name}</span><Yen value={c.price} /></div>)}</div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-        <input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="名称" style={{ flex: 2, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }} />
-        <input value={cPrice} onChange={(e) => setCPrice(e.target.value)} placeholder="料金" type="number" style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }} />
-        <button onClick={addCourse} style={{ padding: "0 14px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, cursor: "pointer" }}>＋</button>
+      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 6 }}>項目登録(コース料金・指名料)</div>
+      <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>店舗・クラスごとに料金表を管理できます。受付表でキャストを選ぶと、そのキャストの所属店舗・クラスに応じたコースが選べます。</div>
+
+      {/* 店舗・クラス切り替え */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        {SHOP_OPTIONS.map((s) => (
+          <button key={s.key} onClick={() => setShop(s.key)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: `1.5px solid ${shop === s.key ? COLORS.accent : COLORS.border}`, background: shop === s.key ? COLORS.accent : "#FFF", color: shop === s.key ? "#FFF" : COLORS.textSub, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{s.label}</button>
+        ))}
       </div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, marginBottom: 8 }}>オプション</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>{options.map((o) => <div key={o.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}><span>{o.name}</span><Yen value={o.price} /></div>)}</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {CAST_CLASS_OPTIONS.map((c) => (
+          <button key={c.key} onClick={() => setCls(c.key)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: `1.5px solid ${cls === c.key ? c.color : COLORS.border}`, background: cls === c.key ? c.color : "#FFF", color: cls === c.key ? "#FFF" : COLORS.textSub, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{c.label}</button>
+        ))}
+      </div>
+
+      {/* コース料金表(編集可能) */}
+      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, marginBottom: 8 }}>
+        {SHOP_OPTIONS.find((s) => s.key === shop)?.label} ・ {CAST_CLASS_OPTIONS.find((c) => c.key === cls)?.label} のコース
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 6, fontSize: 11, color: COLORS.textSub, padding: "0 4px" }}>
+          <div style={{ width: 70 }}>記号</div><div style={{ width: 90 }}>表示名</div><div style={{ flex: 1 }}>落とし(円)</div><div style={{ flex: 1 }}>女子給(円)</div><div style={{ width: 30 }} />
+        </div>
+        {filtered.map((c) => (
+          <div key={c.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input value={c.code} onChange={(e) => updateCourseField(c.id, "code", e.target.value)} style={{ width: 70, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }} />
+            <input value={c.label} onChange={(e) => updateCourseField(c.id, "label", e.target.value)} style={{ width: 90, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
+            <input value={c.price} onChange={(e) => updateCourseField(c.id, "price", e.target.value)} type="number" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
+            <input value={c.joshi} onChange={(e) => updateCourseField(c.id, "joshi", e.target.value)} type="number" style={{ flex: 1, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
+            <button onClick={() => removeCourse(c.id)} style={{ width: 30, border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>
+          </div>
+        ))}
+        {filtered.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub, padding: "8px 4px" }}>コースがまだ登録されていません。</div>}
+      </div>
+      <button onClick={addCourse} style={{ padding: "8px 16px", borderRadius: 8, border: `1px dashed ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 22 }}>＋ コースを追加</button>
+
+      <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 18, lineHeight: 1.7 }}>
+        ※記号のルール：通常コースは分数のみ(60・90など)／インバウンド料金は「I」+分数(I50・I60など)／ダイヤモンドクラスは「D」+分数(D60・D90など)
+      </div>
+
+      {/* 指名料 */}
+      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, marginBottom: 8 }}>指名料(受付表の「F」欄で選択)</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+        {options.map((o) => (
+          <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}>
+            <span style={{ flex: 1 }}>{o.name}</span>
+            <input value={o.price} onChange={(e) => updateOptionPrice(o.id, e.target.value)} type="number" style={{ width: 90, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, textAlign: "right" }} />
+            <button onClick={() => removeOption(o.id)} style={{ border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>
+          </div>
+        ))}
+      </div>
       <div style={{ display: "flex", gap: 8 }}>
         <input value={oName} onChange={(e) => setOName(e.target.value)} placeholder="名称" style={{ flex: 2, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }} />
         <input value={oPrice} onChange={(e) => setOPrice(e.target.value)} placeholder="料金" type="number" style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }} />

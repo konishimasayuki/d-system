@@ -28,7 +28,7 @@ const THEMES = {
     grad: "linear-gradient(135deg, #E86F45, #C64E2A)",
   },
   driver: {
-    name: "ドライバーポータル",
+    name: "スタッフポータル",
     accent: "#2F6DB5", accentDark: "#1F4E88", accentSoft: "#E7F0FA",
     grad: "linear-gradient(135deg, #3B7EC8, #1F4E88)",
   },

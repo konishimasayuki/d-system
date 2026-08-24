@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, castClass, isoDate } from "../shared.jsx";
+import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, castClass, castRewardRank, isoDate } from "../shared.jsx";
 
 // ============================================================
 // 受付表タブ(スプレッドシート再現・1日1シート)
@@ -384,10 +384,17 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
     const shimeiPrice = shimeiOpt?.price || 0;
     const kotsu = Number(String(row.kotsu).replace(/[^0-9.-]/g, "")) || 0;
     const otoshi = info.price + kotsu + shimeiPrice; // オプション加算は今後対応
+    // 女子給：博多ココ・スタンダードは報酬ランク別、それ以外は通常の女子給
+    let baseJoshi = info.joshi;
+    if (info.joshiByRank) {
+      const cast = casts.find((c) => castFullName(c) === row.cast);
+      const rank = cast ? castRewardRank(cast) : "base";
+      baseJoshi = info.joshiByRank[rank] ?? info.joshiByRank.base ?? 0;
+    }
     // 本日1本目(備考欄の自動-500表示)は、女子給からも雑費500円を控除する
     const bikoValue = row.biko || (idx != null && shimeiCounts[idx] === 1 ? "-500" : "");
     const bikoDeduction = Number(String(bikoValue).replace(/[^0-9.-]/g, "")) || 0; // マイナス値としてそのまま加算(控除)
-    const joshi = info.joshi + bikoDeduction;
+    const joshi = baseJoshi + bikoDeduction;
     return { ...row, otoshi: String(otoshi), joshi: String(joshi) };
   };
   const setCourseForRow = (i, code) => {

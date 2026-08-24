@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile, INITIAL_COURSES, INITIAL_OPTIONS } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
@@ -299,6 +299,73 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
     </Card>
   );
 }
+// 交通費設定(区・地名・ホテル別。福岡市内453件)
+export function TransportFeeForm({ transportFees, setTransportFees }) {
+  const [query, setQuery] = useState("");
+  const [areaFilter, setAreaFilter] = useState("すべて");
+
+  const areas = ["すべて", ...Array.from(new Set(transportFees.map((t) => t.area)))];
+  const filtered = transportFees.filter((t) =>
+    (areaFilter === "すべて" || t.area === areaFilter) &&
+    (query.trim() === "" || t.name.includes(query.trim()))
+  );
+
+  const updatePrice = (id, price) => setTransportFees((prev) => prev.map((t) => t.id === id ? { ...t, price: Number(price) || 0 } : t));
+  const removeEntry = (id) => setTransportFees((prev) => prev.filter((t) => t.id !== id));
+  const addEntry = () => {
+    const area = areaFilter === "すべて" ? (areas[1] || "博多区") : areaFilter;
+    setTransportFees((prev) => [...prev, { id: `tf_new${Date.now()}`, area, name: "新規地名", price: 0 }]);
+  };
+  const resetTransport = () => {
+    if (!window.confirm("交通費データを初期値(福岡市内453件)に戻します。よろしいですか？")) return;
+    setTransportFees(INITIAL_TRANSPORT_FEES);
+  };
+
+  return (
+    <Card>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>交通費設定(区・地名・ホテル別)</div>
+        <button onClick={resetTransport} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>初期データにリセット</button>
+      </div>
+      <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>全{transportFees.length}件。受付表の交通費欄の参考にする金額を管理できます。</div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <select value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)} style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }}>
+          {areas.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="地名・ホテル名で検索" style={{ flex: 1, minWidth: 160, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }} />
+        <button onClick={addEntry} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>＋ 追加</button>
+      </div>
+
+      <div style={{ maxHeight: 480, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 10 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr style={{ background: "#EDF3FA", position: "sticky", top: 0 }}>
+            <th style={{ textAlign: "left", padding: "8px 12px", fontSize: 11.5, color: COLORS.textSub }}>区</th>
+            <th style={{ textAlign: "left", padding: "8px 12px", fontSize: 11.5, color: COLORS.textSub }}>地名・ホテル名</th>
+            <th style={{ textAlign: "right", padding: "8px 12px", fontSize: 11.5, color: COLORS.textSub }}>交通費(円)</th>
+            <th style={{ width: 34 }} />
+          </tr></thead>
+          <tbody>
+            {filtered.map((t) => (
+              <tr key={t.id} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                <td style={{ padding: "6px 12px", fontSize: 12.5, color: COLORS.textSub, whiteSpace: "nowrap" }}>{t.area}</td>
+                <td style={{ padding: "6px 12px", fontSize: 13, color: COLORS.textMain }}>{t.name}</td>
+                <td style={{ padding: "6px 12px", textAlign: "right" }}>
+                  <input value={t.price} onChange={(e) => updatePrice(t.id, e.target.value)} type="number" style={{ width: 90, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12.5, textAlign: "right" }} />
+                </td>
+                <td style={{ padding: "6px 8px", textAlign: "center" }}>
+                  <button onClick={() => removeEntry(t.id)} style={{ border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && <tr><td colSpan={4} style={{ padding: 20, textAlign: "center", color: COLORS.textSub, fontSize: 12.5 }}>該当する地名がありません。</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
 export function SecurityToggle({ label, desc, on, set }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${COLORS.border}` }}>
@@ -486,9 +553,9 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
 }
 
 export const SETTINGS_SUBTABS = [
-  { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "項目登録" }, { key: "security", label: "セキュリティ" },
+  { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "料金設定" }, { key: "transport", label: "交通費設定" }, { key: "security", label: "セキュリティ" },
 ];
-export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, setReservations, syncMsg }) {
+export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, transportFees, setTransportFees, setReservations, syncMsg }) {
   const [sub, setSub] = useState("driver");
   const resetDemoData = () => {
     const coordHotels = hotels.filter((h) => h.lat != null);
@@ -520,6 +587,7 @@ export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, 
       {sub === "hotel" && <HotelForm hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} />}
       {sub === "staff" && <StaffRegisterForm staff={staff} setStaff={setStaff} />}
       {sub === "master" && <MasterForm courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} />}
+      {sub === "transport" && <TransportFeeForm transportFees={transportFees} setTransportFees={setTransportFees} />}
       {sub === "security" && <SecurityForm />}
     </div>
   );

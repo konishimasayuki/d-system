@@ -151,7 +151,7 @@ function MobileShell({ theme, app, subtitle, children, nav, active, onNav, onLog
           <button onClick={onLogout} style={{ background: "rgba(255,255,255,0.16)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, padding: "7px 12px", borderRadius: 9, cursor: "pointer" }}>ログアウト</button>
         </div>
         {/* コンテンツ(ここだけスクロール) */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: BG, padding: "4px 16px 20px", position: "relative" }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", background: BG, padding: "4px 16px 20px", position: "relative" }}>
           {children}
         </div>
         <Toast msg={toast} />
@@ -169,9 +169,10 @@ function MobileShell({ theme, app, subtitle, children, nav, active, onNav, onLog
         </div>
       </div>
       <style>{`
-        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
-        .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
-        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; } }
+        html, body{ position:fixed; inset:0; width:100%; height:100%; overflow:hidden; overscroll-behavior:none; -webkit-overflow-scrolling:auto; }
+        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
+        .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; overscroll-behavior:contain; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
+        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100dvh; border-radius:0; border:none; } }
       `}</style>
     </div>
   );
@@ -220,9 +221,10 @@ function Login({ theme, app, drivers, casts, onLogin }) {
         </div>
       </div>
       <style>{`
-        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
-        .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
-        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; } }
+        html, body{ position:fixed; inset:0; width:100%; height:100%; overflow:hidden; overscroll-behavior:none; -webkit-overflow-scrolling:auto; }
+        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
+        .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; overscroll-behavior:contain; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
+        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100dvh; border-radius:0; border:none; } }
       `}</style>
     </div>
   );
@@ -252,9 +254,10 @@ function IdentityPicker({ theme, title, options, onPick }) {
         </div>
       </div>
       <style>{`
-        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
-        .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
-        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; } }
+        html, body{ position:fixed; inset:0; width:100%; height:100%; overflow:hidden; overscroll-behavior:none; -webkit-overflow-scrolling:auto; }
+        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
+        .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; overscroll-behavior:contain; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
+        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100dvh; border-radius:0; border:none; } }
       `}</style>
     </div>
   );

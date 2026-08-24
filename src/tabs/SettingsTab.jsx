@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, REWARD_RANK_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, SectionTitle, SelectField, TextField, Yen, parseCSV, csvEscape, readCSVFile, INITIAL_STAFF } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, REWARD_RANK_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, SectionTitle, SelectField, TextField, Yen, parseCSV, csvEscape, readCSVFile, INITIAL_STAFF, INITIAL_COURSES, INITIAL_OPTIONS } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
@@ -273,9 +273,18 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
   const removeOption = (id) => setOptions((prev) => prev.filter((o) => o.id !== id));
   const updateOptionPrice = (id, price) => setOptions((prev) => prev.map((o) => o.id === id ? { ...o, price: Number(price) || 0 } : o));
 
+  const resetPricing = () => {
+    if (!window.confirm("コース料金・指名料を初期値に戻します(現在の入力内容は失われます)。よろしいですか？")) return;
+    setCourses(INITIAL_COURSES);
+    setOptions(INITIAL_OPTIONS);
+  };
+
   return (
     <Card>
-      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 6 }}>項目登録(コース料金・指名料)</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>項目登録(コース料金・指名料)</div>
+        <button onClick={resetPricing} style={{ border: "none", background: "none", color: COLORS.textSub, fontSize: 11, textDecoration: "underline", cursor: "pointer", whiteSpace: "nowrap" }}>初期料金に戻す</button>
+      </div>
       <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>店舗・クラスごとに料金表を管理できます。受付表でキャストを選ぶと、そのキャストの所属店舗・クラスに応じたコースが選べます。</div>
 
       {/* 店舗・クラス切り替え */}

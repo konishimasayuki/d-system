@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES, INITIAL_STAFF } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
@@ -201,9 +201,17 @@ export function StaffRegisterForm({ staff, setStaff, isOwner, myStaffId }) {
     setStaff((prev) => prev.map((s) => s.id === id ? { ...s, viewRole: vr } : s));
   };
 
+  const resetStaff = () => {
+    if (!window.confirm("スタッフデータを初期値(近藤/白石/大西)に戻します。よろしいですか？")) return;
+    setStaff(INITIAL_STAFF);
+  };
+
   return (
     <Card>
-      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 4 }}>スタッフ登録(役職別)</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>スタッフ登録(役職別)</div>
+        {isOwner && <button onClick={resetStaff} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>初期データにリセット</button>}
+      </div>
       {!isOwner && <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 10 }}>※スタッフの追加・削除・権限変更は経営者のみ行えます。</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
         {staff.map((s) => (

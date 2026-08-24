@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { loadGoogleMaps, HOTEL_COORDS, OFFICE_LATLNG } from "./mapsLoader.js";
-import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName } from "./shared.jsx";
+import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName, staffThreadId, castThreadId, fetchThread, sendMessage, unreadCount, markThreadRead } from "./shared.jsx";
 import { useDriverSchedule, getCell, weekDays, saveScheduleCell, HALF_HOURS } from "./tabs/StaffScheduleTab.jsx";
 
 // ============================================================
@@ -95,6 +95,7 @@ function Icon({ name, size = 22, color = "currentColor" }) {
     case "user": return <svg viewBox="0 0 24 24" {...s}><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4.5 4.5-6.5 8-6.5s6.5 2 8 6.5" /></svg>;
     case "pin": return <svg viewBox="0 0 24 24" {...s}><path d="M12 22s7-6.5 7-12A7 7 0 0 0 5 10c0 5.5 7 12 7 12Z" /><circle cx="12" cy="10" r="2.5" /></svg>;
     case "bell": return <svg viewBox="0 0 24 24" {...s}><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>;
+    case "chat": return <svg viewBox="0 0 24 24" {...s}><path d="M4 4h16v12H8l-4 4z" /></svg>;
     default: return null;
   }
 }
@@ -156,8 +157,11 @@ function MobileShell({ theme, app, subtitle, children, nav, active, onNav, onLog
         {/* ボトムナビ */}
         <div style={{ display: "flex", borderTop: `1px solid ${LINE}`, background: "#fff" }}>
           {nav.map((n) => (
-            <button key={n.key} onClick={() => onNav(n.key)} style={{ flex: 1, background: "none", border: "none", padding: "9px 0 12px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: active === n.key ? theme.accent : "#9AA6B4" }}>
-              <Icon name={n.icon} size={22} color={active === n.key ? theme.accent : "#9AA6B4"} />
+            <button key={n.key} onClick={() => onNav(n.key)} style={{ flex: 1, background: "none", border: "none", padding: "9px 0 12px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: active === n.key ? theme.accent : "#9AA6B4", position: "relative" }}>
+              <div style={{ position: "relative" }}>
+                <Icon name={n.icon} size={22} color={active === n.key ? theme.accent : "#9AA6B4"} />
+                {n.badge > 0 && <span style={{ position: "absolute", top: -4, right: -8, fontSize: 9.5, fontWeight: 700, color: "#FFF", background: "#C0492B", borderRadius: 999, padding: "1px 5px", minWidth: 14, textAlign: "center", lineHeight: 1.3 }}>{n.badge}</span>}
+              </div>
               <span style={{ fontSize: 10.5, fontWeight: active === n.key ? 700 : 500 }}>{n.label}</span>
             </button>
           ))}
@@ -258,6 +262,77 @@ function IdentityPicker({ theme, title, options, onPick }) {
 // ============================================================
 // キャストポータル
 // ============================================================
+// ============================================================
+// 本部とのメッセージ(共通チャットUI・キャスト/ドライバー両方で使用)
+// ============================================================
+function fmtMsgTime(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function ChatPanel({ theme, threadId, onUnreadChange }) {
+  const [messages, setMessages] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [input, setInput] = useState("");
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const msgs = await fetchThread(threadId);
+      if (cancelled) return;
+      setMessages(msgs);
+      setLoaded(true);
+      if (unreadCount(msgs, "user") > 0) {
+        const next = await markThreadRead(threadId, msgs, "user");
+        if (!cancelled) { setMessages(next); onUnreadChange && onUnreadChange(0); }
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId]);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ block: "end" }); }, [messages]);
+
+  const send = async () => {
+    if (!input.trim()) return;
+    const next = await sendMessage(threadId, messages, "user", input.trim());
+    setMessages(next);
+    setInput("");
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <Eyebrow>本部とのメッセージ</Eyebrow>
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingBottom: 8 }}>
+        {!loaded ? (
+          <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, marginTop: 20 }}>読み込み中…</div>
+        ) : messages.length === 0 ? (
+          <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, marginTop: 20 }}>まだメッセージはありません</div>
+        ) : messages.map((m) => (
+          <div key={m.id} style={{ display: "flex", justifyContent: m.from === "user" ? "flex-end" : "flex-start" }}>
+            <div style={{ maxWidth: "78%" }}>
+              <div style={{ padding: "8px 12px", borderRadius: 14, background: m.from === "user" ? theme.accent : "#EDF0F4", color: m.from === "user" ? "#FFF" : INK, fontSize: 13.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.text}</div>
+              <div style={{ fontSize: 10, color: SUB, marginTop: 3, textAlign: m.from === "user" ? "right" : "left" }}>{m.from === "office" ? "本部 ・ " : ""}{fmtMsgTime(m.ts)}</div>
+            </div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: `1px solid ${LINE}` }}>
+        <textarea value={input} onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+          rows={1} placeholder="メッセージを入力"
+          style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: `1px solid ${LINE}`, fontSize: 13.5, resize: "none", fontFamily: "inherit" }} />
+        <button onClick={send} style={{ padding: "0 18px", borderRadius: 10, border: "none", background: theme.accent, color: "#FFF", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>送信</button>
+      </div>
+    </div>
+  );
+}
+
 function CastApp({ theme, onLogout, casts, drivers, reservations, castId, updateReservations }) {
   const [tab, setTab] = useState("home");
   const [toast, setToast] = useState("");
@@ -281,11 +356,23 @@ function CastApp({ theme, onLogout, casts, drivers, reservations, castId, update
 
   const markStatus = (r, status, msg) => { updateReservations((prev) => prev.map((x) => x.id === r.id ? { ...x, status } : x)); showToast(msg); };
 
+  const [msgUnread, setMsgUnread] = useState(0);
+  const myThreadId = castThreadId(castId);
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => fetchThread(myThreadId).then((msgs) => { if (!cancelled) setMsgUnread(unreadCount(msgs, "user")); });
+    refresh();
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); };
+  }, [myThreadId]);
+
   const nav = [
     { key: "home", label: "ホーム", icon: "home" },
     { key: "shift", label: "シフト", icon: "calendar" },
     { key: "sales", label: "売上", icon: "chart" },
     { key: "pay", label: "明細", icon: "doc" },
+    { key: "chat", label: "メッセージ", icon: "chat", badge: msgUnread },
   ];
 
   return (
@@ -370,6 +457,12 @@ function CastApp({ theme, onLogout, casts, drivers, reservations, castId, update
           <div style={{ fontSize: 11, color: SUB, textAlign: "center", marginTop: 8 }}>清算方法：事務所渡し</div>
         </div>
       )}
+
+      {tab === "chat" && (
+        <div style={{ height: "calc(100% - 4px)", display: "flex", flexDirection: "column" }}>
+          <ChatPanel theme={theme} threadId={myThreadId} onUnreadChange={setMsgUnread} />
+        </div>
+      )}
     </MobileShell>
   );
 }
@@ -444,9 +537,21 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
   const filterLabel = (f) => f === "すべて" ? "すべて" : JOB_STATUS[f].label;
   const shown = filter === "すべて" ? allJobs : allJobs.filter((j) => j.jobStatus === filter);
 
+  const [msgUnread, setMsgUnread] = useState(0);
+  const myThreadId = staffThreadId(driverId);
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => fetchThread(myThreadId).then((msgs) => { if (!cancelled) setMsgUnread(unreadCount(msgs, "user")); });
+    refresh();
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); };
+  }, [myThreadId]);
+
   const nav = [
     { key: "jobs", label: "配車", icon: "car" },
     { key: "shift", label: "スケジュール", icon: "calendar" },
+    { key: "chat", label: "メッセージ", icon: "chat", badge: msgUnread },
     { key: "me", label: "マイページ", icon: "user" },
   ];
 
@@ -603,6 +708,12 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
           }}
           onClose={() => setEditCell(null)}
         />
+      )}
+
+      {tab === "chat" && (
+        <div style={{ height: "calc(100% - 4px)", display: "flex", flexDirection: "column" }}>
+          <ChatPanel theme={theme} threadId={myThreadId} onUnreadChange={setMsgUnread} />
+        </div>
       )}
 
       {tab === "me" && me && (

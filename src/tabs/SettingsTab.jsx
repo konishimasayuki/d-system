@@ -307,14 +307,15 @@ export function TransportFeeForm({ transportFees, setTransportFees }) {
   const areas = ["すべて", ...Array.from(new Set(transportFees.map((t) => t.area)))];
   const filtered = transportFees.filter((t) =>
     (areaFilter === "すべて" || t.area === areaFilter) &&
-    (query.trim() === "" || t.name.includes(query.trim()))
+    (query.trim() === "" || t.name.includes(query.trim()) || (t.reading || "").includes(query.trim()))
   );
 
   const updatePrice = (id, price) => setTransportFees((prev) => prev.map((t) => t.id === id ? { ...t, price: Number(price) || 0 } : t));
+  const updateReading = (id, reading) => setTransportFees((prev) => prev.map((t) => t.id === id ? { ...t, reading } : t));
   const removeEntry = (id) => setTransportFees((prev) => prev.filter((t) => t.id !== id));
   const addEntry = () => {
     const area = areaFilter === "すべて" ? (areas[1] || "博多区") : areaFilter;
-    setTransportFees((prev) => [...prev, { id: `tf_new${Date.now()}`, area, name: "新規地名", price: 0 }]);
+    setTransportFees((prev) => [...prev, { id: `tf_new${Date.now()}`, area, name: "新規地名", reading: "", price: 0 }]);
   };
   const resetTransport = () => {
     if (!window.confirm("交通費データを初期値(福岡市内453件)に戻します。よろしいですか？")) return;
@@ -327,13 +328,13 @@ export function TransportFeeForm({ transportFees, setTransportFees }) {
         <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>交通費設定(区・地名・ホテル別)</div>
         <button onClick={resetTransport} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>初期データにリセット</button>
       </div>
-      <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>全{transportFees.length}件。受付表の交通費欄の参考にする金額を管理できます。</div>
+      <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>全{transportFees.length}件。読みを登録しておくと検索しやすくなります。受付表の交通費欄の参考にする金額を管理できます。</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         <select value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)} style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }}>
           {areas.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="地名・ホテル名で検索" style={{ flex: 1, minWidth: 160, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="地名・ホテル名・読みで検索" style={{ flex: 1, minWidth: 160, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }} />
         <button onClick={addEntry} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>＋ 追加</button>
       </div>
 
@@ -342,6 +343,7 @@ export function TransportFeeForm({ transportFees, setTransportFees }) {
           <thead><tr style={{ background: "#EDF3FA", position: "sticky", top: 0 }}>
             <th style={{ textAlign: "left", padding: "8px 12px", fontSize: 11.5, color: COLORS.textSub }}>区</th>
             <th style={{ textAlign: "left", padding: "8px 12px", fontSize: 11.5, color: COLORS.textSub }}>地名・ホテル名</th>
+            <th style={{ textAlign: "left", padding: "8px 12px", fontSize: 11.5, color: COLORS.textSub }}>読み</th>
             <th style={{ textAlign: "right", padding: "8px 12px", fontSize: 11.5, color: COLORS.textSub }}>交通費(円)</th>
             <th style={{ width: 34 }} />
           </tr></thead>
@@ -350,6 +352,9 @@ export function TransportFeeForm({ transportFees, setTransportFees }) {
               <tr key={t.id} style={{ borderTop: `1px solid ${COLORS.border}` }}>
                 <td style={{ padding: "6px 12px", fontSize: 12.5, color: COLORS.textSub, whiteSpace: "nowrap" }}>{t.area}</td>
                 <td style={{ padding: "6px 12px", fontSize: 13, color: COLORS.textMain }}>{t.name}</td>
+                <td style={{ padding: "6px 12px" }}>
+                  <input value={t.reading || ""} onChange={(e) => updateReading(t.id, e.target.value)} placeholder="よみ" style={{ width: 110, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12.5 }} />
+                </td>
                 <td style={{ padding: "6px 12px", textAlign: "right" }}>
                   <input value={t.price} onChange={(e) => updatePrice(t.id, e.target.value)} type="number" style={{ width: 90, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12.5, textAlign: "right" }} />
                 </td>

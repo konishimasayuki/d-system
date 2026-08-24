@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
@@ -178,31 +178,65 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
     </div>
   );
 }
-export function StaffRegisterForm({ staff, setStaff }) {
+export function StaffRegisterForm({ staff, setStaff, isOwner, myStaffId }) {
   const [name, setName] = useState(""); const [role, setRole] = useState(ROLES[0]);
+  const [viewRole, setViewRoleField] = useState("operator");
   const [loginId, setLoginId] = useState(""); const [password, setPassword] = useState(""); const [msg, setMsg] = useState("");
+
   const add = () => {
+    if (!isOwner) { setMsg("スタッフの追加は経営者のみ行えます。"); return; }
     if (!name.trim()) return;
     if (!loginId.trim() || !password.trim()) { setMsg("ログインID・パスワードを入力してください(管理システムのログインに使用します)"); return; }
-    setStaff((prev) => [...prev, { id: `s${prev.length + 1}`, name: name.trim(), role, loginId: loginId.trim(), password: password.trim() }]);
+    setStaff((prev) => [...prev, { id: `s${Date.now()}`, name: name.trim(), role, viewRole, loginId: loginId.trim(), password: password.trim() }]);
     setName(""); setLoginId(""); setPassword(""); setMsg(`${name}を登録しました`);
   };
+  const remove = (id) => {
+    if (!isOwner) { setMsg("スタッフの削除は経営者のみ行えます。"); return; }
+    if (id === myStaffId) { setMsg("自分自身は削除できません。"); return; }
+    if (!window.confirm("このスタッフを削除しますか？")) return;
+    setStaff((prev) => prev.filter((s) => s.id !== id));
+  };
+  const updateViewRole = (id, vr) => {
+    if (!isOwner) return;
+    setStaff((prev) => prev.map((s) => s.id === id ? { ...s, viewRole: vr } : s));
+  };
+
   return (
     <Card>
-      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 14 }}>スタッフ登録(役職別)</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 4 }}>スタッフ登録(役職別)</div>
+      {!isOwner && <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 10 }}>※スタッフの追加・削除・権限変更は経営者のみ行えます。</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
-        {staff.map((s) => <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}><span>{s.name}</span><span style={{ color: COLORS.textSub }}>{s.role}</span></div>)}
+        {staff.map((s) => (
+          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}>
+            <span style={{ flex: 1 }}>{s.name}{s.id === myStaffId ? "(自分)" : ""}</span>
+            <span style={{ color: COLORS.textSub, fontSize: 12 }}>{s.role}</span>
+            {isOwner ? (
+              <select value={s.viewRole || "operator"} onChange={(e) => updateViewRole(s.id, e.target.value)} style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }}>
+                {Object.entries(INITIAL_VIEW_ROLES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            ) : (
+              <span style={{ fontSize: 11.5, color: COLORS.accent, fontWeight: 700 }}>{INITIAL_VIEW_ROLES[s.viewRole || "operator"]?.label}</span>
+            )}
+            {isOwner && s.id !== myStaffId && (
+              <button onClick={() => remove(s.id)} style={{ border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>
+            )}
+          </div>
+        ))}
       </div>
-      <TextField label="氏名" value={name} onChange={setName} placeholder="例: 田中" />
-      <SelectField label="役職" value={role} onChange={setRole} options={ROLES} />
-      <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>管理システム ログイン情報</div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}><TextField label="ログインID" value={loginId} onChange={setLoginId} placeholder="例: tanaka" /></div>
-        <div style={{ flex: 1 }}><TextField label="パスワード" value={password} onChange={setPassword} placeholder="半角英数字" type="password" /></div>
-      </div>
-      <PrimaryButton onClick={add}>スタッフを追加</PrimaryButton>
-      {msg && <div style={{ marginTop: 10, fontSize: 12, color: COLORS.green }}>{msg}</div>}
-      <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 8 }}>※このID・パスワードは今後スタッフごとのログインに使用する想定です(現在は仮の管理画面のままログイン不要です)。</div>
+      {isOwner && (
+        <>
+          <TextField label="氏名" value={name} onChange={setName} placeholder="例: 田中" />
+          <SelectField label="役職" value={role} onChange={setRole} options={ROLES} />
+          <SelectField label="権限グループ" value={viewRole} onChange={setViewRoleField} options={Object.keys(INITIAL_VIEW_ROLES)} optionLabels={Object.fromEntries(Object.entries(INITIAL_VIEW_ROLES).map(([k, v]) => [k, v.label]))} />
+          <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>管理システム ログイン情報</div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ flex: 1 }}><TextField label="ログインID" value={loginId} onChange={setLoginId} placeholder="例: tanaka" /></div>
+            <div style={{ flex: 1 }}><TextField label="パスワード" value={password} onChange={setPassword} placeholder="半角英数字" type="password" /></div>
+          </div>
+          <PrimaryButton onClick={add}>スタッフを追加</PrimaryButton>
+        </>
+      )}
+      {msg && <div style={{ marginTop: 10, fontSize: 12, color: msg.includes("のみ") || msg.includes("できません") ? COLORS.red : COLORS.green }}>{msg}</div>}
     </Card>
   );
 }
@@ -395,6 +429,63 @@ export function SecurityForm() {
     </Card>
   );
 }
+
+// 権限グループごとのタブ閲覧可否を管理(経営者のみ編集可能)
+export function ViewRolePermissionForm({ viewRoles, setViewRoles, isOwner }) {
+  if (!isOwner) {
+    return (
+      <Card>
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 8 }}>権限管理</div>
+        <div style={{ fontSize: 13, color: COLORS.textSub }}>権限グループの変更は経営者のみ行えます。</div>
+      </Card>
+    );
+  }
+  const roleKeys = Object.keys(viewRoles);
+  const toggle = (roleKey, tabKey) => {
+    setViewRoles((prev) => {
+      const cur = prev[roleKey];
+      const has = cur.tabs.includes(tabKey);
+      const nextTabs = has ? cur.tabs.filter((t) => t !== tabKey) : [...cur.tabs, tabKey];
+      return { ...prev, [roleKey]: { ...cur, tabs: nextTabs } };
+    });
+  };
+  const resetDefaults = () => {
+    if (!window.confirm("権限設定を初期値に戻します。よろしいですか？")) return;
+    setViewRoles(INITIAL_VIEW_ROLES);
+  };
+  return (
+    <Card>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>権限管理(経営者のみ変更可)</div>
+        <button onClick={resetDefaults} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>初期値にリセット</button>
+      </div>
+      <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>権限グループごとに、どのタブを閲覧できるか設定できます。経営者・オペレーター・キャスト・ドライバーの4種です。</div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
+          <thead>
+            <tr style={{ background: "#EDF3FA" }}>
+              <th style={{ textAlign: "left", padding: "8px 10px", fontSize: 11.5, color: COLORS.textSub }}>タブ</th>
+              {roleKeys.map((rk) => <th key={rk} style={{ textAlign: "center", padding: "8px 10px", fontSize: 11.5, color: COLORS.textSub, whiteSpace: "nowrap" }}>{viewRoles[rk].label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {TAB_DEFS.map((t) => (
+              <tr key={t.key} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                <td style={{ padding: "7px 10px", fontSize: 13, color: COLORS.textMain, whiteSpace: "nowrap" }}>{t.label}{t.restricted ? <span style={{ fontSize: 10, color: COLORS.red, marginLeft: 4 }}>🔒</span> : null}</td>
+                {roleKeys.map((rk) => (
+                  <td key={rk} style={{ textAlign: "center", padding: "7px 10px" }}>
+                    <input type="checkbox" checked={viewRoles[rk].tabs.includes(t.key)} onChange={() => toggle(rk, t.key)} style={{ width: 16, height: 16, cursor: "pointer" }} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 12 }}>🔒 のついたタブは、権限があってもパスワード(2911)を入力しないと開けません。</div>
+    </Card>
+  );
+}
 // ---- CSVユーティリティ ----
 export function nextHotelId(hotels) { let max = 0; hotels.forEach((h) => { const n = parseInt(h.id, 10); if (!isNaN(n) && n > max) max = n; }); return String(max + 1).padStart(4, "0"); }
 
@@ -558,9 +649,9 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
 }
 
 export const SETTINGS_SUBTABS = [
-  { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "料金設定" }, { key: "transport", label: "交通費設定" }, { key: "security", label: "セキュリティ" },
+  { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "料金設定" }, { key: "transport", label: "交通費設定" }, { key: "permissions", label: "権限管理" }, { key: "security", label: "セキュリティ" },
 ];
-export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, transportFees, setTransportFees, setReservations, syncMsg }) {
+export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, transportFees, setTransportFees, setReservations, syncMsg, viewRoles, setViewRoles, isOwner, myStaffId }) {
   const [sub, setSub] = useState("driver");
   const resetDemoData = () => {
     const coordHotels = hotels.filter((h) => h.lat != null);
@@ -590,9 +681,10 @@ export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, 
       </div>
       {sub === "driver" && <DriverRegisterForm drivers={drivers} setDrivers={setDrivers} />}
       {sub === "hotel" && <HotelForm hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} />}
-      {sub === "staff" && <StaffRegisterForm staff={staff} setStaff={setStaff} />}
+      {sub === "staff" && <StaffRegisterForm staff={staff} setStaff={setStaff} isOwner={isOwner} myStaffId={myStaffId} />}
       {sub === "master" && <MasterForm courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} />}
       {sub === "transport" && <TransportFeeForm transportFees={transportFees} setTransportFees={setTransportFees} />}
+      {sub === "permissions" && <ViewRolePermissionForm viewRoles={viewRoles} setViewRoles={setViewRoles} isOwner={isOwner} />}
       {sub === "security" && <SecurityForm />}
     </div>
   );

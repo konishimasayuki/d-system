@@ -53,8 +53,6 @@ export const CUSTOMER_COLORS = {
   ng: { label: "出禁", color: "#C0492B", bg: "rgba(192,73,43,0.12)" },
 };
 
-export const ROLES = ["オーナー", "統括部長", "店長", "主任", "内勤スタッフ", "ドライバー"];
-
 // タブ一覧と、閲覧制限(パスワード解除が必要)の有無
 export const TAB_DEFS = [
   { key: "dashboard", label: "ダッシュボード", restricted: true },
@@ -914,9 +912,9 @@ export const INITIAL_CUSTOMERS = Array.from({ length: 60 }, (_, i) => {
 ]);
 
 export const INITIAL_STAFF = [
-  { id: "s1", name: "近藤", role: "オーナー", viewRole: "owner", loginId: "kondo", password: "pass1234" },
-  { id: "s2", name: "白石", role: "店長", viewRole: "operator", loginId: "shiraishi", password: "pass1234" },
-  { id: "s3", name: "大西", role: "内勤スタッフ", viewRole: "operator", loginId: "onishi", password: "pass1234" },
+  { id: "s1", name: "近藤", viewRole: "owner", loginId: "kondo", password: "pass1234" },
+  { id: "s2", name: "白石", viewRole: "operator", loginId: "shiraishi", password: "pass1234" },
+  { id: "s3", name: "大西", viewRole: "operator", loginId: "onishi", password: "pass1234" },
 ];
 
 export const INITIAL_EXPENSES = [

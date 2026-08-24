@@ -511,6 +511,22 @@ export function truncateName(name, maxZen = 8) {
   return out;
 }
 
+// CSV読み書き共通ヘルパー(ホテル・キャスト等のインポート/エクスポートで共用)
+export function csvEscape(v) { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+export function parseCSV(text) {
+  const rows = []; const lines = String(text).replace(/\r\n/g, "\n").split("\n").filter((l) => l.trim().length);
+  for (const line of lines) {
+    const cells = []; let cur = ""; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+      else { if (ch === ",") { cells.push(cur); cur = ""; } else if (ch === '"') { q = true; } else cur += ch; }
+    }
+    cells.push(cur); rows.push(cells);
+  }
+  return rows;
+}
+
 // キャストのアバター。写真があれば1枚目を表示、無ければ頭文字(タイムテーブルと共通の見た目)
 // shape: "circle"(頭文字丸) or "photo"(縦3:4のサムネイル枠)
 export function CastAvatar({ cast, photo, size = 30, radius }) {

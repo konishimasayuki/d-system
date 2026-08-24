@@ -95,17 +95,44 @@ export const DEFAULT_OFFICE = { address: "福岡市博多区美野島2-18-10", l
 export const HOTELS_BY_AREA = INITIAL_HOTELS.reduce((acc, h) => { (acc[h.area] = acc[h.area] || []).push(h.name); return acc; }, {});
 export const ALL_HOTELS = INITIAL_HOTELS.map((h) => h.name);
 
+// コース料金表: { id, shop("hitozuma"/"hakata"), castClass("standard"/"diamond"), code(コース記号), label(表示名), price(落とし=お客様料金), joshi(女子給) }
+// コース記号のルール: 通常コースは分数のみ(60,90...)／インバウンドは"I"+分数(I50,I60...)／ダイヤモンドクラスは"D"+分数(D60,D90...)
+function makeCourseRows(shop, castClass, prefix, entries) {
+  return entries.map(([mins, price, joshi], i) => {
+    const code = `${prefix}${mins}`;
+    return { id: `co_${shop}_${castClass}_${code}`, shop, castClass, code, label: `${mins}分`, price, joshi };
+  });
+}
 export const INITIAL_COURSES = [
-  { id: "co1", name: "60分コース", price: 18000 },
-  { id: "co2", name: "90分コース", price: 21000 },
-  { id: "co3", name: "120分コース", price: 28000 },
+  // 人妻専科・スタンダード(通常コース)
+  ...makeCourseRows("hitozuma", "standard", "", [
+    [60, 11000, 6000], [90, 16500, 9000], [120, 20900, 12000], [150, 26400, 15000],
+    [180, 30800, 18000], [210, 36300, 21000], [240, 40700, 24000], [270, 46200, 27000],
+    [300, 50600, 30000], [330, 56100, 33000],
+  ]),
+  // 人妻専科・スタンダード(インバウンド料金・"I"始まり)
+  ...makeCourseRows("hitozuma", "standard", "I", [
+    [50, 23000, 14000], [60, 27000, 16000], [75, 33000, 20000], [90, 40000, 24000], [120, 54000, 32000],
+  ]),
+  // 人妻専科・ダイヤモンド("D"始まり)
+  ...makeCourseRows("hitozuma", "diamond", "D", [
+    [60, 15400, 9000], [90, 23100, 13500], [120, 29700, 18000], [150, 36300, 22500],
+    [180, 44000, 27000], [210, 50600, 31500], [240, 58300, 36000], [270, 64900, 40500],
+    [300, 72600, 45000], [330, 79200, 49500],
+  ]),
+  // 博多ココ・スタンダード(仮の料金。設定タブから変更してください)
+  ...makeCourseRows("hakata", "standard", "", [
+    [60, 18000, 10000], [90, 25000, 14000], [120, 32000, 18000], [150, 39000, 22000], [180, 46000, 26000],
+  ]),
+  // 博多ココ・ダイヤモンド(仮の料金。設定タブから変更してください)
+  ...makeCourseRows("hakata", "diamond", "D", [
+    [60, 24000, 14000], [90, 33000, 19000], [120, 42000, 24000], [150, 51000, 29000], [180, 60000, 34000],
+  ]),
 ];
+// 指名料(写真指名・本指名とも共通1,100円。受付表の「F」欄で選ぶ)
 export const INITIAL_OPTIONS = [
-  { id: "op1", name: "指名", price: 2000 },
-  { id: "op2", name: "本指名", price: 3000 },
-  { id: "op3", name: "延長30分", price: 9000 },
-  { id: "op4", name: "コスプレ", price: 3000 },
-  { id: "op5", name: "ロングコース", price: 5000 },
+  { id: "shimei", name: "写指(写真指名)", price: 1100 },
+  { id: "honshimei", name: "本指(本指名)", price: 1100 },
 ];
 
 export const CAST_NAMES = [
@@ -256,7 +283,7 @@ export function generateAllReservations(casts, hotelList) {
         if (start + dur > entry.shiftEnd) dur = Math.max(1 / 6, Math.round((entry.shiftEnd - start) * 6) / 6);
         const hotelObj = pool[(entry.castIndex * 3 + k + d) % pool.length];
         const hotel = hotelObj.name;
-        const course = dur >= 2 ? INITIAL_COURSES[2] : dur >= 1.5 ? INITIAL_COURSES[1] : INITIAL_COURSES[0];
+        const course = dur >= 2 ? { name: "120分", price: 20900 } : dur >= 1.5 ? { name: "90分", price: 16500 } : { name: "60分", price: 11000 };
         const surname = CUSTOMER_SURNAMES[(entry.castIndex * 7 + k * 3 + d) % CUSTOMER_SURNAMES.length];
         const status = d === 0 ? statusCycle[(entry.castIndex + k) % statusCycle.length] : "受付済";
         const withShimei = (entry.castIndex + k) % 3 === 0;

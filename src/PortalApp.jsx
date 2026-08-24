@@ -360,7 +360,7 @@ function ViewCell({ value, width, align = "center", color, bold, fontSize = 11.5
   );
 }
 
-function UketsukeViewer({ theme }) {
+function UketsukeViewer({ theme, myName }) {
   const [sheetKey, setSheetKey] = useState("hitozuma");
   const [sheet, setSheet] = useState(null);
   const [loaded, setLoaded] = useState(false);
@@ -440,7 +440,7 @@ function UketsukeViewer({ theme }) {
                   </div>
                   {/* 待機場 */}
                   <div style={{ width: W.taiki, minWidth: W.taiki }}>
-                    <ViewCell value={r.taiki} width={W.taiki} fontSize={10.5} bold />
+                    <ViewCell value={r.taiki} width={W.taiki} align="left" fontSize={10.5} bold />
                   </div>
                   {/* 番号 */}
                   <div style={{ width: W.no, minWidth: W.no, borderRight: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: INK }}>
@@ -453,7 +453,7 @@ function UketsukeViewer({ theme }) {
                   </div>
                   {/* キャスト */}
                   <div style={{ width: W.cast, minWidth: W.cast }}>
-                    <ViewCell value={r.cast} width={W.cast} bold fontSize={10.5} />
+                    <ViewCell value={r.cast} width={W.cast} align="left" bold fontSize={10.5} />
                   </div>
                   {/* 指名数 */}
                   <div style={{ width: W.shimeiN, minWidth: W.shimeiN, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
@@ -506,10 +506,10 @@ function UketsukeViewer({ theme }) {
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.biko || (isFirst ? "-500" : "")} width={W.biko} color="#C00000" bold mono fontSize={11} /></div>
                     <div style={{ height: ROW_H }}><ViewCell value={r.biko2} width={W.biko} color="#C00000" bold mono fontSize={11} /></div>
                   </div>
-                  {/* 送り */}
-                  <div style={{ width: W.okuri, minWidth: W.okuri }}><ViewCell value={r.okuri} width={W.okuri} fontSize={10.5} /></div>
-                  {/* 迎え */}
-                  <div style={{ width: W.mukae, minWidth: W.mukae }}><ViewCell value={r.mukae} width={W.mukae} fontSize={10.5} /></div>
+                  {/* 送り(自分が担当の場合は太字で強調) */}
+                  <div style={{ width: W.okuri, minWidth: W.okuri }}><ViewCell value={r.okuri} width={W.okuri} fontSize={10.5} bold={!!myName && r.okuri === myName} color={!!myName && r.okuri === myName ? theme.accentDark : undefined} /></div>
+                  {/* 迎え(自分が担当の場合は太字で強調) */}
+                  <div style={{ width: W.mukae, minWidth: W.mukae }}><ViewCell value={r.mukae} width={W.mukae} fontSize={10.5} bold={!!myName && r.mukae === myName} color={!!myName && r.mukae === myName ? theme.accentDark : undefined} /></div>
                   {/* 領収書 */}
                   <div style={{ width: W.ryoshu, minWidth: W.ryoshu }}><ViewCell value={r.ryoshu} width={W.ryoshu} fontSize={10.5} /></div>
                   {/* 媒体 */}
@@ -916,7 +916,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
         !scheduleLoaded ? (
           <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: "60px 20px" }}>読み込み中…</div>
         ) : isWorkingToday ? (
-          <UketsukeViewer theme={theme} />
+          <UketsukeViewer theme={theme} myName={me?.name} />
         ) : (
           <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: "60px 20px" }}>
             本日出勤の方のみ閲覧できます。<br />シフトに入っている日にご確認ください。

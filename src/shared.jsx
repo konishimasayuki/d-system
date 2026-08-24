@@ -55,14 +55,36 @@ export const CUSTOMER_COLORS = {
 
 export const ROLES = ["オーナー", "統括部長", "店長", "主任", "内勤スタッフ", "ドライバー"];
 
-// 役割別ビュー(阿修羅「全員参加」思想)
-export const VIEW_ROLES = {
+// タブ一覧と、閲覧制限(パスワード解除が必要)の有無
+export const TAB_DEFS = [
+  { key: "dashboard", label: "ダッシュボード", restricted: true },
+  { key: "timetable", label: "タイムテーブル", restricted: true },
+  { key: "shift", label: "出勤管理", restricted: true },
+  { key: "castlist", label: "キャスト一覧", restricted: false },
+  { key: "reservation", label: "予約管理", restricted: true },
+  { key: "uketsuke", label: "受付表", restricted: false },
+  { key: "dispatch", label: "配車管理", restricted: true },
+  { key: "messages", label: "メッセージ", restricted: false },
+  { key: "customer", label: "顧客名簿", restricted: true },
+  { key: "media", label: "媒体・HP更新", restricted: true },
+  { key: "report", label: "集計", restricted: true },
+  { key: "accounting", label: "会計", restricted: true },
+  { key: "payout", label: "委託費", restricted: true },
+  { key: "std", label: "STD検査", restricted: true },
+  { key: "driverschedule", label: "スタッフスケジュール", restricted: false },
+  { key: "settings", label: "設定", restricted: false },
+];
+export const RESTRICTED_TAB_PASSWORD = "2911"; // 閲覧制限タブの解除パスワード
+
+// 役割別ビュー(初期値。経営者が設定画面から変更できる／実データはUpstashのviewrolesキーに保存)
+export const INITIAL_VIEW_ROLES = {
   owner: { label: "経営者", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "uketsuke", "dispatch", "messages", "customer", "media", "report", "accounting", "payout", "std", "driverschedule", "settings"] },
   operator: { label: "オペレーター", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "uketsuke", "dispatch", "messages", "customer", "media", "driverschedule"] },
-  driver: { label: "ドライバー", tabs: ["driverpage"] },
   cast: { label: "キャスト", tabs: ["mypage"] },
-  accountant: { label: "経理", tabs: ["report", "accounting", "payout"] },
+  driver: { label: "ドライバー", tabs: ["driverpage"] },
 };
+// 後方互換用のエイリアス(旧コードがVIEW_ROLESを直接参照している箇所向け)
+export const VIEW_ROLES = INITIAL_VIEW_ROLES;
 
 // ============================================================
 // マスタ・モックデータ
@@ -892,9 +914,9 @@ export const INITIAL_CUSTOMERS = Array.from({ length: 60 }, (_, i) => {
 ]);
 
 export const INITIAL_STAFF = [
-  { id: "s1", name: "近藤", role: "オーナー", loginId: "kondo", password: "pass1234" },
-  { id: "s2", name: "白石", role: "店長", loginId: "shiraishi", password: "pass1234" },
-  { id: "s3", name: "大西", role: "内勤スタッフ", loginId: "onishi", password: "pass1234" },
+  { id: "s1", name: "近藤", role: "オーナー", viewRole: "owner", loginId: "kondo", password: "pass1234" },
+  { id: "s2", name: "白石", role: "店長", viewRole: "operator", loginId: "shiraishi", password: "pass1234" },
+  { id: "s3", name: "大西", role: "内勤スタッフ", viewRole: "operator", loginId: "onishi", password: "pass1234" },
 ];
 
 export const INITIAL_EXPENSES = [

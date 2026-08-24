@@ -141,8 +141,8 @@ function MobileShell({ theme, app, subtitle, children, nav, active, onNav, onLog
   return (
     <div className="pa-page">
       <div className="pa-phone">
-        {/* ヘッダー */}
-        <div style={{ background: theme.grad, color: "#fff", padding: "14px 16px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+        {/* ヘッダー(固定) */}
+        <div style={{ background: theme.grad, color: "#fff", padding: "14px 16px 16px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <div style={{ background: "rgba(255,255,255,0.18)", borderRadius: 12, padding: 4, display: "flex" }}><Logo app={app} size={34} /></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 0.3 }}>{theme.name}</div>
@@ -150,13 +150,13 @@ function MobileShell({ theme, app, subtitle, children, nav, active, onNav, onLog
           </div>
           <button onClick={onLogout} style={{ background: "rgba(255,255,255,0.16)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, padding: "7px 12px", borderRadius: 9, cursor: "pointer" }}>ログアウト</button>
         </div>
-        {/* コンテンツ */}
-        <div style={{ flex: 1, overflowY: "auto", background: BG, padding: "4px 16px 20px", position: "relative" }}>
+        {/* コンテンツ(ここだけスクロール) */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: BG, padding: "4px 16px 20px", position: "relative" }}>
           {children}
         </div>
         <Toast msg={toast} />
-        {/* ボトムナビ */}
-        <div style={{ display: "flex", borderTop: `1px solid ${LINE}`, background: "#fff" }}>
+        {/* ボトムナビ(固定) */}
+        <div style={{ display: "flex", borderTop: `1px solid ${LINE}`, background: "#fff", flexShrink: 0 }}>
           {nav.map((n) => (
             <button key={n.key} onClick={() => onNav(n.key)} style={{ flex: 1, background: "none", border: "none", padding: "9px 0 12px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: active === n.key ? theme.accent : "#9AA6B4", position: "relative" }}>
               <div style={{ position: "relative" }}>
@@ -171,7 +171,7 @@ function MobileShell({ theme, app, subtitle, children, nav, active, onNav, onLog
       <style>{`
         .pa-page{ min-height:100vh; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
         .pa-phone{ width:390px; height:min(92vh,820px); background:#fff; border-radius:38px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
-        @media (max-width:480px){ .pa-page{ padding:0; } .pa-phone{ width:100%; height:100vh; border-radius:0; border:none; } }
+        @media (max-width:480px){ .pa-page{ padding:0; height:100dvh; } .pa-phone{ width:100%; height:100dvh; border-radius:0; border:none; } }
       `}</style>
     </div>
   );
@@ -794,29 +794,6 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
             <div style={{ fontSize: 12.5, fontWeight: 700, color: INK }}>{weekOffset === 0 ? "今週" : weekOffset > 0 ? `${weekOffset}週間後` : `${-weekOffset}週間前`}</div>
             <button onClick={() => setWeekOffset((w) => w + 1)} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${LINE}`, background: "#FFF", color: INK, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>›</button>
           </div>
-          <Eyebrow>自分のスケジュール</Eyebrow>
-          {!scheduleLoaded ? (
-            <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: 20 }}>読み込み中…</div>
-          ) : (
-            weekDays(weekOffset).map((d) => {
-              const dateStr = isoDate(d);
-              const cell = getCell(schedule, driverId, dateStr);
-              const isOff = cell.type === "off";
-              const isToday = dateStr === isoDate(new Date());
-              const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
-              const hasNote = !!(cell.note && cell.note.trim());
-              return (
-                <Card key={dateStr} onClick={() => setEditCell({ driverId, dateStr, driverName: me?.name || "" })} style={{ marginBottom: 8, border: isToday ? `2px solid ${theme.accent}` : undefined, cursor: "pointer" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 14, color: INK, fontWeight: 600 }}>{d.getMonth() + 1}/{d.getDate()}({w}){isToday ? " ・今日" : ""}</span>
-                    <span style={{ fontSize: 14, color: isOff ? SUB : theme.accentDark, fontWeight: 700 }}>{isOff ? "休み" : `${cell.start}〜${cell.end || "未定"}`}</span>
-                  </div>
-                  {hasNote && <div style={{ fontSize: 12, color: SUB, marginTop: 6, whiteSpace: "pre-wrap", background: "#F4F6F9", borderRadius: 8, padding: "6px 8px" }}>📝 {cell.note}</div>}
-                </Card>
-              );
-            })
-          )}
-          <div style={{ fontSize: 11, color: SUB, textAlign: "center", marginTop: 10 }}>※カードをタップして時間・メモを編集できます</div>
 
           {/* 全員のスケジュール */}
           <Eyebrow>全員のスケジュール</Eyebrow>
@@ -825,9 +802,9 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
           ) : (
             <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 12, border: `1px solid ${LINE}` }}>
               <div style={{ minWidth: 96 + 62 * 7 }}>
-                {/* 日付ヘッダ */}
-                <div style={{ display: "flex", borderBottom: `1px solid ${LINE}` }}>
-                  <div style={{ width: 96, flexShrink: 0, padding: "8px 10px", fontSize: 10.5, fontWeight: 700, color: SUB, background: "#F4F6F9", position: "sticky", left: 0 , boxSizing: "border-box" }}>ドライバー</div>
+                {/* 日付ヘッダ(縦スクロールしても上部に固定) */}
+                <div style={{ display: "flex", borderBottom: `1px solid ${LINE}`, position: "sticky", top: 0, zIndex: 3 }}>
+                  <div style={{ width: 96, flexShrink: 0, padding: "8px 10px", fontSize: 10.5, fontWeight: 700, color: SUB, background: "#F4F6F9", position: "sticky", left: 0, zIndex: 4, boxSizing: "border-box" }}>ドライバー</div>
                   {weekDays(weekOffset).map((d) => {
                     const isToday = isoDate(d) === isoDate(new Date());
                     return (

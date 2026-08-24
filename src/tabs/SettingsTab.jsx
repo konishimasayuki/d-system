@@ -316,10 +316,10 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
           </div>
         ))}
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <input value={oName} onChange={(e) => setOName(e.target.value)} placeholder="名称" style={{ flex: 2, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }} />
-        <input value={oPrice} onChange={(e) => setOPrice(e.target.value)} placeholder="料金" type="number" style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }} />
-        <button onClick={addOption} style={{ padding: "0 14px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, cursor: "pointer" }}>＋</button>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <input value={oName} onChange={(e) => setOName(e.target.value)} placeholder="名称" style={{ flex: "2 1 120px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box" }} />
+        <input value={oPrice} onChange={(e) => setOPrice(e.target.value)} placeholder="料金" type="number" style={{ flex: "1 1 80px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box" }} />
+        <button onClick={addOption} style={{ flexShrink: 0, padding: "0 14px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, cursor: "pointer" }}>＋</button>
       </div>
     </Card>
   );

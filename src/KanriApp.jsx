@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   COLORS, GLOBAL_CSS, CUSTOMER_COLORS, VIEW_ROLES, DAY_DATES, DEFAULT_OFFICE,
   INITIAL_CASTS, INITIAL_RESERVATIONS, INITIAL_DRIVERS, INITIAL_CUSTOMERS,
@@ -22,6 +22,7 @@ import { DriverPage, CastMyPage } from "./tabs/FieldPages.jsx";
 import { SettingsTab } from "./tabs/SettingsTab.jsx";
 import { DriverScheduleTab } from "./tabs/StaffScheduleTab.jsx";
 import { UketsukeTab } from "./tabs/UketsukeTab.jsx";
+import { MessageTab, fetchOfficeTotalUnread } from "./tabs/MessageTab.jsx";
 
 // ============================================================
 function CtiPopup({ customer, onClose, onReserve }) {
@@ -60,6 +61,7 @@ const TAB_GROUPS = [
     { key: "dashboard", label: "ダッシュボード" }, { key: "timetable", label: "タイムテーブル" },
     { key: "shift", label: "出勤管理" }, { key: "castlist", label: "キャスト一覧" },
     { key: "reservation", label: "予約管理" }, { key: "uketsuke", label: "受付表" }, { key: "dispatch", label: "配車管理" },
+    { key: "messages", label: "メッセージ" },
   ] },
   { group: "顧客・媒体", tabs: [
     { key: "customer", label: "顧客名簿" }, { key: "media", label: "媒体・HP更新" },
@@ -107,6 +109,24 @@ export default function KanriApp() {
   const [ctiCustomer, setCtiCustomer] = useState(null);
   const [openReservation, setOpenReservation] = useState(null);
   const [quoteCustomer, setQuoteCustomer] = useState(null);
+  const [officeUnread, setOfficeUnread] = useState(0);
+
+  // メッセージ未読件数の取得(定期ポーリングはしない：初回・タブ切替・画面復帰時のみ)
+  useEffect(() => {
+    let cancelled = false;
+    fetchOfficeTotalUnread(drivers, casts).then((n) => { if (!cancelled) setOfficeUnread(n); });
+    const onVisible = () => { if (document.visibilityState === "visible") fetchOfficeTotalUnread(drivers, casts).then((n) => { if (!cancelled) setOfficeUnread(n); }); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drivers.length, casts.length]);
+
+  // メッセージタブ以外から「メッセージ」タブに切り替えた時にも再取得(既読処理直後の最新化のため)
+  useEffect(() => {
+    if (tab !== "messages") return;
+    fetchOfficeTotalUnread(drivers, casts).then(setOfficeUnread);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   const allowed = VIEW_ROLES[role].tabs;
   const visibleGroups = TAB_GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => allowed.includes(t.key)) })).filter((g) => g.tabs.length > 0);
@@ -151,7 +171,10 @@ export default function KanriApp() {
             <div key={g.group} style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, color: COLORS.textSub, fontWeight: 700, padding: "0 6px 6px", letterSpacing: 1 }}>{g.group}</div>
               {g.tabs.map((t) => (
-                <div key={t.key} onClick={() => { setTab(t.key); setMenuOpen(false); }} style={{ padding: "9px 14px", borderRadius: 8, marginBottom: 3, cursor: "pointer", fontSize: 14, fontWeight: tab === t.key ? 700 : 400, color: tab === t.key ? "#FFFFFF" : COLORS.textMain, background: tab === t.key ? COLORS.accent : "transparent", transition: "background 0.15s" }}>{t.label}</div>
+                <div key={t.key} onClick={() => { setTab(t.key); setMenuOpen(false); }} style={{ padding: "9px 14px", borderRadius: 8, marginBottom: 3, cursor: "pointer", fontSize: 14, fontWeight: tab === t.key ? 700 : 400, color: tab === t.key ? "#FFFFFF" : COLORS.textMain, background: tab === t.key ? COLORS.accent : "transparent", transition: "background 0.15s", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>{t.label}</span>
+                  {t.key === "messages" && officeUnread > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: "#FFF", background: COLORS.red, borderRadius: 999, padding: "1px 7px", minWidth: 16, textAlign: "center" }}>{officeUnread}</span>}
+                </div>
               ))}
             </div>
           ))}
@@ -164,6 +187,7 @@ export default function KanriApp() {
           {tab === "castlist" && <CastList casts={casts} setCasts={setCasts} />}
           {tab === "reservation" && <ReservationManagement reservations={reservations} setReservations={setReservations} casts={casts} drivers={drivers} courses={courses} options={options} hotels={hotels} />}
           {tab === "dispatch" && <DispatchMap drivers={drivers} reservations={reservations} setReservations={setReservations} casts={casts} hotels={hotels} office={office} />}
+          {tab === "messages" && <MessageTab drivers={drivers} casts={casts} />}
           {tab === "customer" && <CustomerManagement customers={customers} setCustomers={setCustomers} onQuote={startQuote} />}
           {tab === "media" && <MediaTab casts={casts} setCasts={setCasts} />}
           {tab === "report" && <Report />}

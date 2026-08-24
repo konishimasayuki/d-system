@@ -14,8 +14,9 @@ const ALLOWED_KEYS = [
 const RESERVATION_KEY_RE = /^reservations:\d{4}-\d{2}-\d{2}$/;
 const UKETSUKE_KEY_RE = /^uketsuke:[a-z]+:\d{4}-\d{2}-\d{2}$/;
 const CASTPHOTO_KEY_RE = /^castphotos:[A-Za-z0-9_]+(:thumb)?$/;
+const MESSAGE_KEY_RE = /^messages:(staff|cast)_[A-Za-z0-9_]+$/;
 function isAllowedKey(key) {
-  return ALLOWED_KEYS.includes(key) || RESERVATION_KEY_RE.test(key) || CASTPHOTO_KEY_RE.test(key) || UKETSUKE_KEY_RE.test(key);
+  return ALLOWED_KEYS.includes(key) || RESERVATION_KEY_RE.test(key) || CASTPHOTO_KEY_RE.test(key) || UKETSUKE_KEY_RE.test(key) || MESSAGE_KEY_RE.test(key);
 }
 
 async function kvGet(key) {

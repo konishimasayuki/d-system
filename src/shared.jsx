@@ -447,6 +447,8 @@ export const GLOBAL_CSS = `
   .grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
   .board-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
   .table-scroll { width: 100%; overflow-x: auto; }
+  .top-scrollbar-pc { display: block; }
+  @media (max-width: 900px) { .top-scrollbar-pc { display: none; } }
   .sidebar { width: 224px; background: #FFFFFF; border-right: 1px solid #E1E7EF; padding: 18px 14px; flex-shrink: 0; position: relative; z-index: 30; overflow-y: auto; }
   .topbar { display: none; }
   .overlay { display: none; }

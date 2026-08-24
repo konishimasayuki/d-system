@@ -528,6 +528,30 @@ export function parseCSV(text) {
   return rows;
 }
 
+// CSVファイルを文字コード自動判定で読み込む(UTF-8優先、文字化けを検知したらShift-JISで再デコード)
+//  ExcelでCSVを編集・保存するとShift-JIS(cp932)になることが多いため
+export function readCSVFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const buf = reader.result;
+      const utf8Text = new TextDecoder("utf-8").decode(buf).replace(/^\uFEFF/, "");
+      // 文字化け(置換文字U+FFFD)が多く含まれる場合はShift-JISとして読み直す
+      const brokenCount = (utf8Text.match(/\uFFFD/g) || []).length;
+      if (brokenCount > 0) {
+        try {
+          const sjisText = new TextDecoder("shift_jis").decode(buf);
+          resolve(sjisText);
+          return;
+        } catch (e) { /* shift_jisデコーダ非対応環境ではUTF-8のまま */ }
+      }
+      resolve(utf8Text);
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 // キャストのアバター。写真があれば1枚目を表示、無ければ頭文字(タイムテーブルと共通の見た目)
 // shape: "circle"(頭文字丸) or "photo"(縦3:4のサムネイル枠)
 export function CastAvatar({ cast, photo, size = 30, radius }) {

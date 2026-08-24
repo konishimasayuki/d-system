@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, CAST_CLASS_OPTIONS, castClass, castClassInfo, isoDate, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
+import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, CAST_CLASS_OPTIONS, castClass, castClassInfo, REWARD_RANK_OPTIONS, castRewardRank, isoDate, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
 
 // キャストの写真管理(最大10枚・縦3:4)。詳細モーダル内で使用
 function CastPhotoManager({ castId }) {
@@ -77,13 +77,14 @@ function CastPhotoManager({ castId }) {
 
 // ============================================================
 export function CastDetailModal({ cast, onClose, onSave }) {
-  const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、"), shops: castShops(cast), castClass: castClass(cast) });
+  const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、"), shops: castShops(cast), castClass: castClass(cast), rewardRank: castRewardRank(cast) });
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
   const save = () => {
-    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
+    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, rewardRank: f.rewardRank, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
     onClose();
   };
+  const showRewardRank = f.shops.includes("hakata") && f.castClass === "standard";
   return (
     <Modal title={`${castFullName(cast)} の詳細・編集`} onClose={onClose} wide>
       <CastPhotoManager castId={cast.id} />
@@ -101,6 +102,9 @@ export function CastDetailModal({ cast, onClose, onSave }) {
       </div>
       <TextField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} placeholder="例: 住吉" />
       <SelectField label="クラス" value={f.castClass} onChange={(v) => set("castClass", v)} options={CAST_CLASS_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]))} />
+      {showRewardRank && (
+        <SelectField label="報酬ランク(博多ココ・スタンダード)" value={f.rewardRank} onChange={(v) => set("rewardRank", v)} options={REWARD_RANK_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.key, o.label]))} />
+      )}
       <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>キャストアプリ ログイン情報</div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="ログインID" value={f.loginId || ""} onChange={(v) => set("loginId", v)} /></div>
@@ -139,7 +143,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
   const [f, setF] = useState({
     name: "", honmyo: "", birthday: "", age: "20", phone: "", address: "",
     idType: "運転免許証", idNo: "", joinDate: isoDate(new Date()), ratePct: "55", okText: "指名", idVerified: false,
-    shops: defaultShop ? [defaultShop] : [], taikiba: "", castClass: "standard", loginId: "", password: "", biko1: "", biko2: "",
+    shops: defaultShop ? [defaultShop] : [], taikiba: "", castClass: "standard", rewardRank: "base", loginId: "", password: "", biko1: "", biko2: "",
   });
   const [msg, setMsg] = useState("");
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
@@ -155,11 +159,12 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
       shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0,
       itakuRate: (Number(f.ratePct) || 55) / 100, idVerified: f.idVerified,
       stdLast: isoDate(new Date()), okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), comment: "",
-      shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba, castClass: f.castClass,
+      shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba, castClass: f.castClass, rewardRank: f.rewardRank,
       loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "",
     });
     onClose();
   };
+  const showRewardRank = f.shops.includes("hakata") && f.castClass === "standard";
   return (
     <Modal title="キャスト新規登録" onClose={onClose} wide>
       <TextField label="キャスト名" value={f.name} onChange={(v) => set("name", v)} placeholder="例: みさき" />
@@ -176,6 +181,9 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
       </div>
       <TextField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} placeholder="例: 住吉" />
       <SelectField label="クラス" value={f.castClass} onChange={(v) => set("castClass", v)} options={CAST_CLASS_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]))} />
+      {showRewardRank && (
+        <SelectField label="報酬ランク(博多ココ・スタンダード)" value={f.rewardRank} onChange={(v) => set("rewardRank", v)} options={REWARD_RANK_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.key, o.label]))} />
+      )}
       <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>キャストアプリ ログイン情報</div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="ログインID" value={f.loginId} onChange={(v) => set("loginId", v)} placeholder="例: cast001" /></div>
@@ -226,14 +234,17 @@ export function CastList({ casts, setCasts }) {
   const thumbs = useCastThumbs(rows.map((c) => c.id));
 
   // CSV列: name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,okOptions,shops,taikiba
-  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,okOptions,shops,taikiba,loginId,password,biko1,biko2,castClass";
+  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,okOptions,shops,taikiba,loginId,password,biko1,biko2,castClass,rewardRank";
   const classLabelMap = Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]));
   const classKeyMap = Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.label, o.key]));
+  const rankLabelMap = Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.key, o.label]));
+  const rankKeyMap = Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.label, o.key]));
   const exportCSV = () => {
     const body = casts.map((c) => [
       c.name, c.honmyo, c.age, c.birthday, c.phone, c.address, c.idType, c.idNo, c.joinDate,
       (c.okOptions || []).join("・"), castShops(c).join("・"), c.taikiba || "",
       c.loginId || "", c.password || "", c.biko1 || "", c.biko2 || "", classLabelMap[castClass(c)] || "スタンダード",
+      rankLabelMap[castRewardRank(c)] || "ベース",
     ].map(csvEscape).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + CSV_HEADER + "\n" + body], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "casts.csv"; a.click();
@@ -256,6 +267,7 @@ export function CastList({ casts, setCasts }) {
       taikiba: (r[11] || "").trim(), loginId: (r[12] || "").trim(), password: (r[13] || "").trim(),
       biko1: (r[14] || "").trim(), biko2: (r[15] || "").trim(),
       castClass: classKeyMap[(r[16] || "").trim()] || (r[16] || "").trim(),
+      rewardRank: rankKeyMap[(r[17] || "").trim()] || (r[17] || "").trim(),
     })).filter((r) => r.name);
     if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,...)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
 
@@ -272,7 +284,7 @@ export function CastList({ casts, setCasts }) {
           okOptions: inc.okOptions, shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba,
           loginId: inc.loginId, password: inc.password,
           biko1: inc.biko1, biko2: inc.biko2,
-          castClass: inc.castClass || "standard",
+          castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base",
         });
         updated++;
       } else {
@@ -281,7 +293,7 @@ export function CastList({ casts, setCasts }) {
           status: "before_shift", phone: inc.phone, address: inc.address, idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
           shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, idVerified: false,
           stdLast: isoDate(new Date()), okOptions: inc.okOptions, comment: "", shops: inc.shops.length ? inc.shops : ["hakata"], taikiba: inc.taikiba,
-          loginId: inc.loginId, password: inc.password, biko1: inc.biko1, biko2: inc.biko2, castClass: inc.castClass || "standard",
+          loginId: inc.loginId, password: inc.password, biko1: inc.biko1, biko2: inc.biko2, castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base",
         });
         added++;
       }

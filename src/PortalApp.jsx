@@ -395,9 +395,10 @@ function UketsukeViewer({ theme }) {
         <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, padding: 24 }}>本日の受付データはありません</div>
       ) : (
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-          <div style={{ minWidth: W.taiki + W.no + W.time + W.cast + W.shimeiN + W.kaiin + W.label + W.name + W.kotsu + W.course + W.op * 2 + W.taishutsu + W.otoshi + W.joshi + W.biko + W.okuri + W.mukae + W.ryoshu + W.baitai + W.bikoR }}>
+          <div style={{ minWidth: W.bikoL + W.taiki + W.no + W.time + W.cast + W.shimeiN + W.kaiin + W.label + W.name + W.kotsu + W.course + W.op * 2 + W.taishutsu + W.otoshi + W.joshi + W.biko + W.okuri + W.mukae + W.ryoshu + W.baitai + W.bikoR }}>
             {/* 見出し行 */}
             <div style={{ display: "flex", position: "sticky", top: 0, zIndex: 2 }}>
+              <Th width={W.bikoL} />
               <Th width={W.taiki}>待機場</Th>
               <Th width={W.no}>番号</Th>
               <Th width={W.time}>時間</Th>
@@ -429,6 +430,11 @@ function UketsukeViewer({ theme }) {
               const shimeiColor = n === 0 ? INK : (isFirst ? "#FF0000" : "#000000");
               return (
                 <div key={i} style={{ display: "flex", borderBottom: `2px solid ${LINE}` }}>
+                  {/* 備考(左)・上下2段 */}
+                  <div style={{ width: W.bikoL, minWidth: W.bikoL, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.bikoL} width={W.bikoL} align="left" fontSize={11} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.bikoL2} width={W.bikoL} align="left" fontSize={11} /></div>
+                  </div>
                   {/* 待機場 */}
                   <div style={{ width: W.taiki, minWidth: W.taiki }}>
                     <ViewCell value={r.taiki} width={W.taiki} fontSize={10.5} bold />
@@ -836,8 +842,15 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                       const hasNote = !!(cell.note && cell.note.trim());
                       return (
                         <button key={dateStr} onClick={() => setEditCell({ driverId: d.id, dateStr, driverName: d.name })}
-                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative", boxSizing: "border-box" }}>
-                          {isOff ? "休" : cell.start}
+                          style={{ width: 62, flexShrink: 0, padding: "4px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1.3 }}>
+                          {isOff ? (
+                            <span style={{ fontSize: 9.5 }}>休</span>
+                          ) : (
+                            <>
+                              <span style={{ fontSize: 9.5 }}>{cell.start}</span>
+                              <span style={{ fontSize: 8.5, opacity: 0.75 }}>〜{cell.end || "未定"}</span>
+                            </>
+                          )}
                           {hasNote && <span style={{ position: "absolute", top: 1, right: 3, fontSize: 7 }}>📝</span>}
                         </button>
                       );
@@ -857,8 +870,15 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                       const hasNote = !!(cell.note && cell.note.trim());
                       return (
                         <button key={dateStr} onClick={() => setEditCell({ driverId: d.id, dateStr, driverName: d.name })}
-                          style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative", boxSizing: "border-box" }}>
-                          {isOff ? "休" : cell.start}
+                          style={{ width: 62, flexShrink: 0, padding: "4px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1.3 }}>
+                          {isOff ? (
+                            <span style={{ fontSize: 9.5 }}>休</span>
+                          ) : (
+                            <>
+                              <span style={{ fontSize: 9.5 }}>{cell.start}</span>
+                              <span style={{ fontSize: 8.5, opacity: 0.75 }}>〜{cell.end || "未定"}</span>
+                            </>
+                          )}
                           {hasNote && <span style={{ position: "absolute", top: 1, right: 3, fontSize: 7 }}>📝</span>}
                         </button>
                       );

@@ -66,6 +66,25 @@ export function saveScheduleCell(schedule, setSchedule, staffId, dateStr, field,
   return next;
 }
 
+// メモボタン(メモありの場合、ホバー/タップ長押しで内容をプレビュー表示)
+function MemoButton({ hasNote, note, onClick }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div style={{ position: "relative" }} onMouseEnter={() => hasNote && setHover(true)} onMouseLeave={() => setHover(false)}>
+      <button onClick={onClick}
+        style={{ width: "100%", padding: "4px 0", borderRadius: 7, border: `1px solid ${hasNote ? COLORS.accent : COLORS.border}`, background: hasNote ? COLORS.accent : "#FFF", color: hasNote ? "#FFF" : COLORS.border, opacity: hasNote ? 1 : 0.55, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
+        📝 メモ{hasNote ? "あり" : ""}
+      </button>
+      {hover && hasNote && (
+        <div style={{ position: "absolute", bottom: "100%", left: "50%", transform: "translateX(-50%)", marginBottom: 6, width: 200, background: "#20262E", color: "#FFF", fontSize: 11.5, lineHeight: 1.5, padding: "8px 10px", borderRadius: 8, boxShadow: "0 6px 18px rgba(0,0,0,0.3)", zIndex: 30, whiteSpace: "pre-wrap", pointerEvents: "none" }}>
+          {note}
+          <div style={{ position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: "6px solid #20262E" }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DriverScheduleTab({ drivers }) {
   const { schedule, setSchedule, loaded } = useDriverSchedule();
   const [saving, setSaving] = useState(false);
@@ -131,10 +150,7 @@ export function DriverScheduleTab({ drivers }) {
                 </select>
               </div>
             )}
-            <button onClick={() => setMemoTarget({ staffId: s.id, dateStr, staffName: s.name })}
-              style={{ padding: "4px 0", borderRadius: 7, border: `1px solid ${hasNote ? COLORS.accent : COLORS.border}`, background: hasNote ? COLORS.accent : "#FFF", color: hasNote ? "#FFF" : COLORS.border, opacity: hasNote ? 1 : 0.55, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
-              📝 メモ{hasNote ? "あり" : ""}
-            </button>
+            <MemoButton hasNote={hasNote} note={cell.note} onClick={() => setMemoTarget({ staffId: s.id, dateStr, staffName: s.name })} />
           </div>
         );
       })}

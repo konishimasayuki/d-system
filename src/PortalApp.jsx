@@ -169,10 +169,10 @@ function MobileShell({ theme, app, subtitle, children, nav, active, onNav, onLog
         </div>
       </div>
       <style>{`
-        html, body{ position:fixed; inset:0; width:100%; height:100%; overflow:hidden; overscroll-behavior:none; -webkit-overflow-scrolling:auto; }
-        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
+        html, body{ margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none; }
+        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
         .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; overscroll-behavior:contain; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
-        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100dvh; border-radius:0; border:none; } }
+        @media (max-width:480px){ .pa-page{ padding:0; } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); box-sizing:border-box; } }
       `}</style>
     </div>
   );
@@ -221,10 +221,10 @@ function Login({ theme, app, drivers, casts, onLogin }) {
         </div>
       </div>
       <style>{`
-        html, body{ position:fixed; inset:0; width:100%; height:100%; overflow:hidden; overscroll-behavior:none; -webkit-overflow-scrolling:auto; }
-        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
+        html, body{ margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none; }
+        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
         .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; overscroll-behavior:contain; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
-        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100dvh; border-radius:0; border:none; } }
+        @media (max-width:480px){ .pa-page{ padding:0; } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); box-sizing:border-box; } }
       `}</style>
     </div>
   );
@@ -254,10 +254,10 @@ function IdentityPicker({ theme, title, options, onPick }) {
         </div>
       </div>
       <style>{`
-        html, body{ position:fixed; inset:0; width:100%; height:100%; overflow:hidden; overscroll-behavior:none; -webkit-overflow-scrolling:auto; }
-        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
+        html, body{ margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none; }
+        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; overscroll-behavior:none; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
         .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; overscroll-behavior:contain; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
-        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100dvh; border-radius:0; border:none; } }
+        @media (max-width:480px){ .pa-page{ padding:0; } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); box-sizing:border-box; } }
       `}</style>
     </div>
   );

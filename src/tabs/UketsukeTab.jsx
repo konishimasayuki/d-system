@@ -11,7 +11,7 @@ import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, iso
 const ROWS = 40; // 初期行数(1セット=予約1件)
 
 // 列幅(スプレッドの見た目に合わせる)
-const W = {
+export const W = {
   bikoL: 130,  // A 備考(左)
   taiki: 46,   // B 待機場
   no: 34,      // C 番号
@@ -35,6 +35,16 @@ const W = {
   baitai: 46,  // X 媒体
   bikoR: 220,  // Y 備考(NG等)
 };
+
+// 同じキャストが上から何本目かを計算(1本目=赤文字、2本目以降=緑背景の判定に使用)
+export function computeShimeiCounts(rows) {
+  const seen = {};
+  return rows.map((r) => {
+    if (!r.cast) return 0;
+    seen[r.cast] = (seen[r.cast] || 0) + 1;
+    return seen[r.cast];
+  });
+}
 
 const emptyRow = () => ({
   bikoL: "", bikoL2: "", taiki: "", time: "", depart: "", cast: "", shimeiN: "",
@@ -245,7 +255,7 @@ function SelCell({ value, onChange, options, width, bg, color, bold, fontSize = 
 }
 
 // 見出しセル
-function Th({ children, width, bg = "#EDF3FA" }) {
+export function Th({ children, width, bg = "#EDF3FA" }) {
   return (
     <div style={{
       width, minWidth: width, maxWidth: width, boxSizing: "border-box",
@@ -326,14 +336,7 @@ export function UketsukeTab({ casts, courses, drivers }) {
   const tesuryo = cardTotal - ryokinNum;
 
   // 指名数：同じキャストが上から何本目かを自動カウント(1本目=赤文字、2本目以降=緑背景+黒文字)
-  const shimeiCounts = useMemo(() => {
-    const seen = {};
-    return sheet.rows.map((r) => {
-      if (!r.cast) return 0;
-      seen[r.cast] = (seen[r.cast] || 0) + 1;
-      return seen[r.cast];
-    });
-  }, [sheet.rows]);
+  const shimeiCounts = useMemo(() => computeShimeiCounts(sheet.rows), [sheet.rows]);
 
   const d = new Date(dateStr);
   const youbi = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];

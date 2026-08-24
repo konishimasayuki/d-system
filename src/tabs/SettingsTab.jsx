@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, SectionTitle, SelectField, TextField, Yen, parseCSV, csvEscape, readCSVFile, INITIAL_STAFF } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, REWARD_RANK_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, SectionTitle, SelectField, TextField, Yen, parseCSV, csvEscape, readCSVFile, INITIAL_STAFF } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
@@ -244,13 +244,25 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
   const [oName, setOName] = useState(""); const [oPrice, setOPrice] = useState("");
 
   const filtered = courses.filter((c) => c.shop === shop && c.castClass === cls);
+  const isHakataStandard = shop === "hakata" && cls === "standard";
 
   const updateCourseField = (id, field, val) => {
     setCourses((prev) => prev.map((c) => c.id === id ? { ...c, [field]: field === "code" || field === "label" ? val : (Number(val) || 0) } : c));
   };
+  const updateJoshiByRank = (id, rankKey, val) => {
+    setCourses((prev) => prev.map((c) => c.id === id ? { ...c, joshiByRank: { ...(c.joshiByRank || {}), [rankKey]: Number(val) || 0 } } : c));
+  };
   const removeCourse = (id) => setCourses((prev) => prev.filter((c) => c.id !== id));
   const addCourse = () => {
     const prefix = cls === "diamond" ? "D" : "";
+    if (isHakataStandard) {
+      setCourses((prev) => [...prev, {
+        id: `co_hakata_standard_new${Date.now()}`, shop: "hakata", castClass: "standard",
+        code: "0", label: "新コース", price: 0,
+        joshiByRank: Object.fromEntries(REWARD_RANK_OPTIONS.map((r) => [r.key, 0])),
+      }]);
+      return;
+    }
     setCourses((prev) => [...prev, {
       id: `co_${shop}_${cls}_new${Date.now()}`, shop, castClass: cls,
       code: `${prefix}0`, label: "新コース", price: 0, joshi: 0,
@@ -283,22 +295,35 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
         {SHOP_OPTIONS.find((s) => s.key === shop)?.label} ・ {CAST_CLASS_OPTIONS.find((c) => c.key === cls)?.label} のコース
       </div>
       <div style={{ overflowX: "auto", marginBottom: 12 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 480 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: isHakataStandard ? 56 + 70 + 100 + 5 * 84 + 26 + 6 * 8 : 480 }}>
           <div style={{ display: "flex", gap: 6, fontSize: 11, color: COLORS.textSub, padding: "0 4px" }}>
-            <div style={{ width: 56 }}>記号</div><div style={{ width: 70 }}>表示名</div><div style={{ width: 100 }}>落とし(円)</div><div style={{ width: 100 }}>女子給(円)</div><div style={{ width: 26 }} />
+            <div style={{ width: 56 }}>記号</div><div style={{ width: 70 }}>表示名</div><div style={{ width: 100 }}>落とし(円)</div>
+            {isHakataStandard ? (
+              REWARD_RANK_OPTIONS.map((r) => <div key={r.key} style={{ width: 84 }}>女子給({r.label})</div>)
+            ) : (
+              <div style={{ width: 100 }}>女子給(円)</div>
+            )}
+            <div style={{ width: 26 }} />
           </div>
           {filtered.map((c) => (
             <div key={c.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <input value={c.code} onChange={(e) => updateCourseField(c.id, "code", e.target.value)} style={{ width: 56, padding: "6px 6px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", boxSizing: "border-box" }} />
               <input value={c.label} onChange={(e) => updateCourseField(c.id, "label", e.target.value)} style={{ width: 70, padding: "6px 6px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, boxSizing: "border-box" }} />
               <input value={c.price} onChange={(e) => updateCourseField(c.id, "price", e.target.value)} type="number" style={{ width: 100, padding: "6px 6px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, boxSizing: "border-box" }} />
-              <input value={c.joshi} onChange={(e) => updateCourseField(c.id, "joshi", e.target.value)} type="number" style={{ width: 100, padding: "6px 6px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, boxSizing: "border-box" }} />
+              {isHakataStandard ? (
+                REWARD_RANK_OPTIONS.map((r) => (
+                  <input key={r.key} value={c.joshiByRank?.[r.key] ?? 0} onChange={(e) => updateJoshiByRank(c.id, r.key, e.target.value)} type="number" style={{ width: 84, padding: "6px 6px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, boxSizing: "border-box" }} />
+                ))
+              ) : (
+                <input value={c.joshi} onChange={(e) => updateCourseField(c.id, "joshi", e.target.value)} type="number" style={{ width: 100, padding: "6px 6px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, boxSizing: "border-box" }} />
+              )}
               <button onClick={() => removeCourse(c.id)} style={{ width: 26, flexShrink: 0, border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>
             </div>
           ))}
           {filtered.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub, padding: "8px 4px" }}>コースがまだ登録されていません。</div>}
         </div>
       </div>
+      {isHakataStandard && <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 8 }}>※博多ココ・スタンダードは報酬ランク(ベース/C/B/A/S)ごとに女子給が異なります。落としの金額は共通です。</div>}
       <button onClick={addCourse} style={{ padding: "8px 16px", borderRadius: 8, border: `1px dashed ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontWeight: 700, fontSize: 12.5, cursor: "pointer", marginBottom: 22 }}>＋ コースを追加</button>
 
       <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 18, lineHeight: 1.7 }}>

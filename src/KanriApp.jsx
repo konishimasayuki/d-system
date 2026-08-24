@@ -108,7 +108,7 @@ function clearKanriLogin() {
 }
 
 // ログイン画面
-function KanriLoginScreen({ staff, onLogin, onResetStaff }) {
+function KanriLoginScreen({ staff, onLogin }) {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
@@ -117,10 +117,6 @@ function KanriLoginScreen({ staff, onLogin, onResetStaff }) {
     if (!match) { setErr("IDまたはパスワードが違います。"); return; }
     setErr("");
     onLogin(match.id);
-  };
-  const resetStaff = () => {
-    if (!window.confirm("スタッフの登録データを初期値(近藤/白石/大西)に戻します。ログインできない場合の緊急用です。よろしいですか？")) return;
-    onResetStaff();
   };
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Noto Sans JP', sans-serif" }}>
@@ -135,7 +131,6 @@ function KanriLoginScreen({ staff, onLogin, onResetStaff }) {
         </div>
         {err && <div style={{ color: "#C0492B", fontSize: 12.5, marginBottom: 10 }}>{err}</div>}
         <button onClick={submit} style={{ width: "100%", padding: "13px 0", borderRadius: 10, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>ログイン</button>
-        <button onClick={resetStaff} style={{ width: "100%", padding: "9px 0", marginTop: 10, borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.textSub, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>ログインできない場合：スタッフデータを初期化</button>
       </div>
     </div>
   );
@@ -237,7 +232,7 @@ export default function KanriApp() {
       const matched = staff.find((s) => s.id === id);
       const roleTabs = (viewRoles[matched?.viewRole] || viewRoles.operator).tabs;
       if (!roleTabs.includes("uketsuke")) setTab(roleTabs[0] || "uketsuke");
-    }} onResetStaff={() => setStaff(INITIAL_STAFF)} />;
+    }} />;
   }
 
   return (

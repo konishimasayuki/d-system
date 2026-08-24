@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, isoDate, parseCSV, csvEscape } from "../shared.jsx";
+import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, isoDate, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
 
 // キャストの写真管理(最大10枚・縦3:4)。詳細モーダル内で使用
 function CastPhotoManager({ castId }) {
@@ -216,53 +216,50 @@ export function CastList({ casts, setCasts }) {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "casts.csv"; a.click();
   };
 
-  const importCSV = (e) => {
+  const importCSV = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCsvBusy(true);
-      const rowsRaw = parseCSV(String(reader.result).replace(/^\uFEFF/, ""));
-      let start = 0;
-      if (rowsRaw[0] && (rowsRaw[0][0] || "").trim().toLowerCase() === "name") start = 1;
-      const shopKeyMap = { 人妻専科: "hitozuma", 博多ココ: "hakata", hitozuma: "hitozuma", hakata: "hakata" };
-      const incoming = rowsRaw.slice(start).map((r) => ({
-        name: (r[0] || "").trim(), honmyo: (r[1] || "").trim(), age: Number(r[2]) || 20, birthday: (r[3] || "").trim() || "-",
-        phone: (r[4] || "").trim() || "090-0000-0000", address: (r[5] || "").trim() || "-",
-        idType: (r[6] || "").trim() || "運転免許証", idNo: (r[7] || "").trim() || "-", joinDate: (r[8] || "").trim() || isoDate(new Date()),
-        ratePct: Number(r[9]) || 55, okOptions: (r[10] || "").split("・").map((s) => s.trim()).filter(Boolean),
-        shops: (r[11] || "").split("・").map((s) => shopKeyMap[s.trim()] || s.trim()).filter(Boolean),
-        taikiba: (r[12] || "").trim(),
-      })).filter((r) => r.name);
-      if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,...)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
+    setCsvBusy(true);
+    const text = await readCSVFile(file);
+    const rowsRaw = parseCSV(text);
+    let start = 0;
+    if (rowsRaw[0] && (rowsRaw[0][0] || "").trim().toLowerCase() === "name") start = 1;
+    const shopKeyMap = { 人妻専科: "hitozuma", 博多ココ: "hakata", hitozuma: "hitozuma", hakata: "hakata" };
+    const incoming = rowsRaw.slice(start).map((r) => ({
+      name: (r[0] || "").trim(), honmyo: (r[1] || "").trim(), age: Number(r[2]) || 20, birthday: (r[3] || "").trim() || "-",
+      phone: (r[4] || "").trim() || "090-0000-0000", address: (r[5] || "").trim() || "-",
+      idType: (r[6] || "").trim() || "運転免許証", idNo: (r[7] || "").trim() || "-", joinDate: (r[8] || "").trim() || isoDate(new Date()),
+      ratePct: Number(r[9]) || 55, okOptions: (r[10] || "").split("・").map((s) => s.trim()).filter(Boolean),
+      shops: (r[11] || "").split("・").map((s) => shopKeyMap[s.trim()] || s.trim()).filter(Boolean),
+      taikiba: (r[12] || "").trim(),
+    })).filter((r) => r.name);
+    if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,...)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
 
-      // 差分判定はキャスト名(name)で行う：同名は上書き、CSVに無い名前の既存キャストは保持、新規名は追加
-      const byName = new Map(casts.map((c) => [c.name, c]));
-      let updated = 0, added = 0;
-      incoming.forEach((inc) => {
-        const ex = byName.get(inc.name);
-        if (ex) {
-          byName.set(inc.name, {
-            ...ex, honmyo: inc.honmyo || ex.honmyo, age: inc.age, birthday: inc.birthday, phone: inc.phone, address: inc.address,
-            idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate, itakuRate: inc.ratePct / 100,
-            okOptions: inc.okOptions.length ? inc.okOptions : ex.okOptions, shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba || ex.taikiba,
-          });
-          updated++;
-        } else {
-          byName.set(inc.name, {
-            id: `c${Date.now()}${added}`, name: inc.name, honmyo: inc.honmyo, age: inc.age, birthday: inc.birthday,
-            status: "before_shift", phone: inc.phone, address: inc.address, idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
-            shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, itakuRate: inc.ratePct / 100, idVerified: false,
-            stdLast: isoDate(new Date()), okOptions: inc.okOptions, comment: "", shops: inc.shops.length ? inc.shops : ["hakata"], taikiba: inc.taikiba,
-          });
-          added++;
-        }
-      });
-      setCasts(Array.from(byName.values()));
-      setCsvBusy(false);
-      setCsvMsg(`取り込み完了：更新${updated}件・新規追加${added}件(差分はキャスト名で判定)。`);
-      e.target.value = "";
-    };
-    reader.readAsText(file);
+    // 差分判定はキャスト名(name)で行う：同名は上書き、CSVに無い名前の既存キャストは保持、新規名は追加
+    const byName = new Map(casts.map((c) => [c.name, c]));
+    let updated = 0, added = 0;
+    incoming.forEach((inc) => {
+      const ex = byName.get(inc.name);
+      if (ex) {
+        byName.set(inc.name, {
+          ...ex, honmyo: inc.honmyo || ex.honmyo, age: inc.age, birthday: inc.birthday, phone: inc.phone, address: inc.address,
+          idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate, itakuRate: inc.ratePct / 100,
+          okOptions: inc.okOptions.length ? inc.okOptions : ex.okOptions, shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba || ex.taikiba,
+        });
+        updated++;
+      } else {
+        byName.set(inc.name, {
+          id: `c${Date.now()}${added}`, name: inc.name, honmyo: inc.honmyo, age: inc.age, birthday: inc.birthday,
+          status: "before_shift", phone: inc.phone, address: inc.address, idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
+          shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, itakuRate: inc.ratePct / 100, idVerified: false,
+          stdLast: isoDate(new Date()), okOptions: inc.okOptions, comment: "", shops: inc.shops.length ? inc.shops : ["hakata"], taikiba: inc.taikiba,
+        });
+        added++;
+      }
+    });
+    setCasts(Array.from(byName.values()));
+    setCsvBusy(false);
+    setCsvMsg(`取り込み完了：更新${updated}件・新規追加${added}件(差分はキャスト名で判定)。`);
+    e.target.value = "";
   };
 
   return (

@@ -18,8 +18,8 @@ export function NewReservationModal({ prefillCustomer, editReservation, casts, d
   const prefillCast = last ? findCast(casts, last.cast) : null;
   const isEdit = !!r0;
 
-  const shimeiOpt = options.find((o) => o.name === "指名");
-  const honShimeiOpt = options.find((o) => o.name === "本指名");
+  const shimeiOpt = options.find((o) => o.name.includes("写指") || o.name === "指名");
+  const honShimeiOpt = options.find((o) => o.name.includes("本指") && !o.name.includes("写"));
   const extOpt = options.find((o) => o.name === "延長30分");
   const extraMaster = options.filter((o) => !["指名", "本指名", "延長30分"].includes(o.name));
 
@@ -64,7 +64,7 @@ export function NewReservationModal({ prefillCustomer, editReservation, casts, d
   const conflict = reservations.find((r) => r.id !== r0?.id && r.castId === selectedCast?.id && Math.abs(r.start - startNum) < 1.5);
   const driverConflict = reservations.find((r) => r.id !== r0?.id && r.sendDriver === sendDriver && sendDriver !== "未定" && Math.abs(r.start - startNum) < 1);
 
-  const basePrice = courses.find((c) => c.name === course)?.price || 0;
+  const basePrice = courses.find((c) => (c.name || c.label) === course)?.price || 0;
   const shimeiPrice = shimei === "指名" ? (shimeiOpt?.price || 0) : shimei === "本指名" ? (honShimeiOpt?.price || 0) : 0;
   const extPrice = extension ? (extOpt?.price || 0) : 0;
   const extraTotal = extraOptions.reduce((a, o) => a + o.price, 0);
@@ -155,7 +155,7 @@ export function NewReservationModal({ prefillCustomer, editReservation, casts, d
             <div style={{ flex: 1 }}><TextField label="号室" value={room} onChange={setRoom} placeholder="802" /></div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
-            <div style={{ flex: 1 }}><SelectField label="基本(コース)" value={course} onChange={setCourse} options={courses.map((c) => c.name)} /></div>
+            <div style={{ flex: 1 }}><SelectField label="基本(コース)" value={course} onChange={setCourse} options={[...new Set(courses.map((c) => c.name || c.label))]} /></div>
             <div style={{ flex: 1 }}><SelectField label="指名区分" value={shimei} onChange={setShimei} options={["フリー", "指名", "本指名"]} /></div>
           </div>
           <div style={{ marginBottom: 12 }}>

@@ -320,7 +320,6 @@ export function CastList({ casts, setCasts }) {
         <PrimaryButton onClick={() => setRegisterOpen(true)}>＋ 新規登録</PrimaryButton>
       </div>
       {csvMsg && <div style={{ marginBottom: 10, fontSize: 12, color: COLORS.accent, background: "#EDF3FA", padding: "8px 12px", borderRadius: 8 }}>{csvMsg}</div>}
-      <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 10 }}>CSV列：name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba,loginId,password,biko1,biko2,castClass(スタンダード/シルバー/ゴールド/プラチナ/ダイヤモンド) ／ 差分は<strong>キャスト名</strong>で判定(同名は上書き・新規名は追加・CSVに無い既存は保持)</div>
       <input placeholder="キャスト名・本名で検索" value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#FFFFFF", color: COLORS.textMain, fontSize: 14, marginBottom: 16, boxSizing: "border-box" }} />
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">

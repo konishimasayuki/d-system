@@ -14,8 +14,8 @@ const ROWS = 40; // 初期行数(1セット=予約1件)
 export const W = {
   bikoL: 130,  // A 備考(左)
   taiki: 46,   // B 待機場
-  no: 34,      // C 番号
-  time: 62,    // D/E 時間
+  no: 24,      // C 番号(34×0.7≒24)
+  time: 56,    // D/E 時間(62×0.9≒56)
   cast: 62,    // F キャスト
   shimeiN: 26, // G 指名数
   kaiin: 42,   // H 会員/本指
@@ -26,8 +26,8 @@ export const W = {
   course: 50,  // N コース
   op: 44,      // O/P OP
   taishutsu: 52, // Q 退出
-  otoshi: 62,  // R 落とし
-  joshi: 62,   // S 女子給
+  otoshi: 56,  // R 落とし(62×0.9≒56)
+  joshi: 56,   // S 女子給(62×0.9≒56)
   biko: 66,    // T 備考
   okuri: 46,   // U 送り
   mukae: 46,   // V 迎え
@@ -520,7 +520,7 @@ export function UketsukeTab({ casts, courses, options, drivers }) {
             <div style={{ display: "flex", position: "sticky", top: 0, zIndex: 2 }}>
               <Th width={W.bikoL} />
               <Th width={W.taiki}>待機場</Th>
-              <Th width={W.no}>番号</Th>
+              <Th width={W.no}>番</Th>
               <Th width={W.time}>時間</Th>
               <Th width={W.cast}>キャスト</Th>
               <Th width={W.shimeiN} />
@@ -605,17 +605,16 @@ export function UketsukeTab({ casts, courses, options, drivers }) {
                   </div>
                 </div>
 
-                {/* I ラベル(氏名/TEL) */}
+                {/* I ラベル(氏名) */}
                 <div style={{ width: W.label, minWidth: W.label, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column", fontSize: 8, color: COLORS.textSub, background: "#F4F6F9" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>氏名</div>
-                  <div style={{ height: ROW_H, display: "flex", alignItems: "center", justifyContent: "center" }}>TEL</div>
+                  <div style={{ height: ROW_H }} />
                 </div>
 
-                {/* J 氏名+TEL / ホテル名 */}
+                {/* J 氏名 / ホテル名 */}
                 <div style={{ width: W.name, minWidth: W.name, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.name} onChange={(v) => setRow(i, "name", v)} width={100} align="center" bold fontSize={12} placeholder="やまもと"  customStyle={r.styles?.["name"]} onStyleChange={(s) => setRowStyle(i, "name", s)}/>
-                    <Cell value={r.tel} onChange={(v) => setRow(i, "tel", v)} width={W.name - 102} align="center" mono fontSize={11.5} placeholder="09000000000"  customStyle={r.styles?.["tel"]} onStyleChange={(s) => setRowStyle(i, "tel", s)}/>
+                    <Cell value={r.name} onChange={(v) => setRow(i, "name", v)} width={W.name - 2} align="center" bold fontSize={12} placeholder="やまもと" customStyle={r.styles?.["name"]} onStyleChange={(s) => setRowStyle(i, "name", s)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
                     <Cell value={r.hotel} onChange={(v) => setRow(i, "hotel", v)} width={W.name - 2} bold fontSize={11.5} placeholder="ホテル名　部屋番号"  customStyle={r.styles?.["hotel"]} onStyleChange={(s) => setRowStyle(i, "hotel", s)}/>

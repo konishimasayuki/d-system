@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   COLORS, GLOBAL_CSS, CUSTOMER_COLORS, VIEW_ROLES, DAY_DATES, DEFAULT_OFFICE,
   INITIAL_CASTS, INITIAL_RESERVATIONS, INITIAL_DRIVERS, INITIAL_CUSTOMERS,
-  INITIAL_HOTELS, INITIAL_STAFF, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_EXPENSES,
+  INITIAL_HOTELS, INITIAL_STAFF, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES, INITIAL_EXPENSES,
   usePersistedState, usePersistedReservations, PrimaryButton,
 } from "./shared.jsx";
 import { NewReservationModal } from "./ReservationModal.jsx";
@@ -102,8 +102,9 @@ export default function KanriApp() {
   const [staff, setStaff, staffSync] = usePersistedState("staff", INITIAL_STAFF);
   const [courses, setCourses, coursesSync] = usePersistedState("courses", INITIAL_COURSES);
   const [options, setOptions, optionsSync] = usePersistedState("options", INITIAL_OPTIONS);
+  const [transportFees, setTransportFees, transportFeesSync] = usePersistedState("transportfees", INITIAL_TRANSPORT_FEES);
   const [expenses, setExpenses, expensesSync] = usePersistedState("expenses", INITIAL_EXPENSES);
-  const syncErrors = [castsSync, customersSync, driversSync, reservationsSync, hotelsSync, officeSync, staffSync, coursesSync, optionsSync, expensesSync].map((s) => s.err).filter(Boolean);
+  const syncErrors = [castsSync, customersSync, driversSync, reservationsSync, hotelsSync, officeSync, staffSync, coursesSync, optionsSync, transportFeesSync, expensesSync].map((s) => s.err).filter(Boolean);
   const syncMsg = syncErrors[0] || "";
   const [menuOpen, setMenuOpen] = useState(false);
   const [ctiCustomer, setCtiCustomer] = useState(null);
@@ -198,7 +199,7 @@ export default function KanriApp() {
           {tab === "std" && <StdManagement casts={casts} />}
           {tab === "uketsuke" && <UketsukeTab casts={casts} courses={courses} options={options} drivers={drivers} />}
           {tab === "driverschedule" && <DriverScheduleTab drivers={drivers} />}
-          {tab === "settings" && <SettingsTab setCasts={setCasts} drivers={drivers} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} staff={staff} setStaff={setStaff} courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} setReservations={setReservations} syncMsg={syncMsg} />}
+          {tab === "settings" && <SettingsTab setCasts={setCasts} drivers={drivers} setDrivers={setDrivers} hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} staff={staff} setStaff={setStaff} courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} transportFees={transportFees} setTransportFees={setTransportFees} setReservations={setReservations} syncMsg={syncMsg} />}
         </div>
       </div>
 

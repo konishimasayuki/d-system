@@ -20,6 +20,9 @@ export function castShops(c) {
   if (Array.isArray(c.shops) && c.shops.length > 0) return c.shops;
   return ["hakata"];
 }
+// 旧データ(loginId/password未保存)でも安全に扱えるようフォールバック
+export function castLoginId(c) { return c.loginId || ""; }
+export function castPassword(c) { return c.password || ""; }
 
 export const CAST_STATUS = {
   before_shift: { label: "出勤前", color: "#7B77C4", bg: "rgba(123,119,196,0.12)" },
@@ -208,6 +211,7 @@ export function generateCasts() {
       itakuRate: 0.5 + (i % 3) * 0.05, idVerified: i % 7 !== 0,
       stdLast: stdLast.toISOString().slice(0, 10),
       okOptions, comment: "", shops: ["hakata"], taikiba: "", // 所属店舗・待機場(受付表の待機場列と対応)
+      loginId: `cast${String(i + 1).padStart(3, "0")}`, password: String(1000 + ((i * 37) % 9000)).padStart(4, "0"), // キャストアプリのログイン情報
     };
   });
 }

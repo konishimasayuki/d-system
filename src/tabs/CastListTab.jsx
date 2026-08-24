@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, isoDate } from "../shared.jsx";
+import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, isoDate, parseCSV, csvEscape } from "../shared.jsx";
 
 // キャストの写真管理(最大10枚・縦3:4)。詳細モーダル内で使用
 function CastPhotoManager({ castId }) {
@@ -197,11 +197,74 @@ export function CastList({ casts, setCasts }) {
   const [query, setQuery] = useState("");
   const [detailId, setDetailId] = useState(null);
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [csvMsg, setCsvMsg] = useState("");
+  const [csvBusy, setCsvBusy] = useState(false);
   const nq = kanaNormalize(query);
   const shopCasts = casts.filter((c) => castShops(c).includes(shopKey));
   const rows = shopCasts.filter((c) => kanaNormalize(castFullName(c)).includes(nq) || kanaNormalize(c.honmyo).includes(nq));
   const detailCast = casts.find((c) => c.id === detailId);
   const thumbs = useCastThumbs(rows.map((c) => c.id));
+
+  // CSV列: name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba
+  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba";
+  const exportCSV = () => {
+    const body = casts.map((c) => [
+      c.name, c.honmyo, c.age, c.birthday, c.phone, c.address, c.idType, c.idNo, c.joinDate,
+      Math.round((c.itakuRate || 0) * 100), (c.okOptions || []).join("・"), castShops(c).join("・"), c.taikiba || "",
+    ].map(csvEscape).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + CSV_HEADER + "\n" + body], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "casts.csv"; a.click();
+  };
+
+  const importCSV = (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCsvBusy(true);
+      const rowsRaw = parseCSV(String(reader.result).replace(/^\uFEFF/, ""));
+      let start = 0;
+      if (rowsRaw[0] && (rowsRaw[0][0] || "").trim().toLowerCase() === "name") start = 1;
+      const shopKeyMap = { 人妻専科: "hitozuma", 博多ココ: "hakata", hitozuma: "hitozuma", hakata: "hakata" };
+      const incoming = rowsRaw.slice(start).map((r) => ({
+        name: (r[0] || "").trim(), honmyo: (r[1] || "").trim(), age: Number(r[2]) || 20, birthday: (r[3] || "").trim() || "-",
+        phone: (r[4] || "").trim() || "090-0000-0000", address: (r[5] || "").trim() || "-",
+        idType: (r[6] || "").trim() || "運転免許証", idNo: (r[7] || "").trim() || "-", joinDate: (r[8] || "").trim() || isoDate(new Date()),
+        ratePct: Number(r[9]) || 55, okOptions: (r[10] || "").split("・").map((s) => s.trim()).filter(Boolean),
+        shops: (r[11] || "").split("・").map((s) => shopKeyMap[s.trim()] || s.trim()).filter(Boolean),
+        taikiba: (r[12] || "").trim(),
+      })).filter((r) => r.name);
+      if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,...)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
+
+      // 差分判定はキャスト名(name)で行う：同名は上書き、CSVに無い名前の既存キャストは保持、新規名は追加
+      const byName = new Map(casts.map((c) => [c.name, c]));
+      let updated = 0, added = 0;
+      incoming.forEach((inc) => {
+        const ex = byName.get(inc.name);
+        if (ex) {
+          byName.set(inc.name, {
+            ...ex, honmyo: inc.honmyo || ex.honmyo, age: inc.age, birthday: inc.birthday, phone: inc.phone, address: inc.address,
+            idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate, itakuRate: inc.ratePct / 100,
+            okOptions: inc.okOptions.length ? inc.okOptions : ex.okOptions, shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba || ex.taikiba,
+          });
+          updated++;
+        } else {
+          byName.set(inc.name, {
+            id: `c${Date.now()}${added}`, name: inc.name, honmyo: inc.honmyo, age: inc.age, birthday: inc.birthday,
+            status: "before_shift", phone: inc.phone, address: inc.address, idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
+            shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, itakuRate: inc.ratePct / 100, idVerified: false,
+            stdLast: isoDate(new Date()), okOptions: inc.okOptions, comment: "", shops: inc.shops.length ? inc.shops : ["hakata"], taikiba: inc.taikiba,
+          });
+          added++;
+        }
+      });
+      setCasts(Array.from(byName.values()));
+      setCsvBusy(false);
+      setCsvMsg(`取り込み完了：更新${updated}件・新規追加${added}件(差分はキャスト名で判定)。`);
+      e.target.value = "";
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div>
       <SectionTitle sub={`在籍キャストの名簿。詳細ボタンで個人情報の確認・編集(全${casts.length}名)`}>キャスト一覧</SectionTitle>
@@ -220,9 +283,16 @@ export function CastList({ casts, setCasts }) {
         ))}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+        <button onClick={exportCSV} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>CSVエクスポート</button>
+        <label style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: csvBusy ? "#C7D0DB" : COLORS.accent, color: "#FFF", fontSize: 12.5, fontWeight: 700, cursor: csvBusy ? "default" : "pointer" }}>
+          {csvBusy ? "取込中…" : "CSVインポート"}
+          <input type="file" accept=".csv,text/csv" onChange={importCSV} disabled={csvBusy} style={{ display: "none" }} />
+        </label>
         <PrimaryButton onClick={() => setRegisterOpen(true)}>＋ 新規登録</PrimaryButton>
       </div>
+      {csvMsg && <div style={{ marginBottom: 10, fontSize: 12, color: COLORS.accent, background: "#EDF3FA", padding: "8px 12px", borderRadius: 8 }}>{csvMsg}</div>}
+      <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 10 }}>CSV列：name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,ratePct,okOptions,shops,taikiba ／ 差分は<strong>キャスト名</strong>で判定(同名は上書き・新規名は追加・CSVに無い既存は保持)</div>
       <input placeholder="キャスト名・本名で検索" value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#FFFFFF", color: COLORS.textMain, fontSize: 14, marginBottom: 16, boxSizing: "border-box" }} />
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">

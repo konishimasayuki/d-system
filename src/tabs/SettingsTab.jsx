@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES, INITIAL_STAFF } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES, INITIAL_STAFF } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
@@ -179,7 +179,7 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
   );
 }
 export function StaffRegisterForm({ staff, setStaff, isOwner, myStaffId }) {
-  const [name, setName] = useState(""); const [role, setRole] = useState(ROLES[0]);
+  const [name, setName] = useState("");
   const [viewRole, setViewRoleField] = useState("operator");
   const [loginId, setLoginId] = useState(""); const [password, setPassword] = useState(""); const [msg, setMsg] = useState("");
 
@@ -187,7 +187,7 @@ export function StaffRegisterForm({ staff, setStaff, isOwner, myStaffId }) {
     if (!isOwner) { setMsg("スタッフの追加は経営者のみ行えます。"); return; }
     if (!name.trim()) return;
     if (!loginId.trim() || !password.trim()) { setMsg("ログインID・パスワードを入力してください(管理システムのログインに使用します)"); return; }
-    setStaff((prev) => [...prev, { id: `s${Date.now()}`, name: name.trim(), role, viewRole, loginId: loginId.trim(), password: password.trim() }]);
+    setStaff((prev) => [...prev, { id: `s${Date.now()}`, name: name.trim(), viewRole, loginId: loginId.trim(), password: password.trim() }]);
     setName(""); setLoginId(""); setPassword(""); setMsg(`${name}を登録しました`);
   };
   const remove = (id) => {
@@ -209,7 +209,7 @@ export function StaffRegisterForm({ staff, setStaff, isOwner, myStaffId }) {
   return (
     <Card>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>スタッフ登録(役職別)</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>スタッフ登録</div>
         {isOwner && <button onClick={resetStaff} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>初期データにリセット</button>}
       </div>
       {!isOwner && <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 10 }}>※スタッフの追加・削除・権限変更は経営者のみ行えます。</div>}
@@ -217,7 +217,6 @@ export function StaffRegisterForm({ staff, setStaff, isOwner, myStaffId }) {
         {staff.map((s) => (
           <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}>
             <span style={{ flex: 1 }}>{s.name}{s.id === myStaffId ? "(自分)" : ""}</span>
-            <span style={{ color: COLORS.textSub, fontSize: 12 }}>{s.role}</span>
             {isOwner ? (
               <select value={s.viewRole || "operator"} onChange={(e) => updateViewRole(s.id, e.target.value)} style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }}>
                 {Object.entries(INITIAL_VIEW_ROLES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -234,7 +233,6 @@ export function StaffRegisterForm({ staff, setStaff, isOwner, myStaffId }) {
       {isOwner && (
         <>
           <TextField label="氏名" value={name} onChange={setName} placeholder="例: 田中" />
-          <SelectField label="役職" value={role} onChange={setRole} options={ROLES} />
           <SelectField label="権限グループ" value={viewRole} onChange={setViewRoleField} options={Object.keys(INITIAL_VIEW_ROLES)} optionLabels={Object.fromEntries(Object.entries(INITIAL_VIEW_ROLES).map(([k, v]) => [k, v.label]))} />
           <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>管理システム ログイン情報</div>
           <div style={{ display: "flex", gap: 10 }}>

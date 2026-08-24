@@ -175,7 +175,7 @@ function MobileShell({ theme, app, subtitle, children, nav, active, onNav, onLog
 // ============================================================
 // ログイン
 // ============================================================
-function Login({ theme, app, drivers, onLogin }) {
+function Login({ theme, app, drivers, casts, onLogin }) {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
@@ -183,6 +183,10 @@ function Login({ theme, app, drivers, onLogin }) {
     if (id.trim() === "z" && pw.trim() === "z") { setErr(""); onLogin(null); return; }
     if (app === "driver") {
       const match = (drivers || []).find((d) => d.loginId === id.trim() && d.password === pw.trim());
+      if (match) { setErr(""); onLogin(match.id); return; }
+    }
+    if (app === "cast") {
+      const match = (casts || []).find((c) => c.loginId === id.trim() && c.password === pw.trim());
       if (match) { setErr(""); onLogin(match.id); return; }
     }
     setErr("IDまたはパスワードが違います。");
@@ -206,7 +210,7 @@ function Login({ theme, app, drivers, onLogin }) {
           {err && <div style={{ color: "#C0492B", fontSize: 12.5, marginBottom: 8 }}>{err}</div>}
           <Btn theme={theme} onClick={submit} style={{ width: "100%", padding: "13px", fontSize: 15, marginTop: 6 }}>ログイン</Btn>
           <div style={{ marginTop: 18, padding: 12, background: theme.accentSoft, borderRadius: 10, fontSize: 12, color: theme.accentDark, textAlign: "center" }}>
-            デモ用ログイン　ID「z」／ パスワード「z」{app === "driver" ? "（または設定で登録した本人のログインID/パスワード）" : ""}
+            デモ用ログイン　ID「z」／ パスワード「z」(または設定で登録した本人のログインID/パスワード)
           </div>
         </div>
       </div>
@@ -760,10 +764,11 @@ export default function PortalApp() {
   const theme = THEMES[app];
 
   if (!authed) {
-    return <Login theme={theme} app={app} drivers={data.drivers} onLogin={(id) => {
+    return <Login theme={theme} app={app} drivers={data.drivers} casts={data.casts} onLogin={(id) => {
       setAuthed(true);
       if (app === "driver" && id) setDriverId(id);
-      saveLoginState(app, { authed: true, driverId: app === "driver" ? id : null, castId: null });
+      if (app === "cast" && id) setCastId(id);
+      saveLoginState(app, { authed: true, driverId: app === "driver" ? id : null, castId: app === "cast" ? id : null });
     }} />;
   }
 

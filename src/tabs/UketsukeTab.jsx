@@ -376,7 +376,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
   // 落とし・女子給を自動計算：落とし = コース料金 + 交通費 + 指名料(Fの選択に応じ) + オプション(未実装分は0)
   //  ※手動で上書きした値は、コース・指名種別・交通費のいずれかを再度変更するまで保持される
   const recalcRow = (row, idx) => {
-    const info = courseInfo(row.course);
+    const info = courseInfo(row.course, row.cast);
     if (!info) return row; // コース未選択なら自動計算しない(手入力のまま)
     const shimeiOpt = row.shimeiType === "写指" ? options.find((o) => o.name.includes("写指"))
       : row.shimeiType === "本指" ? options.find((o) => o.name.includes("本指"))
@@ -455,7 +455,18 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
     const matched = courses.filter((c) => c.castClass === cls && shops.includes(c.shop));
     return ["", ...matched.map((c) => c.code), FREE_COURSE];
   };
-  const courseInfo = (code) => courses.find((c) => c.code === code);
+  // コース記号(code)は店舗・クラスをまたいで重複しうる(例:人妻専科と博多ココの両方に"60"がある)ため、
+  // キャスト名から所属店舗・クラスを特定し、その範囲内で検索する(見つからなければ記号のみで検索するフォールバック)
+  const courseInfo = (code, castName) => {
+    const cast = castName ? casts.find((c) => castFullName(c) === castName) : null;
+    if (cast) {
+      const cls = castClass(cast);
+      const shops = castShops(cast);
+      const scoped = courses.find((c) => c.code === code && c.castClass === cls && shops.includes(c.shop));
+      if (scoped) return scoped;
+    }
+    return courses.find((c) => c.code === code);
+  };
 
   // 1セットの高さ
   const ROW_H = 26;

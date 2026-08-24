@@ -169,9 +169,9 @@ function MobileShell({ theme, app, subtitle, children, nav, active, onNav, onLog
         </div>
       </div>
       <style>{`
-        .pa-page{ min-height:100vh; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
-        .pa-phone{ width:390px; height:min(92vh,820px); background:#fff; border-radius:38px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
-        @media (max-width:480px){ .pa-page{ padding:0; height:100dvh; } .pa-phone{ width:100%; height:100dvh; border-radius:0; border:none; } }
+        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
+        .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
+        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; } }
       `}</style>
     </div>
   );
@@ -220,9 +220,9 @@ function Login({ theme, app, drivers, casts, onLogin }) {
         </div>
       </div>
       <style>{`
-        .pa-page{ min-height:100vh; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
-        .pa-phone{ width:390px; height:min(92vh,820px); background:#fff; border-radius:38px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
-        @media (max-width:480px){ .pa-page{ padding:0; } .pa-phone{ width:100%; height:100vh; border-radius:0; border:none; } }
+        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
+        .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
+        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; } }
       `}</style>
     </div>
   );
@@ -252,9 +252,9 @@ function IdentityPicker({ theme, title, options, onPick }) {
         </div>
       </div>
       <style>{`
-        .pa-page{ min-height:100vh; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
-        .pa-phone{ width:390px; height:min(92vh,820px); background:#fff; border-radius:38px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
-        @media (max-width:480px){ .pa-page{ padding:0; } .pa-phone{ width:100%; height:100vh; border-radius:0; border:none; } }
+        .pa-page{ height:100dvh; min-height:100dvh; max-height:100dvh; overflow:hidden; background:#E3E7EC; display:flex; align-items:center; justify-content:center; padding:20px; padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); font-family:'Hiragino Sans','Noto Sans JP',sans-serif; }
+        .pa-phone{ width:390px; height:min(92dvh,820px); background:#fff; border-radius:38px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(20,30,45,0.28); border:1px solid #D7DCE3; }
+        @media (max-width:480px){ .pa-page{ padding:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); } .pa-phone{ width:100%; height:100%; border-radius:0; border:none; } }
       `}</style>
     </div>
   );
@@ -692,6 +692,23 @@ function ScheduleEditModal({ theme, driverName, dateStr, cell, saving, onSave, o
   );
 }
 
+// 全員のスケジュール表の日付ヘッダー行(昼セクションの上=固定表示、夜セクションの上=見出しとして再掲)
+function ScheduleDateHeader({ theme, weekOffset, label, sticky }) {
+  return (
+    <div style={{ display: "flex", borderBottom: `1px solid ${LINE}`, ...(sticky ? { position: "sticky", top: 0, zIndex: 3 } : {}) }}>
+      <div style={{ width: 96, flexShrink: 0, padding: "8px 10px", fontSize: 10.5, fontWeight: 700, color: SUB, background: "#F4F6F9", position: "sticky", left: 0, zIndex: 4, boxSizing: "border-box" }}>{label}</div>
+      {weekDays(weekOffset).map((d) => {
+        const isToday = isoDate(d) === isoDate(new Date());
+        return (
+          <div key={isoDate(d)} style={{ width: 62, flexShrink: 0, padding: "8px 2px", textAlign: "center", background: isToday ? theme.accent : "#F4F6F9", color: isToday ? "#FFF" : SUB, fontWeight: 700, fontSize: 10.5, borderLeft: `1px solid ${LINE}`, boxSizing: "border-box" }}>
+            {d.getMonth() + 1}/{d.getDate()}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservations, driverId, updateReservations }) {
   const [tab, setTab] = useState("jobs");
   const [filter, setFilter] = useState("すべて");
@@ -802,18 +819,8 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
           ) : (
             <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 12, border: `1px solid ${LINE}` }}>
               <div style={{ minWidth: 96 + 62 * 7 }}>
-                {/* 日付ヘッダ(縦スクロールしても上部に固定) */}
-                <div style={{ display: "flex", borderBottom: `1px solid ${LINE}`, position: "sticky", top: 0, zIndex: 3 }}>
-                  <div style={{ width: 96, flexShrink: 0, padding: "8px 10px", fontSize: 10.5, fontWeight: 700, color: SUB, background: "#F4F6F9", position: "sticky", left: 0, zIndex: 4, boxSizing: "border-box" }}>ドライバー</div>
-                  {weekDays(weekOffset).map((d) => {
-                    const isToday = isoDate(d) === isoDate(new Date());
-                    return (
-                      <div key={isoDate(d)} style={{ width: 62, flexShrink: 0, padding: "8px 2px", textAlign: "center", background: isToday ? theme.accent : "#F4F6F9", color: isToday ? "#FFF" : SUB, fontWeight: 700, fontSize: 10.5, borderLeft: `1px solid ${LINE}`, boxSizing: "border-box" }}>
-                        {d.getMonth() + 1}/{d.getDate()}
-                      </div>
-                    );
-                  })}
-                </div>
+                {/* 日付ヘッダ(縦スクロールしても上部に固定・「ドライバー」列見出し付き) */}
+                <ScheduleDateHeader theme={theme} weekOffset={weekOffset} label="ドライバー" sticky />
                 {/* 昼スタッフ */}
                 <div style={{ padding: "5px 10px", fontSize: 10.5, fontWeight: 700, color: "#B5720A", background: "#FFF6E9" }}>☀ 昼</div>
                 {drivers.filter((d) => (d.shift || "day") === "day").map((d) => (
@@ -834,7 +841,8 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                     })}
                   </div>
                 ))}
-                {/* 夜スタッフ */}
+                {/* 夜スタッフ(見出しの直前に日付を再掲) */}
+                <ScheduleDateHeader theme={theme} weekOffset={weekOffset} label="ドライバー" />
                 <div style={{ padding: "5px 10px", fontSize: 10.5, fontWeight: 700, color: "#3B54A8", background: "#EAF0FC", borderTop: `2px solid ${INK}` }}>🌙 夜</div>
                 {drivers.filter((d) => (d.shift || "day") === "night").map((d) => (
                   <div key={d.id} style={{ display: "flex", borderTop: `1px solid ${LINE}`, background: d.id === driverId ? theme.accentSoft : "#FFF" }}>

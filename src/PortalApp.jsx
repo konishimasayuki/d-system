@@ -476,6 +476,64 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
             })
           )}
           <div style={{ fontSize: 11, color: SUB, textAlign: "center", marginTop: 10 }}>※スケジュールの変更は事務所にご連絡ください</div>
+
+          {/* 全員のスケジュール */}
+          <Eyebrow>全員のスケジュール</Eyebrow>
+          {!scheduleLoaded ? (
+            <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: 20 }}>読み込み中…</div>
+          ) : (
+            <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 12, border: `1px solid ${LINE}` }}>
+              <div style={{ minWidth: 96 + 62 * 7 }}>
+                {/* 日付ヘッダ */}
+                <div style={{ display: "flex", borderBottom: `1px solid ${LINE}` }}>
+                  <div style={{ width: 96, flexShrink: 0, padding: "8px 10px", fontSize: 10.5, fontWeight: 700, color: SUB, background: "#F4F6F9", position: "sticky", left: 0 }}>ドライバー</div>
+                  {weekDays(weekOffset).map((d) => {
+                    const isToday = isoDate(d) === isoDate(new Date());
+                    return (
+                      <div key={isoDate(d)} style={{ width: 62, flexShrink: 0, padding: "8px 2px", textAlign: "center", background: isToday ? theme.accent : "#F4F6F9", color: isToday ? "#FFF" : SUB, fontWeight: 700, fontSize: 10.5, borderLeft: `1px solid ${LINE}` }}>
+                        {d.getMonth() + 1}/{d.getDate()}
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* 昼スタッフ */}
+                <div style={{ padding: "5px 10px", fontSize: 10.5, fontWeight: 700, color: "#B5720A", background: "#FFF6E9" }}>☀ 昼</div>
+                {drivers.filter((d) => (d.shift || "day") === "day").map((d) => (
+                  <div key={d.id} style={{ display: "flex", borderTop: `1px solid ${LINE}`, background: d.id === driverId ? theme.accentSoft : "#FFF" }}>
+                    <div style={{ width: 96, flexShrink: 0, padding: "7px 10px", fontSize: 11.5, fontWeight: d.id === driverId ? 800 : 600, color: INK, position: "sticky", left: 0, background: d.id === driverId ? theme.accentSoft : "#FFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.name}</div>
+                    {weekDays(weekOffset).map((day) => {
+                      const dateStr = isoDate(day);
+                      const cell = getCell(schedule, d.id, dateStr);
+                      const isOff = cell.type === "off";
+                      return (
+                        <div key={dateStr} style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark }}>
+                          {isOff ? "休" : cell.start}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                {/* 夜スタッフ */}
+                <div style={{ padding: "5px 10px", fontSize: 10.5, fontWeight: 700, color: "#3B54A8", background: "#EAF0FC", borderTop: `2px solid ${INK}` }}>🌙 夜</div>
+                {drivers.filter((d) => (d.shift || "day") === "night").map((d) => (
+                  <div key={d.id} style={{ display: "flex", borderTop: `1px solid ${LINE}`, background: d.id === driverId ? theme.accentSoft : "#FFF" }}>
+                    <div style={{ width: 96, flexShrink: 0, padding: "7px 10px", fontSize: 11.5, fontWeight: d.id === driverId ? 800 : 600, color: INK, position: "sticky", left: 0, background: d.id === driverId ? theme.accentSoft : "#FFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.name}</div>
+                    {weekDays(weekOffset).map((day) => {
+                      const dateStr = isoDate(day);
+                      const cell = getCell(schedule, d.id, dateStr);
+                      const isOff = cell.type === "off";
+                      return (
+                        <div key={dateStr} style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontSize: 9.5, fontWeight: 700, color: isOff ? SUB : theme.accentDark }}>
+                          {isOff ? "休" : cell.start}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={{ fontSize: 10.5, color: SUB, textAlign: "center", marginTop: 8 }}>※出勤の場合は開始時刻のみ表示(横にスクロールできます)</div>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AREAS, COLORS, Card, DRIVER_STATUS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape } from "../shared.jsx";
+import { AREAS, COLORS, Card, DRIVER_STATUS, PrimaryButton, ROLES, SectionTitle, SelectField, TextField, Yen, applyDay0State, generateAllReservations, generateCasts, generateDrivers, seedDemoDispatch, isoDate, DAY_DATES, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
 // ============================================================
@@ -55,44 +55,41 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
     const blob = new Blob(["\uFEFF" + DRIVER_CSV_HEADER + "\n" + body], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "drivers.csv"; a.click();
   };
-  const importDriverCSV = (e) => {
+  const importDriverCSV = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCsvBusy(true);
-      const rowsRaw = parseCSV(String(reader.result).replace(/^\uFEFF/, ""));
-      let start = 0;
-      if (rowsRaw[0] && (rowsRaw[0][0] || "").trim().toLowerCase() === "name") start = 1;
-      const incoming = rowsRaw.slice(start).map((r) => ({
-        name: (r[0] || "").trim(), car: (r[1] || "").trim(), area: (r[2] || "").trim(),
-        wage: (r[3] || "").trim(), loginId: (r[4] || "").trim(), password: (r[5] || "").trim(),
-      })).filter((r) => r.name && r.loginId);
-      if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,car,area,wage,loginId,password)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
+    setCsvBusy(true);
+    const text = await readCSVFile(file);
+    const rowsRaw = parseCSV(text);
+    let start = 0;
+    if (rowsRaw[0] && (rowsRaw[0][0] || "").trim().toLowerCase() === "name") start = 1;
+    const incoming = rowsRaw.slice(start).map((r) => ({
+      name: (r[0] || "").trim(), car: (r[1] || "").trim(), area: (r[2] || "").trim(),
+      wage: (r[3] || "").trim(), loginId: (r[4] || "").trim(), password: (r[5] || "").trim(),
+    })).filter((r) => r.name && r.loginId);
+    if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,car,area,wage,loginId,password)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
 
-      // 差分判定はログインID(loginId)で行う：同IDは上書き、CSVに無い既存IDは保持、新規IDは追加
-      const byLogin = new Map(drivers.map((d) => [d.loginId, d]));
-      let updated = 0, added = 0;
-      incoming.forEach((inc) => {
-        const ex = byLogin.get(inc.loginId);
-        const wageVal = inc.wage === "" ? "" : (Number(inc.wage) || 0);
-        if (ex) {
-          byLogin.set(inc.loginId, { ...ex, name: inc.name, car: inc.car, area: inc.area, wage: wageVal, password: inc.password || ex.password });
-          updated++;
-        } else {
-          byLogin.set(inc.loginId, {
-            id: `d${Date.now()}${added}`, name: inc.name, car: inc.car, status: "waiting", area: inc.area,
-            pos: { x: 50, y: 50 }, note: inc.area ? `${inc.area}で待機中` : "待機中", wage: wageVal, hours: 0,
-            loginId: inc.loginId, password: inc.password || "pass1234",
-          });
-          added++;
-        }
-      });
-      setDrivers(Array.from(byLogin.values()));
-      setCsvBusy(false);
-      setCsvMsg(`取り込み完了：更新${updated}件・新規追加${added}件(差分はログインIDで判定)。`);
-      e.target.value = "";
-    };
-    reader.readAsText(file);
+    // 差分判定はログインID(loginId)で行う：同IDは上書き、CSVに無い既存IDは保持、新規IDは追加
+    const byLogin = new Map(drivers.map((d) => [d.loginId, d]));
+    let updated = 0, added = 0;
+    incoming.forEach((inc) => {
+      const ex = byLogin.get(inc.loginId);
+      const wageVal = inc.wage === "" ? "" : (Number(inc.wage) || 0);
+      if (ex) {
+        byLogin.set(inc.loginId, { ...ex, name: inc.name, car: inc.car, area: inc.area, wage: wageVal, password: inc.password || ex.password });
+        updated++;
+      } else {
+        byLogin.set(inc.loginId, {
+          id: `d${Date.now()}${added}`, name: inc.name, car: inc.car, status: "waiting", area: inc.area,
+          pos: { x: 50, y: 50 }, note: inc.area ? `${inc.area}で待機中` : "待機中", wage: wageVal, hours: 0,
+          loginId: inc.loginId, password: inc.password || "pass1234",
+        });
+        added++;
+      }
+    });
+    setDrivers(Array.from(byLogin.values()));
+    setCsvBusy(false);
+    setCsvMsg(`取り込み完了：更新${updated}件・新規追加${added}件(差分はログインIDで判定)。`);
+    e.target.value = "";
   };
 
   return (
@@ -304,34 +301,31 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "hotels.csv"; a.click();
   };
 
-  const importCSV = (e) => {
+  const importCSV = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const rows = parseCSV(String(reader.result).replace(/^\uFEFF/, ""));
-      let start = 0;
-      if (rows[0] && (rows[0][0] || "").trim().toLowerCase() === "id") start = 1;
-      const incoming = rows.slice(start).map((r) => ({ id: (r[0] || "").trim(), name: (r[1] || "").trim(), area: (r[2] || "").trim(), address: (r[3] || "").trim() })).filter((r) => r.id && r.name);
-      if (incoming.length === 0) { setMsg("取り込める行がありませんでした。"); e.target.value = ""; return; }
-      const map = new Map(hotels.map((h) => [h.id, h]));
-      const toGeocode = [];
-      incoming.forEach((inc) => {
-        const ex = map.get(inc.id);
-        if (ex) { const changed = ex.address !== inc.address; map.set(inc.id, { ...ex, ...inc, lat: changed ? null : ex.lat, lng: changed ? null : ex.lng }); if (changed) toGeocode.push(inc.id); }
-        else { map.set(inc.id, { ...inc, lat: null, lng: null }); toGeocode.push(inc.id); }
-      });
-      const merged = Array.from(map.values()).sort((a, b) => a.id.localeCompare(b.id));
-      setHotels(merged);
-      setBusy(true); setMsg(`${incoming.length}件を取り込みました。座標を取得中…(${toGeocode.length}件)`);
-      for (const id of toGeocode) {
-        const h = merged.find((x) => x.id === id); if (!h || !h.address) continue;
-        try { const c = await geocodeAddress(h.address); h.lat = c.lat; h.lng = c.lng; } catch (err) {}
-      }
-      setHotels([...merged]); setBusy(false);
-      setMsg(`取り込み完了：${incoming.length}件(差分はホテルIDで判定)。`);
-      e.target.value = "";
-    };
-    reader.readAsText(file);
+    const text = await readCSVFile(file);
+    const rows = parseCSV(text);
+    let start = 0;
+    if (rows[0] && (rows[0][0] || "").trim().toLowerCase() === "id") start = 1;
+    const incoming = rows.slice(start).map((r) => ({ id: (r[0] || "").trim(), name: (r[1] || "").trim(), area: (r[2] || "").trim(), address: (r[3] || "").trim() })).filter((r) => r.id && r.name);
+    if (incoming.length === 0) { setMsg("取り込める行がありませんでした。"); e.target.value = ""; return; }
+    const map = new Map(hotels.map((h) => [h.id, h]));
+    const toGeocode = [];
+    incoming.forEach((inc) => {
+      const ex = map.get(inc.id);
+      if (ex) { const changed = ex.address !== inc.address; map.set(inc.id, { ...ex, ...inc, lat: changed ? null : ex.lat, lng: changed ? null : ex.lng }); if (changed) toGeocode.push(inc.id); }
+      else { map.set(inc.id, { ...inc, lat: null, lng: null }); toGeocode.push(inc.id); }
+    });
+    const merged = Array.from(map.values()).sort((a, b) => a.id.localeCompare(b.id));
+    setHotels(merged);
+    setBusy(true); setMsg(`${incoming.length}件を取り込みました。座標を取得中…(${toGeocode.length}件)`);
+    for (const id of toGeocode) {
+      const h = merged.find((x) => x.id === id); if (!h || !h.address) continue;
+      try { const c = await geocodeAddress(h.address); h.lat = c.lat; h.lng = c.lng; } catch (err) {}
+    }
+    setHotels([...merged]); setBusy(false);
+    setMsg(`取り込み完了：${incoming.length}件(差分はホテルIDで判定)。`);
+    e.target.value = "";
   };
 
   return (

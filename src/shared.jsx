@@ -309,6 +309,8 @@ const DRIVER_SPOTS = [
 const DRIVER_AREAS = ["中央区", "東区", "博多区", "南区", "中央区", "博多区", "中央区", "東区", "南区", "博多区", "中央区", "博多区", "南区", "博多区", "博多区", "早良区", "東区", "中央区", "南区", "早良区"];
 // 待機場の選択肢(キャスト設定・受付表で共通)
 export const TAIKI_OPTIONS = ["", "2階車", "駅南", "220", "1階", "自宅", "住吉", "車"];
+// ドライバーの昼夜区分
+export const DRIVER_SHIFT = { day: "昼", night: "夜" };
 
 export function generateDrivers() {
   return DRIVER_NAME_POOL.map((name, i) => {
@@ -320,6 +322,7 @@ export function generateDrivers() {
       dest: null, note: `${area}で待機中`,
       wage: 1250 + (i % 3) * 25, hours: 5 + (i % 4),
       loginId: DRIVER_LOGIN_POOL[i], password: DRIVER_PASSWORD_POOL[i],
+      shift: "day", // 昼(day) / 夜(night)
     };
   });
 }

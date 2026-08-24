@@ -9,7 +9,7 @@ const REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 const ALLOWED_KEYS = [
   "hotels", "office", "casts", "customers", "drivers",
-  "staff", "courses", "options", "expenses", "staffschedule", "driverschedule",
+  "staff", "courses", "options", "transportfees", "expenses", "staffschedule", "driverschedule",
 ];
 const RESERVATION_KEY_RE = /^reservations:\d{4}-\d{2}-\d{2}$/;
 const UKETSUKE_KEY_RE = /^uketsuke:[a-z]+:\d{4}-\d{2}-\d{2}$/;

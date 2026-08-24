@@ -56,7 +56,7 @@ const emptyRow = () => ({
 });
 
 const emptySheet = () => ({
-  header: { soumukou: "", zairyou: "寮滞在者：清川【松山0】住吉【】ルネス【】エレガンテ住吉【】ライベ【宇野休・鷹木0・賀川0・浅香0】グリーンヒル博多【安西2】駅前ロマネスク【】ダイナコート【】ライオンズP【】※寮費0=無料 1=1.000円 2=2.000円", ryokin: "", cardTotal: "", tesuryo: "" },
+  header: { soumukou: "", zairyou: "寮滞在者：清川【松山0】住吉【】ルネス【】エレガンテ住吉【】ライベ【宇野休・鷹木0・賀川0・浅香0】グリーンヒル博多【安西2】駅前ロマネスク【】ダイナコート【】ライオンズP【】※寮費0=無料 1=1.000円 2=2.000円", ryokin: "", cardTotal: "", tesuryo: "", transportArea: "" },
   rows: Array.from({ length: ROWS }, () => emptyRow()),
 });
 
@@ -194,8 +194,12 @@ function AutoCompleteCell({ value, onChange, options, width, bg, color, bold, fo
   const finalColor = customStyle?.color || color || COLORS.textMain;
   const lp = useLongPress((x, y) => setPicker({ x, y }));
 
+  // options は文字列配列、または { label, search } オブジェクト配列(読み等も検索対象にしたい場合)のどちらも受け付ける
+  const normalized = options.map((o) => typeof o === "string" ? { label: o, search: o } : o);
   const nq = kanaNormalize(query);
-  const filtered = query ? options.filter((o) => o && kanaNormalize(o).includes(nq)) : options.filter(Boolean);
+  const filtered = query
+    ? normalized.filter((o) => o.label && (kanaNormalize(o.label).includes(nq) || kanaNormalize(o.search || "").includes(nq)))
+    : normalized.filter((o) => o.label);
 
   const startEdit = () => { setQuery(""); setEditing(true); };
   const pick = (name) => { onChange(name); setEditing(false); setQuery(""); };
@@ -248,9 +252,9 @@ function AutoCompleteCell({ value, onChange, options, width, bg, color, bold, fo
         )}
         {filtered.length === 0 && <div style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub }}>該当なし</div>}
         {filtered.slice(0, 30).map((o) => (
-          <div key={o} onMouseDown={() => pick(o)}
-            style={{ padding: "7px 10px", fontSize: 12.5, color: COLORS.textMain, cursor: "pointer", background: o === value ? "#EDF3FA" : "#FFF", whiteSpace: "nowrap" }}>
-            {o}
+          <div key={o.label} onMouseDown={() => pick(o.label)}
+            style={{ padding: "7px 10px", fontSize: 12.5, color: COLORS.textMain, cursor: "pointer", background: o.label === value ? "#EDF3FA" : "#FFF", whiteSpace: "nowrap" }}>
+            {o.label}{o.search && o.search !== o.label ? <span style={{ color: COLORS.textSub, fontSize: 10.5, marginLeft: 6 }}>({o.search})</span> : null}
           </div>
         ))}
       </div>
@@ -305,7 +309,7 @@ export const SHEETS = [
   { key: "hakata", label: "博多ココ" },
 ];
 
-export function UketsukeTab({ casts, courses, options, drivers }) {
+export function UketsukeTab({ casts, courses, options, drivers, transportFees }) {
   const [sheetKey, setSheetKey] = useState("hitozuma");
   const [dateStr, setDateStr] = useState(isoDate(new Date()));
   const [sheet, setSheet] = useState(emptySheet());
@@ -371,7 +375,7 @@ export function UketsukeTab({ casts, courses, options, drivers }) {
 
   // 落とし・女子給を自動計算：落とし = コース料金 + 交通費 + 指名料(Fの選択に応じ) + オプション(未実装分は0)
   //  ※手動で上書きした値は、コース・指名種別・交通費のいずれかを再度変更するまで保持される
-  const recalcRow = (row) => {
+  const recalcRow = (row, idx) => {
     const info = courseInfo(row.course);
     if (!info) return row; // コース未選択なら自動計算しない(手入力のまま)
     const shimeiOpt = row.shimeiType === "写指" ? options.find((o) => o.name.includes("写指"))
@@ -380,18 +384,22 @@ export function UketsukeTab({ casts, courses, options, drivers }) {
     const shimeiPrice = shimeiOpt?.price || 0;
     const kotsu = Number(String(row.kotsu).replace(/[^0-9.-]/g, "")) || 0;
     const otoshi = info.price + kotsu + shimeiPrice; // オプション加算は今後対応
-    return { ...row, otoshi: String(otoshi), joshi: String(info.joshi) };
+    // 本日1本目(備考欄の自動-500表示)は、女子給からも雑費500円を控除する
+    const bikoValue = row.biko || (idx != null && shimeiCounts[idx] === 1 ? "-500" : "");
+    const bikoDeduction = Number(String(bikoValue).replace(/[^0-9.-]/g, "")) || 0; // マイナス値としてそのまま加算(控除)
+    const joshi = info.joshi + bikoDeduction;
+    return { ...row, otoshi: String(otoshi), joshi: String(joshi) };
   };
   const setCourseForRow = (i, code) => {
-    const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, course: code }) : r);
+    const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, course: code }, idx) : r);
     save({ ...sheet, rows });
   };
   const setShimeiTypeForRow = (i, val) => {
-    const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, shimeiType: val }) : r);
+    const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, shimeiType: val }, idx) : r);
     save({ ...sheet, rows });
   };
   const setKotsuForRow = (i, val) => {
-    const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, kotsu: val }) : r);
+    const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, kotsu: val }, idx) : r);
     save({ ...sheet, rows });
   };
 
@@ -424,16 +432,25 @@ export function UketsukeTab({ casts, courses, options, drivers }) {
   const wareki = d.getFullYear() - 2018; // 令和
 
   const castNames = ["", ...casts.filter((c) => castShops(c).includes(sheetKey)).map((c) => castFullName(c))];
+  // 送迎交通費確認：地区名(区+地名/ホテル名)の選択肢と、選んだ地区に対応する金額
+  const transportAreaLabels = [{ label: "", search: "" }, ...(transportFees || []).map((t) => ({ label: `${t.area} ${t.name}`, search: t.reading || "" }))];
+  const transportFeeValue = (() => {
+    const label = sheet.header.transportArea;
+    if (!label) return null;
+    const match = (transportFees || []).find((t) => `${t.area} ${t.name}` === label);
+    return match ? match.price : null;
+  })();
   const driverNames = ["", ...drivers.map((dr) => dr.name)];
 
   // 指定したキャスト名の所属店舗・クラスに応じたコース記号の選択肢を返す(未選択時は全件)
+  const FREE_COURSE = "自由入力"; // コース選択の一番下：無料やカスタマイズ対応用の自由記述
   const coursesForCastName = (castName) => {
     const cast = casts.find((c) => castFullName(c) === castName);
-    if (!cast) return ["", ...courses.map((c) => c.code)];
+    if (!cast) return ["", ...courses.map((c) => c.code), FREE_COURSE];
     const cls = castClass(cast);
     const shops = castShops(cast);
     const matched = courses.filter((c) => c.castClass === cls && shops.includes(c.shop));
-    return ["", ...matched.map((c) => c.code)];
+    return ["", ...matched.map((c) => c.code), FREE_COURSE];
   };
   const courseInfo = (code) => courses.find((c) => c.code === code);
 
@@ -479,9 +496,9 @@ export function UketsukeTab({ casts, courses, options, drivers }) {
 
             {/* ===== ヘッダー部(1〜3行目) ===== */}
             <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, background: "#FFF" }}>
-              {/* A: 黄色の大セル */}
-              <div style={{ width: W.bikoL, minWidth: W.bikoL, background: "#FFFF00", borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Cell value={sheet.header.soumukou} onChange={(v) => setHeader("soumukou", v)} width={W.bikoL - 2} bg="#FFFF00" bold />
+              {/* A: 総務項目欄(待機場の左) */}
+              <div style={{ width: W.bikoL, minWidth: W.bikoL, background: "#FFFFFF", borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Cell value={sheet.header.soumukou} onChange={(v) => setHeader("soumukou", v)} width={W.bikoL - 2} bg="#FFFFFF" bold />
               </div>
               {/* 待機場ラベル */}
               <div style={{ width: W.taiki, minWidth: W.taiki, fontSize: 10, fontWeight: 700, color: COLORS.textSub, display: "flex", alignItems: "center", justifyContent: "center", borderRight: `1px solid ${COLORS.border}`, background: "#F4F6F9" }}>待機場</div>
@@ -489,7 +506,17 @@ export function UketsukeTab({ casts, courses, options, drivers }) {
               <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
                 <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, minHeight: 26, alignItems: "center" }}>
                   <div style={{ width: 300, fontSize: 11, fontWeight: 700, color: "#1F4E9C", background: "#DEEAF6", padding: "4px 8px", borderRight: `1px solid ${COLORS.border}` }}>送迎交通費確認→</div>
-                  <div style={{ width: 180, fontSize: 11, color: COLORS.textSub, textAlign: "center", borderRight: `1px solid ${COLORS.border}` }}>#N/A</div>
+                  <div style={{ width: 180, borderRight: `1px solid ${COLORS.border}` }}>
+                    <AutoCompleteCell
+                      value={sheet.header.transportArea}
+                      onChange={(v) => setHeader("transportArea", v)}
+                      options={transportAreaLabels}
+                      width={178} fontSize={11}
+                    />
+                  </div>
+                  <div style={{ width: 90, fontSize: 11, fontWeight: 700, color: transportFeeValue != null ? "#1F4E9C" : COLORS.textSub, textAlign: "center", borderRight: `1px solid ${COLORS.border}` }}>
+                    {transportFeeValue != null ? `¥${transportFeeValue.toLocaleString()}` : "#N/A"}
+                  </div>
                   {/* 日付 */}
                   <div style={{ display: "flex", alignItems: "center", gap: 2, padding: "0 10px", borderRight: `1px solid ${COLORS.border}` }}>
                     <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain }}>令和{wareki}年</span>
@@ -620,9 +647,20 @@ export function UketsukeTab({ casts, courses, options, drivers }) {
                   <Cell value={r.kotsu} onChange={(v) => setKotsuForRow(i, v)} width={W.kotsu - 2} mono placeholder="0" customStyle={r.styles?.["kotsu"]} onStyleChange={(s) => setRowStyle(i, "kotsu", s)} />
                 </div>
 
-                {/* N コース(結合・キャストの所属店舗/クラスに応じた選択肢) */}
+                {/* N コース(結合・キャストの所属店舗/クラスに応じた選択肢。自由入力にも対応) */}
                 <div style={{ width: W.course, minWidth: W.course, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <SelCell value={r.course} onChange={(v) => setCourseForRow(i, v)} options={coursesForCastName(r.cast)} width={W.course - 2} bold fontSize={12} customStyle={r.styles?.["course"]} onStyleChange={(s) => setRowStyle(i, "course", s)} />
+                  {(() => {
+                    const opts = coursesForCastName(r.cast);
+                    const isFreeMode = r.course === FREE_COURSE || (r.course && !opts.includes(r.course));
+                    if (isFreeMode) {
+                      return (
+                        <Cell value={r.course === FREE_COURSE ? "" : r.course} onChange={(v) => setRow(i, "course", v)} width={W.course - 2} bold fontSize={11} placeholder="自由記述" customStyle={r.styles?.["course"]} onStyleChange={(s) => setRowStyle(i, "course", s)} />
+                      );
+                    }
+                    return (
+                      <SelCell value={r.course} onChange={(v) => setCourseForRow(i, v)} options={opts} width={W.course - 2} bold fontSize={12} customStyle={r.styles?.["course"]} onStyleChange={(s) => setRowStyle(i, "course", s)} />
+                    );
+                  })()}
                 </div>
 
                 {/* O/P OP(上下2段×2列) */}

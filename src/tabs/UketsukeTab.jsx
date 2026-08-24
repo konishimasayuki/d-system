@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, isoDate } from "../shared.jsx";
+import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, castClass, isoDate } from "../shared.jsx";
 
 // ============================================================
 // 受付表タブ(スプレッドシート再現・1日1シート)
@@ -305,7 +305,7 @@ export const SHEETS = [
   { key: "hakata", label: "博多ココ" },
 ];
 
-export function UketsukeTab({ casts, courses, drivers }) {
+export function UketsukeTab({ casts, courses, options, drivers }) {
   const [sheetKey, setSheetKey] = useState("hitozuma");
   const [dateStr, setDateStr] = useState(isoDate(new Date()));
   const [sheet, setSheet] = useState(emptySheet());
@@ -368,6 +368,33 @@ export function UketsukeTab({ casts, courses, drivers }) {
     save({ ...sheet, rows });
   };
   const setHeader = (key, val) => save({ ...sheet, header: { ...sheet.header, [key]: val } });
+
+  // 落とし・女子給を自動計算：落とし = コース料金 + 交通費 + 指名料(Fの選択に応じ) + オプション(未実装分は0)
+  //  ※手動で上書きした値は、コース・指名種別・交通費のいずれかを再度変更するまで保持される
+  const recalcRow = (row) => {
+    const info = courseInfo(row.course);
+    if (!info) return row; // コース未選択なら自動計算しない(手入力のまま)
+    const shimeiOpt = row.shimeiType === "写指" ? options.find((o) => o.name.includes("写指"))
+      : row.shimeiType === "本指" ? options.find((o) => o.name.includes("本指"))
+      : null;
+    const shimeiPrice = shimeiOpt?.price || 0;
+    const kotsu = Number(String(row.kotsu).replace(/[^0-9.-]/g, "")) || 0;
+    const otoshi = info.price + kotsu + shimeiPrice; // オプション加算は今後対応
+    return { ...row, otoshi: String(otoshi), joshi: String(info.joshi) };
+  };
+  const setCourseForRow = (i, code) => {
+    const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, course: code }) : r);
+    save({ ...sheet, rows });
+  };
+  const setShimeiTypeForRow = (i, val) => {
+    const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, shimeiType: val }) : r);
+    save({ ...sheet, rows });
+  };
+  const setKotsuForRow = (i, val) => {
+    const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, kotsu: val }) : r);
+    save({ ...sheet, rows });
+  };
+
   const addRows = () => save({ ...sheet, rows: [...sheet.rows, ...Array.from({ length: 10 }, () => emptyRow())] });
   const resetHeader = () => {
     if (!window.confirm("送迎交通費確認・寮滞在者・料金欄を初期値に戻します。明細行は消えません。よろしいですか？")) return;
@@ -397,8 +424,18 @@ export function UketsukeTab({ casts, courses, drivers }) {
   const wareki = d.getFullYear() - 2018; // 令和
 
   const castNames = ["", ...casts.filter((c) => castShops(c).includes(sheetKey)).map((c) => castFullName(c))];
-  const courseNames = ["", "60", "90", "120", "D150", "150", "180"];
   const driverNames = ["", ...drivers.map((dr) => dr.name)];
+
+  // 指定したキャスト名の所属店舗・クラスに応じたコース記号の選択肢を返す(未選択時は全件)
+  const coursesForCastName = (castName) => {
+    const cast = casts.find((c) => castFullName(c) === castName);
+    if (!cast) return ["", ...courses.map((c) => c.code)];
+    const cls = castClass(cast);
+    const shops = castShops(cast);
+    const matched = courses.filter((c) => c.castClass === cls && shops.includes(c.shop));
+    return ["", ...matched.map((c) => c.code)];
+  };
+  const courseInfo = (code) => courses.find((c) => c.code === code);
 
   // 1セットの高さ
   const ROW_H = 26;
@@ -564,7 +601,7 @@ export function UketsukeTab({ casts, courses, drivers }) {
                     <SelCell value={r.kaiin} onChange={(v) => setRow(i, "kaiin", v)} options={["", "新規", "会員"]} width={W.kaiin - 2} bg="#FFFFFF" bold fontSize={10} customStyle={r.styles?.["kaiin"]} onStyleChange={(s) => setRowStyle(i, "kaiin", s)} />
                   </div>
                   <div style={{ height: ROW_H, background: "#FFFFFF", display: "flex", alignItems: "center" }}>
-                    <SelCell value={r.shimeiType} onChange={(v) => setRow(i, "shimeiType", v)} options={["F", "写指", "本指"]} width={W.kaiin - 2} bg="#FFFFFF" bold fontSize={10} customStyle={r.styles?.["shimeiType"]} onStyleChange={(s) => setRowStyle(i, "shimeiType", s)} />
+                    <SelCell value={r.shimeiType} onChange={(v) => setShimeiTypeForRow(i, v)} options={["F", "写指", "本指"]} width={W.kaiin - 2} bg="#FFFFFF" bold fontSize={10} customStyle={r.styles?.["shimeiType"]} onStyleChange={(s) => setRowStyle(i, "shimeiType", s)} />
                   </div>
                 </div>
 
@@ -587,12 +624,12 @@ export function UketsukeTab({ casts, courses, drivers }) {
 
                 {/* M 交通費(結合) */}
                 <div style={{ width: W.kotsu, minWidth: W.kotsu, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.kotsu} onChange={(v) => setRow(i, "kotsu", v)} width={W.kotsu - 2} mono placeholder="0"  customStyle={r.styles?.["kotsu"]} onStyleChange={(s) => setRowStyle(i, "kotsu", s)}/>
+                  <Cell value={r.kotsu} onChange={(v) => setKotsuForRow(i, v)} width={W.kotsu - 2} mono placeholder="0" customStyle={r.styles?.["kotsu"]} onStyleChange={(s) => setRowStyle(i, "kotsu", s)} />
                 </div>
 
-                {/* N コース(結合) */}
+                {/* N コース(結合・キャストの所属店舗/クラスに応じた選択肢) */}
                 <div style={{ width: W.course, minWidth: W.course, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <SelCell value={r.course} onChange={(v) => setRow(i, "course", v)} options={courseNames} width={W.course - 2} bold fontSize={12}  customStyle={r.styles?.["course"]} onStyleChange={(s) => setRowStyle(i, "course", s)}/>
+                  <SelCell value={r.course} onChange={(v) => setCourseForRow(i, v)} options={coursesForCastName(r.cast)} width={W.course - 2} bold fontSize={12} customStyle={r.styles?.["course"]} onStyleChange={(s) => setRowStyle(i, "course", s)} />
                 </div>
 
                 {/* O/P OP(上下2段×2列) */}

@@ -33,7 +33,7 @@ export function getCell(schedule, staffId, dateStr) {
   return schedule?.[staffId]?.[dateStr] || { type: "off", start: "10:00", end: "20:00" };
 }
 
-function setCell(schedule, staffId, dateStr, cell) {
+export function setCell(schedule, staffId, dateStr, cell) {
   return {
     ...schedule,
     [staffId]: { ...(schedule[staffId] || {}), [dateStr]: cell },
@@ -51,6 +51,17 @@ export function useDriverSchedule() {
     }).catch(() => setLoaded(true));
   }, []);
   return { schedule, setSchedule, loaded };
+}
+
+// セルを1件更新して保存まで行う共通ヘルパー(管理画面・ドライバーポータルで共用)
+export function saveScheduleCell(schedule, setSchedule, staffId, dateStr, field, val, onDone) {
+  const cur = getCell(schedule, staffId, dateStr);
+  const next = setCell(schedule, staffId, dateStr, { ...cur, [field]: val });
+  setSchedule(next);
+  fetch("/api/state?key=driverschedule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: next }) })
+    .then(() => onDone && onDone(true))
+    .catch(() => onDone && onDone(false));
+  return next;
 }
 
 export function DriverScheduleTab({ drivers }) {

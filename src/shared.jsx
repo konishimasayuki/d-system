@@ -295,9 +295,10 @@ export function applyDay0State(casts, allReservations) {
 export const ALL_RESERVATIONS_10D = generateAllReservations(INITIAL_CASTS_BASE);
 export const INITIAL_CASTS = applyDay0State(INITIAL_CASTS_BASE, ALL_RESERVATIONS_10D);
 
-const DRIVER_NAME_POOL = ["佃", "森", "野口", "堤", "本田", "川島", "浜田", "秋山", "宮下", "北村", "西田", "岡崎", "藤井", "村上", "松岡", "橋本", "三浦", "内田", "石田", "菅原"];
-const DRIVER_LOGIN_POOL = ["tsukuda", "mori", "noguchi", "tsutsumi", "honda", "kawashima", "hamada", "akiyama", "miyashita", "kitamura", "nishida", "okazaki", "fujii", "murakami", "matsuoka", "hashimoto", "miura", "uchida", "ishida", "sugawara"];
-// 福岡市内に大まかに散らした待機座標(営業所周辺〜各区)。DRIVER_AREASと対応
+const DRIVER_NAME_POOL = ["砂川", "山本", "福島", "森本", "原", "加藤", "島田", "本村", "中嶋", "原田(拓)", "山田", "小林", "田中(浩)", "田中", "崎山", "岩永", "奥園", "柳田", "橋本", "長", "堀川", "宮地", "福岡", "のり", "福田", "阪下", "山口雄", "榎本", "下原", "新枦", "前田", "中釜", "日山", "伊藤", "久保", "右山", "龍", "新研", "山本(博)", "江頭", "荒井", "富田", "川島", "竹内", "山口(貴)", "井上", "馬渡", "吉武", "高倉", "岩切", "中武", "古後", "草場", "山本和", "倉田", "高田", "儘田", "外山", "原田", "岡", "奥山", "梶原", "渡邊", "国友", "阿比留", "村本", "生林"];
+const DRIVER_LOGIN_POOL = ["sunagawa", "manabu", "fukushima", "morimoto", "hara", "katou", "shimada", "motomura", "nakashima", "haradataku", "yamada", "kobayashi", "hiroshi", "tanaka", "sakiyama", "iwanaga", "okuzono", "yanakita", "hashimoto", "cyou", "horikawa", "miyaji", "fukuoka", "nori", "fukuda", "sakashita", "yamaguchi", "enomoto", "shimohara", "shinbashi", "maeda", "nakagama", "hiyama", "itou", "kubo", "migiyama", "ryu", "araken", "yamamotoh", "egashira", "arai", "tomita", "kawashima", "takeuchi", "yamataka", "inoue", "mawatari", "yoshitake", "takakura", "iwakiri", "nakatake", "kogou", "kusaba", "yamamoto", "kurata", "takata", "mamada", "sotoyama", "harada", "oka", "okuyama", "kajiwara", "watanabe", "kunitomo", "abiru", "muramoto", "syobayashi"];
+const DRIVER_PASSWORD_POOL = ["0616", "1003", "0717", "0214", "0809", "0119", "0301", "0106", "0620", "0309", "0903", "0820", "0615", "0105", "1010", "0928", "0828", "1005", "0513", "1208", "0621", "1210", "0616", "0321", "0430", "0319", "0316", "1009", "1018", "1124", "1130", "0504", "0323", "0301", "0809", "0706", "0902", "0725", "0327", "0409", "0408", "0318", "0928", "0923", "1017", "1003", "0909", "0313", "1016", "0505", "0722", "0912", "0330", "0130", "0826", "1230", "0321", "1214", "1107", "0305", "0728", "1122", "0429", "0422", "0405", "1202", "1114"];
+// 福岡市内に大まかに散らした待機座標(営業所周辺〜各区)。DRIVER_AREASと対応。人数分に足りない分は巡回で割当
 const DRIVER_SPOTS = [
   { lat: 33.5914, lng: 130.3990 }, { lat: 33.6050, lng: 130.4100 }, { lat: 33.5896, lng: 130.4050 }, { lat: 33.5700, lng: 130.4200 },
   { lat: 33.5805, lng: 130.4225 }, { lat: 33.5930, lng: 130.4060 }, { lat: 33.5850, lng: 130.4017 }, { lat: 33.6200, lng: 130.4300 },
@@ -318,7 +319,7 @@ export function generateDrivers() {
       latlng: DRIVER_SPOTS[i % DRIVER_SPOTS.length],
       dest: null, note: `${area}で待機中`,
       wage: 1250 + (i % 3) * 25, hours: 5 + (i % 4),
-      loginId: DRIVER_LOGIN_POOL[i], password: "pass1234",
+      loginId: DRIVER_LOGIN_POOL[i], password: DRIVER_PASSWORD_POOL[i],
     };
   });
 }

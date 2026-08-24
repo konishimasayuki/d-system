@@ -305,6 +305,10 @@ export function UketsukeTab({ casts, courses, drivers }) {
   };
   const setHeader = (key, val) => save({ ...sheet, header: { ...sheet.header, [key]: val } });
   const addRows = () => save({ ...sheet, rows: [...sheet.rows, ...Array.from({ length: 10 }, () => emptyRow())] });
+  const resetHeader = () => {
+    if (!window.confirm("送迎交通費確認・寮滞在者・料金欄を初期値に戻します。明細行は消えません。よろしいですか？")) return;
+    save({ ...sheet, header: emptySheet().header });
+  };
 
   // 集計(落とし・女子給の合計)
   const totals = useMemo(() => {
@@ -348,6 +352,7 @@ export function UketsukeTab({ casts, courses, drivers }) {
         <SectionTitle>受付表</SectionTitle>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: COLORS.accent }}>{msg}</span>
+          <button onClick={resetHeader} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontWeight: 700, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>上部欄をリセット</button>
           <input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)}
             style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontWeight: 700, color: COLORS.textMain, background: "#FFF" }} />
         </div>

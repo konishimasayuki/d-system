@@ -15,6 +15,11 @@ export const SHOP_OPTIONS = [
   { key: "hitozuma", label: "人妻専科" },
   { key: "hakata", label: "博多ココ" },
 ];
+// キャストのクラス(スタンダードが標準、上位クラスほど格上扱い)
+export const CAST_CLASS_OPTIONS = [
+  { key: "standard", label: "スタンダード", color: "#7A8798" },
+  { key: "diamond", label: "ダイヤモンド", color: "#2F6DB5" },
+];
 // 旧データ(shopsフィールド未保存)との互換：未設定なら博多ココ扱いにする
 export function castShops(c) {
   if (Array.isArray(c.shops) && c.shops.length > 0) return c.shops;
@@ -23,6 +28,9 @@ export function castShops(c) {
 // 旧データ(loginId/password未保存)でも安全に扱えるようフォールバック
 export function castLoginId(c) { return c.loginId || ""; }
 export function castPassword(c) { return c.password || ""; }
+// 旧データ(castClass未保存)との互換：未設定ならスタンダード扱いにする
+export function castClass(c) { return c.castClass || "standard"; }
+export function castClassInfo(c) { return CAST_CLASS_OPTIONS.find((o) => o.key === castClass(c)) || CAST_CLASS_OPTIONS[0]; }
 
 export const CAST_STATUS = {
   before_shift: { label: "出勤前", color: "#7B77C4", bg: "rgba(123,119,196,0.12)" },
@@ -210,7 +218,7 @@ export function generateCasts() {
       joinDate,
       itakuRate: 0.5 + (i % 3) * 0.05, idVerified: i % 7 !== 0,
       stdLast: stdLast.toISOString().slice(0, 10),
-      okOptions, comment: "", shops: ["hakata"], taikiba: "", // 所属店舗・待機場(受付表の待機場列と対応)
+      okOptions, comment: "", shops: ["hakata"], taikiba: "", castClass: "standard", // 所属店舗・待機場・クラス(受付表の待機場列と対応)
       loginId: `cast${String(i + 1).padStart(3, "0")}`, password: String(1000 + ((i * 37) % 9000)).padStart(4, "0"), // キャストアプリのログイン情報
       biko1: "", biko2: "", // 備考1・備考2(自由記述)
     };

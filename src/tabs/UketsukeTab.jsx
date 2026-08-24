@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, isoDate } from "../shared.jsx";
 
 // ============================================================
@@ -277,6 +277,21 @@ export function UketsukeTab({ casts, courses, drivers }) {
   const [sheet, setSheet] = useState(emptySheet());
   const [loaded, setLoaded] = useState(false);
   const [msg, setMsg] = useState("");
+  const topScrollRef = useRef(null);
+  const bodyScrollRef = useRef(null);
+  const syncingRef = useRef(false); // 相互onScrollの無限ループ防止
+  const syncFromTop = (e) => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    if (bodyScrollRef.current) bodyScrollRef.current.scrollLeft = e.target.scrollLeft;
+    syncingRef.current = false;
+  };
+  const syncFromBody = (e) => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    if (topScrollRef.current) topScrollRef.current.scrollLeft = e.target.scrollLeft;
+    syncingRef.current = false;
+  };
 
   // シート・日付が変わったら読み込み
   useEffect(() => {
@@ -303,10 +318,15 @@ export function UketsukeTab({ casts, courses, drivers }) {
     const rows = sheet.rows.map((r, idx) => idx === i ? { ...r, [key]: val } : r);
     save({ ...sheet, rows });
   };
-  // キャストを選んだら、そのキャストの設定済み待機場も自動で入れる
+  // キャストを選んだら、そのキャストの設定済み待機場・備考1/2も自動で入れる(既に入力済みの内容は上書きしない)
   const setCastForRow = (i, castName) => {
     const matched = casts.find((c) => castFullName(c) === castName);
-    const rows = sheet.rows.map((r, idx) => idx === i ? { ...r, cast: castName, taiki: matched?.taikiba || r.taiki } : r);
+    const rows = sheet.rows.map((r, idx) => idx === i ? {
+      ...r, cast: castName,
+      taiki: matched?.taikiba || r.taiki,
+      bikoR: r.bikoR || matched?.biko1 || "",
+      bikoR2: r.bikoR2 || matched?.biko2 || "",
+    } : r);
     save({ ...sheet, rows });
   };
   const setRowStyle = (i, key, styleObj) => {
@@ -379,7 +399,11 @@ export function UketsukeTab({ casts, courses, drivers }) {
         <div style={{ textAlign: "center", color: COLORS.textSub, padding: 40 }}>読み込み中…</div>
       ) : (
       <Card style={{ padding: 0, overflow: "hidden" }}>
-        <div className="table-scroll" style={{ overflowX: "auto" }}>
+        {/* 上側スクロールバー(PC版で横スクロールしやすいように・下側と連動) */}
+        <div className="top-scrollbar-pc" ref={topScrollRef} onScroll={syncFromTop} style={{ overflowX: "auto", overflowY: "hidden", height: 16 }}>
+          <div style={{ minWidth: 1700, height: 1 }} />
+        </div>
+        <div className="table-scroll" ref={bodyScrollRef} onScroll={syncFromBody} style={{ overflowX: "auto" }}>
           <div style={{ minWidth: 1700 }}>
 
             {/* ===== ヘッダー部(1〜3行目) ===== */}

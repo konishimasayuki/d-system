@@ -708,9 +708,11 @@ function ScheduleDateHeader({ theme, weekOffset, label, sticky }) {
       <div style={{ width: 96, flexShrink: 0, padding: "8px 10px", fontSize: 10.5, fontWeight: 700, color: SUB, background: "#F4F6F9", position: "sticky", left: 0, zIndex: 4, boxSizing: "border-box" }}>{label}</div>
       {weekDays(weekOffset).map((d) => {
         const isToday = isoDate(d) === isoDate(new Date());
+        const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
         return (
-          <div key={isoDate(d)} style={{ width: 62, flexShrink: 0, padding: "8px 2px", textAlign: "center", background: isToday ? theme.accent : "#F4F6F9", color: isToday ? "#FFF" : SUB, fontWeight: 700, fontSize: 10.5, borderLeft: `1px solid ${LINE}`, boxSizing: "border-box" }}>
-            {d.getMonth() + 1}/{d.getDate()}
+          <div key={isoDate(d)} style={{ width: 62, flexShrink: 0, padding: "6px 2px", textAlign: "center", background: isToday ? theme.accent : "#F4F6F9", color: isToday ? "#FFF" : SUB, fontWeight: 700, borderLeft: `1px solid ${LINE}`, boxSizing: "border-box", lineHeight: 1.3 }}>
+            <div style={{ fontSize: 10.5 }}>{d.getMonth() + 1}/{d.getDate()}</div>
+            <div style={{ fontSize: 9, opacity: 0.85 }}>({w})</div>
           </div>
         );
       })}

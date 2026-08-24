@@ -58,10 +58,11 @@ function CtiPopup({ customer, onClose, onReserve }) {
 // ============================================================
 const TAB_GROUPS = [
   { group: "業務", tabs: [
+    { key: "uketsuke", label: "受付表" }, { key: "castlist", label: "キャスト一覧" },
+    { key: "driverschedule", label: "スタッフスケジュール" }, { key: "messages", label: "メッセージ" },
     { key: "dashboard", label: "ダッシュボード" }, { key: "timetable", label: "タイムテーブル" },
-    { key: "shift", label: "出勤管理" }, { key: "castlist", label: "キャスト一覧" },
-    { key: "reservation", label: "予約管理" }, { key: "uketsuke", label: "受付表" }, { key: "dispatch", label: "配車管理" },
-    { key: "messages", label: "メッセージ" },
+    { key: "shift", label: "出勤管理" },
+    { key: "reservation", label: "予約管理" }, { key: "dispatch", label: "配車管理" },
   ] },
   { group: "顧客・媒体", tabs: [
     { key: "customer", label: "顧客名簿" }, { key: "media", label: "媒体・HP更新" },
@@ -73,7 +74,7 @@ const TAB_GROUPS = [
     { key: "driverpage", label: "ドライバーページ" }, { key: "mypage", label: "キャストマイページ" },
   ] },
   { group: "管理", tabs: [
-    { key: "std", label: "STD検査" }, { key: "driverschedule", label: "スタッフスケジュール" }, { key: "settings", label: "設定" },
+    { key: "std", label: "STD検査" }, { key: "settings", label: "設定" },
   ] },
 ];
 const ALL_TABS = TAB_GROUPS.flatMap((g) => g.tabs);
@@ -107,7 +108,7 @@ function clearKanriLogin() {
 }
 
 // ログイン画面
-function KanriLoginScreen({ staff, onLogin }) {
+function KanriLoginScreen({ staff, onLogin, onResetStaff }) {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
@@ -116,6 +117,10 @@ function KanriLoginScreen({ staff, onLogin }) {
     if (!match) { setErr("IDまたはパスワードが違います。"); return; }
     setErr("");
     onLogin(match.id);
+  };
+  const resetStaff = () => {
+    if (!window.confirm("スタッフの登録データを初期値(近藤/白石/大西)に戻します。ログインできない場合の緊急用です。よろしいですか？")) return;
+    onResetStaff();
   };
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Noto Sans JP', sans-serif" }}>
@@ -130,6 +135,7 @@ function KanriLoginScreen({ staff, onLogin }) {
         </div>
         {err && <div style={{ color: "#C0492B", fontSize: 12.5, marginBottom: 10 }}>{err}</div>}
         <button onClick={submit} style={{ width: "100%", padding: "13px 0", borderRadius: 10, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>ログイン</button>
+        <button onClick={resetStaff} style={{ width: "100%", padding: "9px 0", marginTop: 10, borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.textSub, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>ログインできない場合：スタッフデータを初期化</button>
       </div>
     </div>
   );
@@ -162,7 +168,7 @@ function RestrictedTabModal({ onUnlock, onClose }) {
 
 export default function KanriApp() {
   const [staffId, setStaffId] = useState(() => loadKanriLogin()?.staffId || null);
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTab] = useState("uketsuke");
   const [casts, setCasts, castsSync] = usePersistedState("casts", INITIAL_CASTS);
   const [customers, setCustomers, customersSync] = usePersistedState("customers", INITIAL_CUSTOMERS);
   const [drivers, setDrivers, driversSync] = usePersistedState("drivers", INITIAL_DRIVERS);
@@ -226,7 +232,12 @@ export default function KanriApp() {
   const startQuote = (cust) => { setCtiCustomer(null); setQuoteCustomer(cust); };
 
   if (!staffId || !me) {
-    return <KanriLoginScreen staff={staff} onLogin={(id) => { setStaffId(id); saveKanriLogin(id); }} />;
+    return <KanriLoginScreen staff={staff} onLogin={(id) => {
+      setStaffId(id); saveKanriLogin(id);
+      const matched = staff.find((s) => s.id === id);
+      const roleTabs = (viewRoles[matched?.viewRole] || viewRoles.operator).tabs;
+      if (!roleTabs.includes("uketsuke")) setTab(roleTabs[0] || "uketsuke");
+    }} onResetStaff={() => setStaff(INITIAL_STAFF)} />;
   }
 
   return (
@@ -236,7 +247,6 @@ export default function KanriApp() {
       <div className="topbar">
         <HamburgerIcon onClick={() => setMenuOpen(true)} />
         <div style={{ fontFamily: "'Zen Old Mincho', serif", fontSize: 16, color: COLORS.accent }}>{currentLabel}</div>
-        <button onClick={simulateCall} style={{ marginLeft: "auto", padding: "6px 12px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "#FFF", color: COLORS.accent, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>📞 着信</button>
       </div>
 
       <div style={{ display: "flex" }}>
@@ -246,10 +256,6 @@ export default function KanriApp() {
           <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 14 }}>{me.name}({INITIAL_VIEW_ROLES[myViewRole]?.label || myViewRole})</div>
 
           <button onClick={logout} style={{ width: "100%", padding: "8px 0", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.textSub, fontSize: 12.5, fontWeight: 700, cursor: "pointer", marginBottom: 14 }}>ログアウト</button>
-
-          {allowed.includes("customer") || allowed.includes("dashboard") ? (
-            <button onClick={simulateCall} style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 16 }}>📞 着信テスト(CTI)</button>
-          ) : null}
 
           {visibleGroups.map((g) => (
             <div key={g.group} style={{ marginBottom: 12 }}>

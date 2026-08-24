@@ -398,7 +398,7 @@ function UketsukeViewer({ theme, myName }) {
         <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, padding: 24 }}>本日の受付データはありません</div>
       ) : (
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-          <div style={{ minWidth: W.bikoL + W.taiki + W.no + W.time + W.cast + W.shimeiN + W.kaiin + W.label + W.name + W.kotsu + W.course + W.op * 2 + W.taishutsu + W.otoshi + W.joshi + W.biko + W.okuri + W.mukae + W.ryoshu + W.baitai + W.bikoR }}>
+          <div style={{ minWidth: W.bikoL + W.taiki + W.no + W.time + W.cast + W.shimeiN + W.kaiin + W.name + W.kotsu + W.course + W.op * 2 + W.taishutsu + W.otoshi + W.joshi + W.biko + W.okuri + W.mukae + W.ryoshu + W.baitai + W.bikoR }}>
             {/* 見出し行 */}
             <div style={{ display: "flex", position: "sticky", top: 0, zIndex: 2 }}>
               <Th width={W.bikoL} />
@@ -408,7 +408,6 @@ function UketsukeViewer({ theme, myName }) {
               <Th width={W.cast}>キャスト</Th>
               <Th width={W.shimeiN} />
               <Th width={W.kaiin}>指名</Th>
-              <Th width={W.label} />
               <Th width={W.name}>連絡先</Th>
               <Th width={W.kotsu}>交通費</Th>
               <Th width={W.course}>コース</Th>
@@ -467,15 +466,11 @@ function UketsukeViewer({ theme, myName }) {
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.kaiin} width={W.kaiin} bold fontSize={10} /></div>
                     <div style={{ height: ROW_H }}><ViewCell value={r.shimeiType} width={W.kaiin} bold fontSize={10} /></div>
                   </div>
-                  {/* ラベル(氏名) */}
-                  <div style={{ width: W.label, minWidth: W.label, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column", fontSize: 8, color: SUB, background: "#F4F6F9" }}>
-                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}>氏名</div>
-                    <div style={{ height: ROW_H }} />
-                  </div>
-                  {/* 氏名 / ホテル名(上下2段) */}
+                  {/* 氏名+電話番号 / ホテル名(上下2段) */}
                   <div style={{ width: W.name, minWidth: W.name, display: "flex", flexDirection: "column" }}>
-                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}>
-                      <ViewCell value={r.name} width={W.name} align="left" bold fontSize={12} />
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}`, display: "flex" }}>
+                      <ViewCell value={r.name} width={100} bold fontSize={12} />
+                      <ViewCell value={r.tel} width={W.name - 100} mono fontSize={11.5} />
                     </div>
                     <div style={{ height: ROW_H }}><ViewCell value={r.hotel} width={W.name} bold fontSize={11.5} /></div>
                   </div>

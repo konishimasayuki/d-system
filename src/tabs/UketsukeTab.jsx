@@ -33,7 +33,7 @@ export const W = {
   mukae: 46,   // V 迎え
   ryoshu: 40,  // W 領収書
   baitai: 46,  // X 媒体
-  bikoR: 220,  // Y 備考(NG等)
+  bikoR: 340,  // Y 備考(NG等)・長文が多いため広め
 };
 
 // 同じキャストが上から何本目かを計算(1本目=赤文字、2本目以降=緑背景の判定に使用)
@@ -138,6 +138,40 @@ function Cell({ value, onChange, width, align = "center", bg, color, bold, fontS
           fontWeight: bold ? 700 : 400, fontSize, textAlign: align,
           fontFamily: mono ? "'JetBrains Mono', monospace" : "inherit",
           outline: "none", height: "100%",
+        }}
+        onFocus={(e) => { if (!customStyle?.bg) e.target.style.background = "#FFF9DB"; }}
+        onBlur={(e) => { e.target.style.background = finalBg; }}
+      />
+      {picker && onStyleChange && (
+        <ColorPickerPopover x={picker.x} y={picker.y} currentBg={customStyle?.bg} currentColor={customStyle?.color}
+          onPick={(patch) => { onStyleChange({ ...customStyle, ...patch }); setPicker(null); }}
+          onClose={() => setPicker(null)} />
+      )}
+    </>
+  );
+}
+
+// 長文が折り返して複数行表示できるセル(スマホでは狭い列幅でも2段以上に自動で伸びる)
+function WrapCell({ value, onChange, width, color, fontSize = 10.5, customStyle, onStyleChange, minHeight = 26 }) {
+  const [picker, setPicker] = useState(null);
+  const finalBg = customStyle?.bg || "transparent";
+  const finalColor = customStyle?.color || color || COLORS.textMain;
+  const lp = useLongPress((x, y) => setPicker({ x, y }));
+  return (
+    <>
+      <textarea
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        {...lp}
+        rows={1}
+        style={{
+          width, minWidth: width, maxWidth: width, height: "100%", boxSizing: "border-box",
+          padding: "3px 4px", border: "none", borderRight: `1px solid ${COLORS.border}`,
+          background: finalBg, color: finalColor,
+          fontWeight: 400, fontSize, textAlign: "left", lineHeight: 1.4,
+          fontFamily: "inherit", outline: "none", resize: "none",
+          whiteSpace: "pre-wrap", wordBreak: "break-word", overflow: "hidden",
+          display: "block",
         }}
         onFocus={(e) => { if (!customStyle?.bg) e.target.style.background = "#FFF9DB"; }}
         onBlur={(e) => { e.target.style.background = finalBg; }}
@@ -573,9 +607,9 @@ export function UketsukeTab({ casts, courses, drivers }) {
                   </div>
                 </div>
 
-                {/* Q 退出(緑・結合) */}
-                <div style={{ width: W.taishutsu, minWidth: W.taishutsu, borderRight: `1px solid ${COLORS.border}`, background: "#00B050", display: "flex", alignItems: "center" }}>
-                  <Cell value={r.taishutsu} onChange={(v) => setRow(i, "taishutsu", v)} width={W.taishutsu - 2} bg="#00B050" color="#FFF" bold mono fontSize={12} placeholder="9:54"  customStyle={r.styles?.["taishutsu"]} onStyleChange={(s) => setRowStyle(i, "taishutsu", s)}/>
+                {/* Q 退出(結合) */}
+                <div style={{ width: W.taishutsu, minWidth: W.taishutsu, borderRight: `1px solid ${COLORS.border}`, background: "#FFFFFF", display: "flex", alignItems: "center" }}>
+                  <Cell value={r.taishutsu} onChange={(v) => setRow(i, "taishutsu", v)} width={W.taishutsu - 2} bg="#FFFFFF" color={COLORS.textMain} bold mono fontSize={12} placeholder="9:54" customStyle={r.styles?.["taishutsu"]} onStyleChange={(s) => setRowStyle(i, "taishutsu", s)} />
                 </div>
 
                 {/* R 落とし(結合) */}
@@ -618,13 +652,13 @@ export function UketsukeTab({ casts, courses, drivers }) {
                   <Cell value={r.baitai} onChange={(v) => setRow(i, "baitai", v)} width={W.baitai - 2} fontSize={10.5}  customStyle={r.styles?.["baitai"]} onStyleChange={(s) => setRowStyle(i, "baitai", s)}/>
                 </div>
 
-                {/* Y 備考(NG等・赤文字)・上下2段 */}
+                {/* Y 備考(NG等・赤文字)・上下2段・長文は折り返して複数行表示 */}
                 <div style={{ width: W.bikoR, minWidth: W.bikoR, display: "flex", flexDirection: "column" }}>
-                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.bikoR} onChange={(v) => setRow(i, "bikoR", v)} width={W.bikoR - 2} align="left" color="#C00000" fontSize={10.5} customStyle={r.styles?.["bikoR"]} onStyleChange={(s) => setRowStyle(i, "bikoR", s)} />
+                  <div style={{ minHeight: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
+                    <WrapCell value={r.bikoR} onChange={(v) => setRow(i, "bikoR", v)} width={W.bikoR - 2} color="#C00000" fontSize={10.5} minHeight={ROW_H} customStyle={r.styles?.["bikoR"]} onStyleChange={(s) => setRowStyle(i, "bikoR", s)} />
                   </div>
-                  <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.bikoR2} onChange={(v) => setRow(i, "bikoR2", v)} width={W.bikoR - 2} align="left" color="#C00000" fontSize={10.5} customStyle={r.styles?.["bikoR2"]} onStyleChange={(s) => setRowStyle(i, "bikoR2", s)} />
+                  <div style={{ minHeight: ROW_H, display: "flex", alignItems: "center" }}>
+                    <WrapCell value={r.bikoR2} onChange={(v) => setRow(i, "bikoR2", v)} width={W.bikoR - 2} color="#C00000" fontSize={10.5} minHeight={ROW_H} customStyle={r.styles?.["bikoR2"]} onStyleChange={(s) => setRowStyle(i, "bikoR2", s)} />
                   </div>
                 </div>
               </div>

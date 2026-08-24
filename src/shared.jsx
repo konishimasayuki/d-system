@@ -49,8 +49,8 @@ export const ROLES = ["オーナー", "統括部長", "店長", "主任", "内�
 
 // 役割別ビュー(阿修羅「全員参加」思想)
 export const VIEW_ROLES = {
-  owner: { label: "経営者", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "uketsuke", "dispatch", "customer", "media", "report", "accounting", "payout", "std", "driverschedule", "settings"] },
-  operator: { label: "オペレーター", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "uketsuke", "dispatch", "customer", "media", "driverschedule"] },
+  owner: { label: "経営者", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "uketsuke", "dispatch", "messages", "customer", "media", "report", "accounting", "payout", "std", "driverschedule", "settings"] },
+  operator: { label: "オペレーター", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "uketsuke", "dispatch", "messages", "customer", "media", "driverschedule"] },
   driver: { label: "ドライバー", tabs: ["driverpage"] },
   cast: { label: "キャスト", tabs: ["mypage"] },
   accountant: { label: "経理", tabs: ["report", "accounting", "payout"] },
@@ -986,4 +986,54 @@ export function usePersistedReservations(dayDates, initialAll) {
   }, [reservations, loaded]);
 
   return [reservations, setReservations, { loaded, err }];
+}
+
+// ============================================================
+// メッセージ機能(本部⇔スタッフ／本部⇔キャスト の1対1チャット)
+//  1メッセージ = { id, from: "office"|"user", text, ts, readByOffice, readByUser }
+//  スレッドキー: "staff_<driverId>" / "cast_<castId>"
+//  Upstashキー: messages:<threadId>
+// ============================================================
+export function staffThreadId(driverId) { return `staff_${driverId}`; }
+export function castThreadId(castId) { return `cast_${castId}`; }
+
+export async function fetchThread(threadId) {
+  try {
+    const r = await fetch(`/api/state?key=messages:${threadId}`);
+    const d = await r.json();
+    return Array.isArray(d.value) ? d.value : [];
+  } catch (e) { return []; }
+}
+
+export async function saveThread(threadId, messages) {
+  try {
+    await fetch(`/api/state?key=messages:${threadId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: messages }) });
+  } catch (e) {}
+}
+
+// 新規メッセージを1件追加して保存する(from: "office" | "user")
+export async function sendMessage(threadId, messages, from, text) {
+  const msg = {
+    id: `m${Date.now()}${Math.floor(Math.random() * 1000)}`,
+    from, text, ts: new Date().toISOString(),
+    readByOffice: from === "office", // 本部が送った時点で本部側は既読
+    readByUser: from === "user",     // 本人が送った時点で本人側は既読
+  };
+  const next = [...messages, msg];
+  await saveThread(threadId, next);
+  return next;
+}
+
+// 未読件数(視点="office"なら相手からのreadByOffice=falseを数える。視点="user"ならreadByUser=falseを数える)
+export function unreadCount(messages, viewpoint) {
+  const key = viewpoint === "office" ? "readByOffice" : "readByUser";
+  return (messages || []).filter((m) => !m[key]).length;
+}
+
+// 指定視点で全メッセージを既読にする
+export async function markThreadRead(threadId, messages, viewpoint) {
+  const key = viewpoint === "office" ? "readByOffice" : "readByUser";
+  const next = messages.map((m) => ({ ...m, [key]: true }));
+  await saveThread(threadId, next);
+  return next;
 }

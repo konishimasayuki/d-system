@@ -76,15 +76,23 @@ function CastPhotoManager({ castId }) {
 }
 
 // ============================================================
-export function CastDetailModal({ cast, onClose, onSave }) {
-  const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、"), shops: castShops(cast), castClass: castClass(cast), rewardRank: castRewardRank(cast) });
+export function CastDetailModal({ cast, onClose, onSave, allOptions }) {
+  const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、"), shops: castShops(cast), castClass: castClass(cast), rewardRank: castRewardRank(cast), castClassByShop: cast.castClassByShop || {}, allowedOptions: cast.allowedOptions || [] });
+  const [optOpen, setOptOpen] = useState(true);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
+  const setShopClass = (shopKey, clsKey) => setF((p) => ({ ...p, castClassByShop: { ...p.castClassByShop, [shopKey]: clsKey } }));
+  const toggleAllowedOption = (id) => setF((p) => ({ ...p, allowedOptions: p.allowedOptions.includes(id) ? p.allowedOptions.filter((x) => x !== id) : [...p.allowedOptions, id] }));
   const save = () => {
-    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, rewardRank: f.rewardRank, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
+    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, allowedOptions: f.allowedOptions, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
     onClose();
   };
-  const showRewardRank = f.shops.includes("hakata") && f.castClass === "standard";
+  const showRewardRank = f.shops.includes("hakata") && (f.castClassByShop.hakata || f.castClass) === "standard";
+  // 所属している各店舗×そのキャストのクラスに該当するオプション一覧(2店舗所属ならまとめて両方表示)
+  const optionsForShop = (shopKey) => {
+    const clsKey = f.castClassByShop[shopKey] || f.castClass;
+    return (allOptions || []).filter((o) => o.type === "extra" && o.shop === shopKey && o.castClass === clsKey);
+  };
   return (
     <Modal title={`${castFullName(cast)} の詳細・編集`} onClose={onClose} wide>
       <CastPhotoManager castId={cast.id} />
@@ -101,10 +109,46 @@ export function CastDetailModal({ cast, onClose, onSave }) {
         </div>
       </div>
       <TextField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} placeholder="例: 住吉" />
-      <SelectField label="クラス" value={f.castClass} onChange={(v) => set("castClass", v)} options={CAST_CLASS_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]))} />
+      {f.shops.length <= 1 ? (
+        <SelectField label="クラス" value={f.castClass} onChange={(v) => set("castClass", v)} options={CAST_CLASS_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]))} />
+      ) : (
+        <div style={{ display: "flex", gap: 10 }}>
+          {f.shops.map((shopKey) => (
+            <div key={shopKey} style={{ flex: 1 }}>
+              <SelectField label={`クラス(${SHOP_OPTIONS.find((s) => s.key === shopKey)?.label})`} value={f.castClassByShop[shopKey] || f.castClass} onChange={(v) => setShopClass(shopKey, v)} options={CAST_CLASS_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]))} />
+            </div>
+          ))}
+        </div>
+      )}
       {showRewardRank && (
         <SelectField label="報酬ランク(博多ココ・スタンダード)" value={f.rewardRank} onChange={(v) => set("rewardRank", v)} options={REWARD_RANK_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.key, o.label]))} />
       )}
+      <div style={{ marginBottom: 14 }}>
+        <div onClick={() => setOptOpen(!optOpen)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontSize: 12, color: COLORS.textSub, fontWeight: 600, marginBottom: 6 }}>
+          <span>対応可能オプション(店舗・クラス別。受付表のOP欄で選択可)</span>
+          <span>{optOpen ? "▲" : "▼"}</span>
+        </div>
+        {optOpen && (
+          <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 10 }}>
+            {f.shops.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub }}>所属店舗を選択してください。</div>}
+            {f.shops.map((shopKey) => {
+              const opts = optionsForShop(shopKey);
+              return (
+                <div key={shopKey} style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: COLORS.accent, marginBottom: 4 }}>{SHOP_OPTIONS.find((s) => s.key === shopKey)?.label}</div>
+                  {opts.length === 0 && <div style={{ fontSize: 11.5, color: COLORS.textSub }}>登録されたオプションがありません。</div>}
+                  {opts.map((o) => (
+                    <label key={o.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, padding: "3px 0", cursor: "pointer" }}>
+                      <input type="checkbox" checked={f.allowedOptions.includes(o.id)} onChange={() => toggleAllowedOption(o.id)} />
+                      <span>{o.name}(¥{o.price})</span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
       <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>キャストアプリ ログイン情報</div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="ログインID" value={f.loginId || ""} onChange={(v) => set("loginId", v)} /></div>
@@ -139,15 +183,22 @@ export function CastDetailModal({ cast, onClose, onSave }) {
   );
 }
 
-export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
+export function CastRegisterModal({ onClose, onCreate, defaultShop, allOptions }) {
   const [f, setF] = useState({
     name: "", honmyo: "", birthday: "", age: "20", phone: "", address: "",
     idType: "運転免許証", idNo: "", joinDate: isoDate(new Date()), ratePct: "55", okText: "指名", idVerified: false,
-    shops: defaultShop ? [defaultShop] : [], taikiba: "", castClass: "standard", rewardRank: "base", loginId: "", password: "", biko1: "", biko2: "",
+    shops: defaultShop ? [defaultShop] : [], taikiba: "", castClass: "standard", castClassByShop: {}, rewardRank: "base", allowedOptions: [], loginId: "", password: "", biko1: "", biko2: "",
   });
   const [msg, setMsg] = useState("");
+  const [optOpen, setOptOpen] = useState(true);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
+  const setShopClass = (shopKey, clsKey) => setF((p) => ({ ...p, castClassByShop: { ...p.castClassByShop, [shopKey]: clsKey } }));
+  const toggleAllowedOption = (id) => setF((p) => ({ ...p, allowedOptions: p.allowedOptions.includes(id) ? p.allowedOptions.filter((x) => x !== id) : [...p.allowedOptions, id] }));
+  const optionsForShop = (shopKey) => {
+    const clsKey = f.castClassByShop[shopKey] || f.castClass;
+    return (allOptions || []).filter((o) => o.type === "extra" && o.shop === shopKey && o.castClass === clsKey);
+  };
   const submit = () => {
     if (!f.name.trim()) { setMsg("キャスト名を入力してください"); return; }
     if (!f.loginId.trim() || !f.password.trim()) { setMsg("ログインID・パスワードを入力してください(キャストアプリのログインに使用します)"); return; }
@@ -159,12 +210,12 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
       shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0,
       itakuRate: (Number(f.ratePct) || 55) / 100, idVerified: f.idVerified,
       stdLast: isoDate(new Date()), okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), comment: "",
-      shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba, castClass: f.castClass, rewardRank: f.rewardRank,
+      shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, allowedOptions: f.allowedOptions,
       loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "",
     });
     onClose();
   };
-  const showRewardRank = f.shops.includes("hakata") && f.castClass === "standard";
+  const showRewardRank = f.shops.includes("hakata") && (f.castClassByShop.hakata || f.castClass) === "standard";
   return (
     <Modal title="キャスト新規登録" onClose={onClose} wide>
       <TextField label="キャスト名" value={f.name} onChange={(v) => set("name", v)} placeholder="例: みさき" />
@@ -180,10 +231,46 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
         </div>
       </div>
       <TextField label="待機場" value={f.taikiba || ""} onChange={(v) => set("taikiba", v)} placeholder="例: 住吉" />
-      <SelectField label="クラス" value={f.castClass} onChange={(v) => set("castClass", v)} options={CAST_CLASS_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]))} />
+      {f.shops.length <= 1 ? (
+        <SelectField label="クラス" value={f.castClass} onChange={(v) => set("castClass", v)} options={CAST_CLASS_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]))} />
+      ) : (
+        <div style={{ display: "flex", gap: 10 }}>
+          {f.shops.map((shopKey) => (
+            <div key={shopKey} style={{ flex: 1 }}>
+              <SelectField label={`クラス(${SHOP_OPTIONS.find((s) => s.key === shopKey)?.label})`} value={f.castClassByShop[shopKey] || f.castClass} onChange={(v) => setShopClass(shopKey, v)} options={CAST_CLASS_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]))} />
+            </div>
+          ))}
+        </div>
+      )}
       {showRewardRank && (
         <SelectField label="報酬ランク(博多ココ・スタンダード)" value={f.rewardRank} onChange={(v) => set("rewardRank", v)} options={REWARD_RANK_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.key, o.label]))} />
       )}
+      <div style={{ marginBottom: 14 }}>
+        <div onClick={() => setOptOpen(!optOpen)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontSize: 12, color: COLORS.textSub, fontWeight: 600, marginBottom: 6 }}>
+          <span>対応可能オプション(店舗・クラス別。受付表のOP欄で選択可)</span>
+          <span>{optOpen ? "▲" : "▼"}</span>
+        </div>
+        {optOpen && (
+          <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 10 }}>
+            {f.shops.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub }}>所属店舗を選択してください。</div>}
+            {f.shops.map((shopKey) => {
+              const opts = optionsForShop(shopKey);
+              return (
+                <div key={shopKey} style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: COLORS.accent, marginBottom: 4 }}>{SHOP_OPTIONS.find((s) => s.key === shopKey)?.label}</div>
+                  {opts.length === 0 && <div style={{ fontSize: 11.5, color: COLORS.textSub }}>登録されたオプションがありません。</div>}
+                  {opts.map((o) => (
+                    <label key={o.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, padding: "3px 0", cursor: "pointer" }}>
+                      <input type="checkbox" checked={f.allowedOptions.includes(o.id)} onChange={() => toggleAllowedOption(o.id)} />
+                      <span>{o.name}(¥{o.price})</span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
       <div style={{ fontSize: 11, color: COLORS.textSub, margin: "10px 0 6px", fontWeight: 600 }}>キャストアプリ ログイン情報</div>
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="ログインID" value={f.loginId} onChange={(v) => set("loginId", v)} placeholder="例: cast001" /></div>
@@ -220,7 +307,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop }) {
   );
 }
 
-export function CastList({ casts, setCasts }) {
+export function CastList({ casts, setCasts, options }) {
   const [shopKey, setShopKey] = useState("hitozuma");
   const [query, setQuery] = useState("");
   const [detailId, setDetailId] = useState(null);
@@ -367,8 +454,8 @@ export function CastList({ casts, setCasts }) {
         </div>
       </Card>
       <div style={{ fontSize: 11, color: COLORS.textSub, marginTop: 10 }}>※本名・生年月日・住所・身分証は個人情報です。役職に応じた操作制限(設定→セキュリティ)の対象です。</div>
-      {detailCast && <CastDetailModal cast={detailCast} onClose={() => setDetailId(null)} onSave={(u) => setCasts((prev) => prev.map((x) => x.id === u.id ? u : x))} />}
-      {registerOpen && <CastRegisterModal defaultShop={shopKey} onClose={() => setRegisterOpen(false)} onCreate={(newCast) => setCasts((prev) => [...prev, newCast])} />}
+      {detailCast && <CastDetailModal cast={detailCast} onClose={() => setDetailId(null)} onSave={(u) => setCasts((prev) => prev.map((x) => x.id === u.id ? u : x))} allOptions={options} />}
+      {registerOpen && <CastRegisterModal defaultShop={shopKey} onClose={() => setRegisterOpen(false)} onCreate={(newCast) => setCasts((prev) => [...prev, newCast])} allOptions={options} />}
     </div>
   );
 }

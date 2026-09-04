@@ -801,8 +801,8 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
             <button onClick={() => setWeekOffset((w) => w + 1)} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${LINE}`, background: "#FFF", color: INK, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>›</button>
           </div>
 
-          {/* 全員のスケジュール */}
-          <Eyebrow>全員のスケジュール</Eyebrow>
+          {/* 自分のスケジュール */}
+          <Eyebrow>自分のスケジュール</Eyebrow>
           {!scheduleLoaded ? (
             <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: 20 }}>読み込み中…</div>
           ) : (
@@ -812,7 +812,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                 <ScheduleDateHeader theme={theme} weekOffset={weekOffset} label="ドライバー" sticky />
                 {/* 昼スタッフ */}
                 <div style={{ padding: "5px 10px", fontSize: 10.5, fontWeight: 700, color: "#B5720A", background: "#FFF6E9" }}>☀ 昼</div>
-                {drivers.filter((d) => (d.shift || "day") === "day").map((d) => (
+                {drivers.filter((d) => d.id === driverId && (d.shift || "day") === "day").map((d) => (
                   <div key={d.id} style={{ display: "flex", borderTop: `1px solid ${LINE}`, background: d.id === driverId ? theme.accentSoft : "#FFF" }}>
                     <div style={{ width: 96, flexShrink: 0, padding: "7px 10px", fontSize: 11.5, fontWeight: d.id === driverId ? 800 : 600, color: INK, position: "sticky", left: 0, background: d.id === driverId ? theme.accentSoft : "#FFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" , boxSizing: "border-box" }}>{d.name}</div>
                     {weekDays(weekOffset).map((day) => {
@@ -840,7 +840,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                 {/* 夜スタッフ(見出しの直前に日付を再掲) */}
                 <ScheduleDateHeader theme={theme} weekOffset={weekOffset} label="ドライバー" />
                 <div style={{ padding: "5px 10px", fontSize: 10.5, fontWeight: 700, color: "#3B54A8", background: "#EAF0FC", borderTop: `2px solid ${INK}` }}>🌙 夜</div>
-                {drivers.filter((d) => (d.shift || "day") === "night").map((d) => (
+                {drivers.filter((d) => d.id === driverId && (d.shift || "day") === "night").map((d) => (
                   <div key={d.id} style={{ display: "flex", borderTop: `1px solid ${LINE}`, background: d.id === driverId ? theme.accentSoft : "#FFF" }}>
                     <div style={{ width: 96, flexShrink: 0, padding: "7px 10px", fontSize: 11.5, fontWeight: d.id === driverId ? 800 : 600, color: INK, position: "sticky", left: 0, background: d.id === driverId ? theme.accentSoft : "#FFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" , boxSizing: "border-box" }}>{d.name}</div>
                     {weekDays(weekOffset).map((day) => {

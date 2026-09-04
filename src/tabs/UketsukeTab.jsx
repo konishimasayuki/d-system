@@ -629,9 +629,13 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                   </div>
                 </div>
 
-                {/* F キャスト(結合) */}
+                {/* F キャスト(結合・ダイヤモンドクラスは赤字) */}
                 <div style={{ width: W.cast, minWidth: W.cast, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", background: "#FFF" }}>
-                  <AutoCompleteCell value={r.cast} onChange={(v) => setCastForRow(i, v)} options={castNames} width={W.cast - 2} bold fontSize={10.5} customStyle={r.styles?.["cast"]} onStyleChange={(s) => setRowStyle(i, "cast", s)} />
+                  {(() => {
+                    const castObj = casts.find((c) => castFullName(c) === r.cast);
+                    const isDiamond = castObj && castClass(castObj) === "diamond";
+                    return <AutoCompleteCell value={r.cast} onChange={(v) => setCastForRow(i, v)} options={castNames} width={W.cast - 2} bold fontSize={10.5} color={isDiamond ? "#C00000" : undefined} customStyle={r.styles?.["cast"]} onStyleChange={(s) => setRowStyle(i, "cast", s)} />;
+                  })()}
                 </div>
 
                 {/* G 指名数：同じキャストが本日何本目かを自動表示(1本目=赤文字/白背景、2本目以降=黒文字/緑背景) */}

@@ -471,7 +471,13 @@ function UketsukeViewer({ theme, myName }) {
                     <div style={{ height: ROW_H }}><ViewCell value={r.hotel} width={W.name} bold fontSize={11.5} /></div>
                   </div>
                   {/* 交通費 */}
-                  <div style={{ width: W.kotsu, minWidth: W.kotsu }}><ViewCell value={r.kotsu} width={W.kotsu} mono /></div>
+                  <div style={{ width: W.kotsu, minWidth: W.kotsu }}>
+                    {(() => {
+                      const kotsuNum = Number(String(r.kotsu).replace(/[^0-9.-]/g, "")) || 0;
+                      const highlight = kotsuNum >= 1000;
+                      return <ViewCell value={r.kotsu} width={W.kotsu} mono bold={highlight} bg={highlight ? "#FFFF00" : undefined} color={highlight ? "#C00000" : undefined} />;
+                    })()}
+                  </div>
                   {/* コース */}
                   <div style={{ width: W.course, minWidth: W.course }}><ViewCell value={r.course} width={W.course} bold fontSize={12} /></div>
                   {/* OP(上下2段×2列) */}

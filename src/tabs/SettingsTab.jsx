@@ -273,8 +273,10 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
   const addOption = () => { if (!oName.trim()) return; setOptions((p) => [...p, { id: `op${Date.now()}`, name: oName.trim(), price: Number(oPrice) || 0 }]); setOName(""); setOPrice(""); };
   const removeOption = (id) => setOptions((prev) => prev.filter((o) => o.id !== id));
   const updateOptionPrice = (id, price) => setOptions((prev) => prev.map((o) => o.id === id ? { ...o, price: Number(price) || 0 } : o));
-  const addExtraOption = () => { if (!exName.trim()) return; setOptions((p) => [...p, { id: `exop${Date.now()}`, name: exName.trim(), price: Number(exPrice) || 0, type: "extra" }]); setExName(""); setExPrice(""); };
-  const extraOptions = options.filter((o) => o.type === "extra");
+  const addExtraOption = () => { if (!exName.trim()) return; setOptions((p) => [...p, { id: `exop${Date.now()}`, name: exName.trim(), price: Number(exPrice) || 0, type: "extra", shop, castClass: cls }]); setExName(""); setExPrice(""); };
+  const removeExtraOption = (id) => setOptions((prev) => prev.filter((o) => o.id !== id));
+  const updateExtraPrice = (id, price) => setOptions((prev) => prev.map((o) => o.id === id ? { ...o, price: Number(price) || 0 } : o));
+  const extraOptions = options.filter((o) => o.type === "extra" && o.shop === shop && o.castClass === cls);
 
   const resetPricing = () => {
     if (!window.confirm("コース料金・指名料を初期値に戻します(現在の入力内容は失われます)。よろしいですか？")) return;
@@ -359,14 +361,16 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
         <button onClick={addOption} style={{ flexShrink: 0, padding: "0 14px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, cursor: "pointer" }}>＋</button>
       </div>
 
-      {/* オプション */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, margin: "20px 0 8px" }}>オプション</div>
+      {/* オプション(店舗・クラスごとに登録。受付表のOP欄・キャスト設定で対応可否を選択) */}
+      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, margin: "20px 0 8px" }}>
+        オプション({SHOP_OPTIONS.find((s) => s.key === shop)?.label} ・ {CAST_CLASS_OPTIONS.find((c) => c.key === cls)?.label})
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
         {extraOptions.map((o) => (
           <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}>
             <span style={{ flex: 1 }}>{o.name}</span>
-            <input value={o.price} onChange={(e) => updateOptionPrice(o.id, e.target.value)} type="number" style={{ width: 90, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, textAlign: "right" }} />
-            <button onClick={() => removeOption(o.id)} style={{ border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>
+            <input value={o.price} onChange={(e) => updateExtraPrice(o.id, e.target.value)} type="number" style={{ width: 90, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, textAlign: "right" }} />
+            <button onClick={() => removeExtraOption(o.id)} style={{ border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>
           </div>
         ))}
         {extraOptions.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub, padding: "4px 2px" }}>オプションはまだ登録されていません。</div>}

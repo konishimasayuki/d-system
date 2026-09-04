@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  COLORS, GLOBAL_CSS, CUSTOMER_COLORS, VIEW_ROLES, INITIAL_VIEW_ROLES, TAB_DEFS, RESTRICTED_TAB_PASSWORD, DAY_DATES, DEFAULT_OFFICE,
+  COLORS, GLOBAL_CSS, CUSTOMER_COLORS, VIEW_ROLES, INITIAL_VIEW_ROLES, TAB_DEFS, RESTRICTED_TAB_PASSWORD, staffAllowedTabs, DAY_DATES, DEFAULT_OFFICE,
   INITIAL_CASTS, INITIAL_RESERVATIONS, INITIAL_DRIVERS, INITIAL_CUSTOMERS,
   INITIAL_HOTELS, INITIAL_STAFF, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES, INITIAL_EXPENSES,
   usePersistedState, usePersistedReservations, PrimaryButton,
@@ -203,7 +203,7 @@ export default function KanriApp() {
 
   const me = staff.find((s) => s.id === staffId);
   const myViewRole = me?.viewRole || "operator";
-  const allowed = (viewRoles[myViewRole] || viewRoles.operator).tabs;
+  const allowed = staffAllowedTabs(me);
   const visibleGroups = TAB_GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => allowed.includes(t.key)) })).filter((g) => g.tabs.length > 0);
   const currentLabel = ALL_TABS.find((t) => t.key === tab)?.label ?? "";
 
@@ -230,7 +230,7 @@ export default function KanriApp() {
     return <KanriLoginScreen staff={staff} onLogin={(id) => {
       setStaffId(id); saveKanriLogin(id);
       const matched = staff.find((s) => s.id === id);
-      const roleTabs = (viewRoles[matched?.viewRole] || viewRoles.operator).tabs;
+      const roleTabs = staffAllowedTabs(matched);
       if (!roleTabs.includes("uketsuke")) setTab(roleTabs[0] || "uketsuke");
     }} />;
   }

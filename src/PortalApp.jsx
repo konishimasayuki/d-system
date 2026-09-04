@@ -472,7 +472,7 @@ function UketsukeViewer({ theme, myName, casts }) {
                       <ViewCell value={r.name} width={100} bold fontSize={12} />
                       <ViewCell value={r.tel} width={W.name - 100} mono fontSize={11.5} />
                     </div>
-                    <div style={{ height: ROW_H }}><ViewCell value={r.hotel} width={W.name} bold fontSize={11.5} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.hotel} width={W.name} bold fontSize={11.5} color={String(r.hotel || "").includes("※") ? "#C00000" : undefined} /></div>
                   </div>
                   {/* 交通費 */}
                   <div style={{ width: W.kotsu, minWidth: W.kotsu }}>

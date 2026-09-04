@@ -385,6 +385,18 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
 
   // 落とし・女子給を自動計算：落とし = コース料金 + 交通費 + 指名料(Fの選択に応じ) + オプション(未実装分は0)
   //  ※手動で上書きした値は、コース・指名種別・交通費のいずれかを再度変更するまで保持される
+  // 行のキャストが対応可能なオプション名一覧(所属店舗×クラスに応じたもの。OP欄のプルダウン用)
+  const optionsForRowCast = (castName) => {
+    const cast = casts.find((c) => castFullName(c) === castName);
+    if (!cast) return [""];
+    const allowed = cast.allowedOptions || [];
+    const matched = options.filter((o) => o.type === "extra" && allowed.includes(o.id));
+    return ["", ...matched.map((o) => o.name)];
+  };
+  const optionPriceByName = (name) => {
+    const found = options.find((o) => o.type === "extra" && o.name === name);
+    return found ? found.price : 0;
+  };
   const recalcRow = (row, idx) => {
     const info = courseInfo(row.course, row.cast);
     if (!info) return row; // コース未選択なら自動計算しない(手入力のまま)
@@ -393,7 +405,8 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
       : null;
     const shimeiPrice = shimeiOpt?.price || 0;
     const kotsu = Number(String(row.kotsu).replace(/[^0-9.-]/g, "")) || 0;
-    const otoshi = info.price + kotsu + shimeiPrice; // オプション加算は今後対応
+    const opTotal = [row.op1, row.op2, row.op3, row.op4].filter((n) => n && n !== "なし").reduce((sum, n) => sum + optionPriceByName(n), 0);
+    const otoshi = info.price + kotsu + shimeiPrice + opTotal;
     // 女子給：博多ココ・スタンダードは報酬ランク別、それ以外は通常の女子給
     let baseJoshi = info.joshi;
     if (info.joshiByRank) {
@@ -404,8 +417,12 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
     // 本日1本目(備考欄の自動-500表示)は、女子給からも雑費500円を控除する
     const bikoValue = row.biko || (idx != null && shimeiCounts[idx] === 1 ? "-500" : "");
     const bikoDeduction = Number(String(bikoValue).replace(/[^0-9.-]/g, "")) || 0; // マイナス値としてそのまま加算(控除)
-    const joshi = baseJoshi + bikoDeduction;
+    const joshi = baseJoshi + opTotal + bikoDeduction;
     return { ...row, otoshi: String(otoshi), joshi: String(joshi) };
+  };
+  const setOpForRow = (i, field, val) => {
+    const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, [field]: val }, idx) : r);
+    save({ ...sheet, rows });
   };
   const setCourseForRow = (i, code) => {
     const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, course: code }, idx) : r);
@@ -632,7 +649,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                 {/* F キャスト(結合・ダイヤモンドクラスは赤字) */}
                 <div style={{ width: W.cast, minWidth: W.cast, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", background: "#FFF" }}>
                   {(() => {
-                    const castObj = casts.find((c) => castFullName(c) === r.cast);
+                    const castObj = casts.find((c) => castFullName(c).trim() === String(r.cast || "").trim());
                     const isDiamond = castObj && castClass(castObj) === "diamond";
                     return <AutoCompleteCell value={r.cast} onChange={(v) => setCastForRow(i, v)} options={castNames} width={W.cast - 2} bold fontSize={10.5} color={isDiamond ? "#C00000" : undefined} customStyle={r.styles?.["cast"]} onStyleChange={(s) => setRowStyle(i, "cast", s)} />;
                   })()}
@@ -709,12 +726,12 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                 {/* O/P OP(上下2段×2列) */}
                 <div style={{ width: W.op * 2, minWidth: W.op * 2, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex" }}>
-                    <Cell value={r.op1} onChange={(v) => setRow(i, "op1", v)} width={W.op} fontSize={10.5}  customStyle={r.styles?.["op1"]} onStyleChange={(s) => setRowStyle(i, "op1", s)}/>
-                    <Cell value={r.op2} onChange={(v) => setRow(i, "op2", v)} width={W.op} fontSize={10.5}  customStyle={r.styles?.["op2"]} onStyleChange={(s) => setRowStyle(i, "op2", s)}/>
+                    <SelCell value={r.op1 || "なし"} onChange={(v) => setOpForRow(i, "op1", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op1"]} onStyleChange={(s) => setRowStyle(i, "op1", s)} />
+                    <SelCell value={r.op2 || "なし"} onChange={(v) => setOpForRow(i, "op2", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op2"]} onStyleChange={(s) => setRowStyle(i, "op2", s)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex" }}>
-                    <Cell value={r.op3} onChange={(v) => setRow(i, "op3", v)} width={W.op} fontSize={10.5}  customStyle={r.styles?.["op3"]} onStyleChange={(s) => setRowStyle(i, "op3", s)}/>
-                    <Cell value={r.op4} onChange={(v) => setRow(i, "op4", v)} width={W.op} fontSize={10.5}  customStyle={r.styles?.["op4"]} onStyleChange={(s) => setRowStyle(i, "op4", s)}/>
+                    <SelCell value={r.op3 || "なし"} onChange={(v) => setOpForRow(i, "op3", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op3"]} onStyleChange={(s) => setRowStyle(i, "op3", s)} />
+                    <SelCell value={r.op4 || "なし"} onChange={(v) => setOpForRow(i, "op4", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op4"]} onStyleChange={(s) => setRowStyle(i, "op4", s)} />
                   </div>
                 </div>
 

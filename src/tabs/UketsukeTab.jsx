@@ -624,7 +624,11 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                     <Cell value={r.bikoL} onChange={(v) => setRow(i, "bikoL", v)} width={W.bikoL - 2} align="left" fontSize={11} customStyle={r.styles?.["bikoL"]} onStyleChange={(s) => setRowStyle(i, "bikoL", s)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.bikoL2} onChange={(v) => setRow(i, "bikoL2", v)} width={W.bikoL - 2} align="left" fontSize={11} customStyle={r.styles?.["bikoL2"]} onStyleChange={(s) => setRowStyle(i, "bikoL2", s)} />
+                    {r.ryoshu === "発行" ? (
+                      <div style={{ width: W.bikoL - 2, height: "100%", background: "#FF0000", color: "#000000", fontWeight: 700, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>発行</div>
+                    ) : (
+                      <Cell value={r.bikoL2} onChange={(v) => setRow(i, "bikoL2", v)} width={W.bikoL - 2} align="left" fontSize={11} customStyle={r.styles?.["bikoL2"]} onStyleChange={(s) => setRowStyle(i, "bikoL2", s)} />
+                    )}
                   </div>
                 </div>
                 {/* B 待機場 */}
@@ -770,9 +774,11 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                   <SelCell value={r.mukae} onChange={(v) => setRow(i, "mukae", v)} options={driverNames} width={W.mukae - 2} fontSize={10.5}  customStyle={r.styles?.["mukae"]} onStyleChange={(s) => setRowStyle(i, "mukae", s)}/>
                 </div>
 
-                {/* W 領収書 */}
+                {/* W 領収書(発行時は水色背景・左欄下段に発行マーク) */}
                 <div style={{ width: W.ryoshu, minWidth: W.ryoshu, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.ryoshu} onChange={(v) => setRow(i, "ryoshu", v)} width={W.ryoshu - 2} fontSize={10.5}  customStyle={r.styles?.["ryoshu"]} onStyleChange={(s) => setRowStyle(i, "ryoshu", s)}/>
+                  <SelCell value={r.ryoshu || "未選択"} onChange={(v) => setRow(i, "ryoshu", v)} options={["未選択", "発行"]} width={W.ryoshu - 2} fontSize={10}
+                    bg={r.ryoshu === "発行" ? "#B7E6F2" : undefined} color={r.ryoshu === "発行" ? "#000000" : undefined}
+                    customStyle={r.styles?.["ryoshu"]} onStyleChange={(s) => setRowStyle(i, "ryoshu", s)} />
                 </div>
 
                 {/* X 媒体 */}

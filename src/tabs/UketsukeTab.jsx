@@ -263,7 +263,7 @@ function AutoCompleteCell({ value, onChange, options, width, bg, color, bold, fo
 }
 
 // セレクト型セル
-function SelCell({ value, onChange, options, width, bg, color, bold, fontSize = 11.5, customStyle, onStyleChange }) {
+function SelCell({ value, onChange, options, width, bg, color, bold, fontSize = 11.5, mono, customStyle, onStyleChange }) {
   const [picker, setPicker] = useState(null);
   const finalBg = customStyle?.bg || bg || "transparent";
   const finalColor = customStyle?.color || color || COLORS.textMain;
@@ -279,6 +279,7 @@ function SelCell({ value, onChange, options, width, bg, color, bold, fontSize = 
           padding: "2px 2px", border: "none", borderRight: `1px solid ${COLORS.border}`,
           background: finalBg, color: finalColor,
           fontWeight: bold ? 700 : 400, fontSize, textAlign: "center",
+          fontFamily: mono ? "'JetBrains Mono', monospace" : "inherit",
           outline: "none", height: "100%", appearance: "none", cursor: "pointer",
         }}>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -435,6 +436,8 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
   const wareki = d.getFullYear() - 2018; // 令和
 
   const castNames = ["", ...casts.filter((c) => castShops(c).includes(sheetKey)).map((c) => castFullName(c))];
+  // 交通費の選択肢(店舗ごとに金額が異なる。1000円以上は選択後に黄色背景・赤文字で強調)
+  const kotsuOptions = sheetKey === "hitozuma" ? ["0", "1100", "2200", "3300", "4400", "5500"] : ["0", "1000", "2000", "3000", "4000", "5000"];
   // 送迎交通費確認：地区名(区+地名/ホテル名)の選択肢と、選んだ地区に対応する金額
   const transportAreaLabels = [{ label: "", search: "" }, ...(transportFees || []).map((t) => ({ label: `${t.area} ${t.name}`, search: t.reading || "" }))];
   const transportFeeValue = (() => {
@@ -655,9 +658,17 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                   </div>
                 </div>
 
-                {/* M 交通費(結合) */}
+                {/* M 交通費(結合・店舗別プルダウン。1000円以上は黄色背景+赤文字) */}
                 <div style={{ width: W.kotsu, minWidth: W.kotsu, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.kotsu} onChange={(v) => setKotsuForRow(i, v)} width={W.kotsu - 2} mono placeholder="0" customStyle={r.styles?.["kotsu"]} onStyleChange={(s) => setRowStyle(i, "kotsu", s)} />
+                  {(() => {
+                    const kotsuNum = Number(String(r.kotsu).replace(/[^0-9.-]/g, "")) || 0;
+                    const highlight = kotsuNum >= 1000;
+                    return (
+                      <SelCell value={r.kotsu || "0"} onChange={(v) => setKotsuForRow(i, v)} options={kotsuOptions} width={W.kotsu - 2} mono bold={highlight}
+                        bg={highlight ? "#FFFF00" : undefined} color={highlight ? "#C00000" : undefined}
+                        customStyle={r.styles?.["kotsu"]} onStyleChange={(s) => setRowStyle(i, "kotsu", s)} />
+                    );
+                  })()}
                 </div>
 
                 {/* N コース(結合・キャストの所属店舗/クラスに応じた選択肢。自由入力にも対応) */}

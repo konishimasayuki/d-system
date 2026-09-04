@@ -92,6 +92,13 @@ export const INITIAL_VIEW_ROLES = {
 };
 // 後方互換用のエイリアス(旧コードがVIEW_ROLESを直接参照している箇所向け)
 export const VIEW_ROLES = INITIAL_VIEW_ROLES;
+// スタッフ個人の閲覧可能タブを返す(経営者は常に全タブ。オペレーターは個人ごとのallowedTabsが未設定ならinitial operatorにフォールバック)
+export function staffAllowedTabs(staffMember) {
+  if (!staffMember) return INITIAL_VIEW_ROLES.operator.tabs;
+  if (staffMember.viewRole === "owner") return INITIAL_VIEW_ROLES.owner.tabs;
+  if (Array.isArray(staffMember.allowedTabs)) return staffMember.allowedTabs;
+  return INITIAL_VIEW_ROLES.operator.tabs;
+}
 
 // ============================================================
 // マスタ・モックデータ

@@ -474,45 +474,54 @@ export function SecurityForm() {
 }
 
 // 権限グループごとのタブ閲覧可否を管理(経営者のみ編集可能)
-export function ViewRolePermissionForm({ viewRoles, setViewRoles, isOwner }) {
+export function ViewRolePermissionForm({ staff, setStaff, isOwner }) {
   if (!isOwner) {
     return (
       <Card>
         <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 8 }}>権限管理</div>
-        <div style={{ fontSize: 13, color: COLORS.textSub }}>権限グループの変更は経営者のみ行えます。</div>
+        <div style={{ fontSize: 13, color: COLORS.textSub }}>スタッフごとの閲覧権限の変更は経営者のみ行えます。</div>
       </Card>
     );
   }
-  const roleKeys = Object.keys(viewRoles);
-  const toggle = (roleKey, tabKey) => {
-    setViewRoles((prev) => {
-      const cur = prev[roleKey];
-      const has = cur.tabs.includes(tabKey);
-      const nextTabs = has ? cur.tabs.filter((t) => t !== tabKey) : [...cur.tabs, tabKey];
-      return { ...prev, [roleKey]: { ...cur, tabs: nextTabs } };
-    });
+  const toggle = (staffId, tabKey) => {
+    setStaff((prev) => prev.map((s) => {
+      if (s.id !== staffId) return s;
+      const cur = Array.isArray(s.allowedTabs) ? s.allowedTabs : INITIAL_VIEW_ROLES.operator.tabs;
+      const has = cur.includes(tabKey);
+      const next = has ? cur.filter((t) => t !== tabKey) : [...cur, tabKey];
+      return { ...s, allowedTabs: next };
+    }));
   };
   return (
     <Card>
       <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textMain, marginBottom: 6 }}>権限管理(経営者のみ変更可)</div>
-      <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>権限グループごとに、どのタブを閲覧できるか設定できます。経営者・オペレーター・キャスト・ドライバーの4種です。</div>
+      <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 14 }}>スタッフ一人ひとりごとに、どのタブを閲覧できるか設定できます。経営者は常に全タブ閲覧可能です。</div>
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#EDF3FA" }}>
-              <th style={{ textAlign: "left", padding: "8px 10px", fontSize: 11.5, color: COLORS.textSub }}>タブ</th>
-              {roleKeys.map((rk) => <th key={rk} style={{ textAlign: "center", padding: "8px 10px", fontSize: 11.5, color: COLORS.textSub, whiteSpace: "nowrap" }}>{viewRoles[rk].label}</th>)}
+              <th style={{ position: "sticky", left: 0, background: "#EDF3FA", textAlign: "left", padding: "8px 10px", fontSize: 11.5, color: COLORS.textSub, whiteSpace: "nowrap", minWidth: 100 }}>タブ</th>
+              {staff.map((s) => (
+                <th key={s.id} style={{ textAlign: "center", padding: "8px 6px", fontSize: 11, color: COLORS.textSub, whiteSpace: "nowrap", minWidth: 64 }}>
+                  {s.name}
+                  <div style={{ fontSize: 9.5, color: s.viewRole === "owner" ? COLORS.accent : COLORS.textSub, fontWeight: 700 }}>{s.viewRole === "owner" ? "経営者" : "オペレーター"}</div>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {TAB_DEFS.map((t) => (
               <tr key={t.key} style={{ borderTop: `1px solid ${COLORS.border}` }}>
-                <td style={{ padding: "7px 10px", fontSize: 13, color: COLORS.textMain, whiteSpace: "nowrap" }}>{t.label}{t.restricted ? <span style={{ fontSize: 10, color: COLORS.red, marginLeft: 4 }}>🔒</span> : null}</td>
-                {roleKeys.map((rk) => (
-                  <td key={rk} style={{ textAlign: "center", padding: "7px 10px" }}>
-                    <input type="checkbox" checked={viewRoles[rk].tabs.includes(t.key)} onChange={() => toggle(rk, t.key)} style={{ width: 16, height: 16, cursor: "pointer" }} />
-                  </td>
-                ))}
+                <td style={{ position: "sticky", left: 0, background: "#FFF", padding: "7px 10px", fontSize: 13, color: COLORS.textMain, whiteSpace: "nowrap" }}>{t.label}{t.restricted ? <span style={{ fontSize: 10, color: COLORS.red, marginLeft: 4 }}>🔒</span> : null}</td>
+                {staff.map((s) => {
+                  const isOwnerRow = s.viewRole === "owner";
+                  const checked = isOwnerRow ? true : (Array.isArray(s.allowedTabs) ? s.allowedTabs.includes(t.key) : INITIAL_VIEW_ROLES.operator.tabs.includes(t.key));
+                  return (
+                    <td key={s.id} style={{ textAlign: "center", padding: "7px 6px" }}>
+                      <input type="checkbox" checked={checked} disabled={isOwnerRow} onChange={() => toggle(s.id, t.key)} style={{ width: 16, height: 16, cursor: isOwnerRow ? "default" : "pointer", opacity: isOwnerRow ? 0.5 : 1 }} />
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -522,6 +531,7 @@ export function ViewRolePermissionForm({ viewRoles, setViewRoles, isOwner }) {
     </Card>
   );
 }
+
 // ---- CSVユーティリティ ----
 export function nextHotelId(hotels) { let max = 0; hotels.forEach((h) => { const n = parseInt(h.id, 10); if (!isNaN(n) && n > max) max = n; }); return String(max + 1).padStart(4, "0"); }
 
@@ -701,7 +711,7 @@ export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, 
       {sub === "staff" && <StaffRegisterForm staff={staff} setStaff={setStaff} isOwner={isOwner} myStaffId={myStaffId} />}
       {sub === "master" && <MasterForm courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} />}
       {sub === "transport" && <TransportFeeForm transportFees={transportFees} setTransportFees={setTransportFees} />}
-      {sub === "permissions" && <ViewRolePermissionForm viewRoles={viewRoles} setViewRoles={setViewRoles} isOwner={isOwner} />}
+      {sub === "permissions" && <ViewRolePermissionForm staff={staff} setStaff={setStaff} isOwner={isOwner} />}
       {sub === "security" && <SecurityForm />}
     </div>
   );

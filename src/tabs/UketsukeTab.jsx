@@ -62,138 +62,97 @@ const emptySheet = () => ({
 });
 
 // ============================================================
-// セル色ピッカー(右クリック / 長押しで開く)
+// セル選択・右クリックメニュー(コピー/ペースト/削除)。
+// 色・太字は上部のツールバーから、選択中セルに対して適用する。
 // ============================================================
 const BG_SWATCHES = ["", "#FFFF00", "#FFD966", "#F4B183", "#FF7C80", "#A9D18E", "#9DC3E6", "#B4A7D6", "#D9D9D9", "#FF0000", "#00B050"];
 const TEXT_SWATCHES = ["", "#000000", "#C00000", "#1F4E9C", "#FFFFFF", "#7F6000"];
 
-function useLongPress(onTrigger, ms = 480) {
-  const timer = { current: null };
-  const start = (e) => {
-    const point = e.touches ? e.touches[0] : e;
-    const x = point.clientX, y = point.clientY;
-    timer.current = setTimeout(() => onTrigger(x, y), ms);
-  };
-  const clear = () => { if (timer.current) clearTimeout(timer.current); };
+// セルをクリックで選択・右クリックでコンテキストメニューを開くためのイベントハンドラを返す
+function useCellSelect(cellKey, onSelect, onContextMenuOpen) {
   return {
-    onContextMenu: (e) => { e.preventDefault(); onTrigger(e.clientX, e.clientY); },
-    onTouchStart: start, onTouchEnd: clear, onTouchMove: clear,
+    onClick: () => onSelect(cellKey),
+    onContextMenu: (e) => { e.preventDefault(); onSelect(cellKey); onContextMenuOpen(e.clientX, e.clientY); },
   };
 }
 
-function ColorPickerPopover({ x, y, currentBg, currentColor, onPick, onClose }) {
+function CellContextMenu({ x, y, onCopy, onPaste, onDelete, onClose, canPaste }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200 }}>
       <div onClick={(e) => e.stopPropagation()} style={{
-        position: "fixed", left: Math.min(x, window.innerWidth - 230), top: Math.min(y, window.innerHeight - 200),
-        background: "#FFF", borderRadius: 10, padding: 12, boxShadow: "0 8px 28px rgba(0,0,0,0.28)", border: "1px solid #D8DEE6", width: 214,
+        position: "fixed", left: Math.min(x, window.innerWidth - 160), top: Math.min(y, window.innerHeight - 140),
+        background: "#FFF", borderRadius: 10, padding: 6, boxShadow: "0 8px 28px rgba(0,0,0,0.28)", border: "1px solid #D8DEE6", width: 140,
       }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: "#7A8798", marginBottom: 6 }}>背景色</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
-          {BG_SWATCHES.map((c) => (
-            <button key={c || "none"} onClick={() => onPick({ bg: c })}
-              title={c || "なし"}
-              style={{
-                width: 22, height: 22, borderRadius: 5, cursor: "pointer",
-                background: c || "repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 8px 8px",
-                border: c === currentBg ? "2px solid #2F6DB5" : "1px solid #D8DEE6",
-              }} />
-          ))}
-        </div>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: "#7A8798", marginBottom: 6 }}>文字色</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
-          {TEXT_SWATCHES.map((c) => (
-            <button key={c || "none"} onClick={() => onPick({ color: c })}
-              title={c || "既定"}
-              style={{
-                width: 22, height: 22, borderRadius: 5, cursor: "pointer",
-                background: c || "repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 8px 8px",
-                border: c === currentColor ? "2px solid #2F6DB5" : "1px solid #D8DEE6",
-                color: c || "#000", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center",
-              }}>{c ? "A" : ""}</button>
-          ))}
-        </div>
-        <button onClick={() => onPick({ bg: "", color: "" })} style={{ width: "100%", padding: "5px 0", borderRadius: 6, border: "1px solid #D8DEE6", background: "#F7F8FA", color: "#7A8798", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>色をクリア</button>
+        <button onClick={onCopy} style={{ width: "100%", textAlign: "left", padding: "8px 10px", border: "none", background: "none", cursor: "pointer", fontSize: 13, borderRadius: 6 }}>コピー</button>
+        <button onClick={onPaste} disabled={!canPaste} style={{ width: "100%", textAlign: "left", padding: "8px 10px", border: "none", background: "none", cursor: canPaste ? "pointer" : "default", fontSize: 13, borderRadius: 6, color: canPaste ? "#1A1F26" : "#B7C2D0" }}>ペースト</button>
+        <button onClick={onDelete} style={{ width: "100%", textAlign: "left", padding: "8px 10px", border: "none", background: "none", cursor: "pointer", fontSize: 13, borderRadius: 6, color: "#C0492B" }}>削除</button>
       </div>
     </div>
   );
 }
 
 // 汎用セル入力
-function Cell({ value, onChange, width, align = "center", bg, color, bold, fontSize = 11.5, placeholder, mono, customStyle, onStyleChange }) {
-  const [picker, setPicker] = useState(null);
+function Cell({ value, onChange, width, align = "center", bg, color, bold, fontSize = 11.5, placeholder, mono, customStyle, cellKey, selected, onSelect, onOpenMenu }) {
   const finalBg = customStyle?.bg || bg || "transparent";
   const finalColor = customStyle?.color || color || COLORS.textMain;
-  const lp = useLongPress((x, y) => setPicker({ x, y }));
+  const finalBold = customStyle?.bold || bold;
   return (
-    <>
-      <input
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        {...lp}
-        style={{
-          width, minWidth: width, maxWidth: width, boxSizing: "border-box",
-          padding: "3px 4px", border: "none", borderRight: `1px solid ${COLORS.border}`,
-          background: finalBg, color: finalColor,
-          fontWeight: bold ? 700 : 400, fontSize, textAlign: align,
-          fontFamily: mono ? "'JetBrains Mono', monospace" : "inherit",
-          outline: "none", height: "100%",
-        }}
-        onFocus={(e) => { if (!customStyle?.bg) e.target.style.background = "#FFF9DB"; }}
-        onBlur={(e) => { e.target.style.background = finalBg; }}
-      />
-      {picker && onStyleChange && (
-        <ColorPickerPopover x={picker.x} y={picker.y} currentBg={customStyle?.bg} currentColor={customStyle?.color}
-          onPick={(patch) => { onStyleChange({ ...customStyle, ...patch }); setPicker(null); }}
-          onClose={() => setPicker(null)} />
-      )}
-    </>
+    <input
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      onClick={() => onSelect && onSelect(cellKey)}
+      onContextMenu={(e) => { e.preventDefault(); if (onSelect) onSelect(cellKey); if (onOpenMenu) onOpenMenu(e.clientX, e.clientY); }}
+      style={{
+        width, minWidth: width, maxWidth: width, boxSizing: "border-box",
+        padding: "3px 4px", border: "none", borderRight: `1px solid ${COLORS.border}`,
+        outline: selected ? `2px solid ${COLORS.accent}` : "none", outlineOffset: -2,
+        background: finalBg, color: finalColor,
+        fontWeight: finalBold ? 700 : 400, fontSize, textAlign: align,
+        fontFamily: mono ? "'JetBrains Mono', monospace" : "inherit",
+        height: "100%",
+      }}
+      onFocus={(e) => { if (!customStyle?.bg) e.target.style.background = "#FFF9DB"; }}
+      onBlur={(e) => { e.target.style.background = finalBg; }}
+    />
   );
 }
 
 // 長文が折り返して複数行表示できるセル(スマホでは狭い列幅でも2段以上に自動で伸びる)
-function WrapCell({ value, onChange, width, color, fontSize = 10.5, customStyle, onStyleChange, minHeight = 26 }) {
-  const [picker, setPicker] = useState(null);
+function WrapCell({ value, onChange, width, color, fontSize = 10.5, customStyle, minHeight = 26, cellKey, selected, onSelect, onOpenMenu }) {
   const finalBg = customStyle?.bg || "transparent";
   const finalColor = customStyle?.color || color || COLORS.textMain;
-  const lp = useLongPress((x, y) => setPicker({ x, y }));
+  const finalBold = customStyle?.bold;
   return (
-    <>
-      <textarea
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        {...lp}
-        rows={1}
-        style={{
-          width, minWidth: width, maxWidth: width, height: "100%", boxSizing: "border-box",
-          padding: "3px 4px", border: "none", borderRight: `1px solid ${COLORS.border}`,
-          background: finalBg, color: finalColor,
-          fontWeight: 400, fontSize, textAlign: "left", lineHeight: 1.4,
-          fontFamily: "inherit", outline: "none", resize: "none",
-          whiteSpace: "pre-wrap", wordBreak: "break-word", overflow: "hidden",
-          display: "block",
-        }}
-        onFocus={(e) => { if (!customStyle?.bg) e.target.style.background = "#FFF9DB"; }}
-        onBlur={(e) => { e.target.style.background = finalBg; }}
-      />
-      {picker && onStyleChange && (
-        <ColorPickerPopover x={picker.x} y={picker.y} currentBg={customStyle?.bg} currentColor={customStyle?.color}
-          onPick={(patch) => { onStyleChange({ ...customStyle, ...patch }); setPicker(null); }}
-          onClose={() => setPicker(null)} />
-      )}
-    </>
+    <textarea
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value)}
+      onClick={() => onSelect && onSelect(cellKey)}
+      onContextMenu={(e) => { e.preventDefault(); if (onSelect) onSelect(cellKey); if (onOpenMenu) onOpenMenu(e.clientX, e.clientY); }}
+      rows={1}
+      style={{
+        width, minWidth: width, maxWidth: width, height: "100%", boxSizing: "border-box",
+        padding: "3px 4px", border: "none", borderRight: `1px solid ${COLORS.border}`,
+        outline: selected ? `2px solid ${COLORS.accent}` : "none", outlineOffset: -2,
+        background: finalBg, color: finalColor,
+        fontWeight: finalBold ? 700 : 400, fontSize, textAlign: "left", lineHeight: 1.4,
+        fontFamily: "inherit", resize: "none",
+        whiteSpace: "pre-wrap", wordBreak: "break-word", overflow: "hidden",
+        display: "block",
+      }}
+      onFocus={(e) => { if (!customStyle?.bg) e.target.style.background = "#FFF9DB"; }}
+      onBlur={(e) => { e.target.style.background = finalBg; }}
+    />
   );
 }
 
 // 文字入力で候補が絞り込まれるオートコンプリートセル(ひらがな/カタカナ相互一致)
-function AutoCompleteCell({ value, onChange, options, width, bg, color, bold, fontSize = 11.5, customStyle, onStyleChange }) {
-  const [picker, setPicker] = useState(null);
+function AutoCompleteCell({ value, onChange, options, width, bg, color, bold, fontSize = 11.5, customStyle, cellKey, selected, onSelect, onOpenMenu }) {
   const [editing, setEditing] = useState(false);
   const [query, setQuery] = useState("");
   const finalBg = customStyle?.bg || bg || "transparent";
   const finalColor = customStyle?.color || color || COLORS.textMain;
-  const lp = useLongPress((x, y) => setPicker({ x, y }));
+  const finalBold = customStyle?.bold || bold;
 
   // options は文字列配列、または { label, search } オブジェクト配列(読み等も検索対象にしたい場合)のどちらも受け付ける
   const normalized = options.map((o) => typeof o === "string" ? { label: o, search: o } : o);
@@ -202,29 +161,23 @@ function AutoCompleteCell({ value, onChange, options, width, bg, color, bold, fo
     ? normalized.filter((o) => o.label && (kanaNormalize(o.label).includes(nq) || kanaNormalize(o.search || "").includes(nq)))
     : normalized.filter((o) => o.label);
 
-  const startEdit = () => { setQuery(""); setEditing(true); };
+  const startEdit = () => { if (onSelect) onSelect(cellKey); setQuery(""); setEditing(true); };
   const pick = (name) => { onChange(name); setEditing(false); setQuery(""); };
 
   if (!editing) {
     return (
-      <>
-        <button
-          onClick={startEdit}
-          {...lp}
-          style={{
-            width, minWidth: width, maxWidth: width, boxSizing: "border-box",
-            padding: "2px 3px", border: "none", borderRight: `1px solid ${COLORS.border}`,
-            background: finalBg, color: value ? finalColor : "#B7C2D0",
-            fontWeight: bold ? 700 : 400, fontSize, textAlign: "center",
-            outline: "none", height: "100%", cursor: "pointer",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}>{value || "選択"}</button>
-        {picker && onStyleChange && (
-          <ColorPickerPopover x={picker.x} y={picker.y} currentBg={customStyle?.bg} currentColor={customStyle?.color}
-            onPick={(patch) => { onStyleChange({ ...customStyle, ...patch }); setPicker(null); }}
-            onClose={() => setPicker(null)} />
-        )}
-      </>
+      <button
+        onClick={startEdit}
+        onContextMenu={(e) => { e.preventDefault(); if (onSelect) onSelect(cellKey); if (onOpenMenu) onOpenMenu(e.clientX, e.clientY); }}
+        style={{
+          width, minWidth: width, maxWidth: width, boxSizing: "border-box",
+          padding: "2px 3px", border: "none", borderRight: `1px solid ${COLORS.border}`,
+          outline: selected ? `2px solid ${COLORS.accent}` : "none", outlineOffset: -2,
+          background: finalBg, color: value ? finalColor : "#B7C2D0",
+          fontWeight: finalBold ? 700 : 400, fontSize, textAlign: "center",
+          height: "100%", cursor: "pointer",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>{value || "選択"}</button>
     );
   }
 
@@ -264,33 +217,27 @@ function AutoCompleteCell({ value, onChange, options, width, bg, color, bold, fo
 }
 
 // セレクト型セル
-function SelCell({ value, onChange, options, width, bg, color, bold, fontSize = 11.5, mono, customStyle, onStyleChange }) {
-  const [picker, setPicker] = useState(null);
+function SelCell({ value, onChange, options, width, bg, color, bold, fontSize = 11.5, mono, customStyle, cellKey, selected, onSelect, onOpenMenu }) {
   const finalBg = customStyle?.bg || bg || "transparent";
   const finalColor = customStyle?.color || color || COLORS.textMain;
-  const lp = useLongPress((x, y) => setPicker({ x, y }));
+  const finalBold = customStyle?.bold || bold;
   return (
-    <>
-      <select
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        {...lp}
-        style={{
-          width, minWidth: width, maxWidth: width, boxSizing: "border-box",
-          padding: "2px 2px", border: "none", borderRight: `1px solid ${COLORS.border}`,
-          background: finalBg, color: finalColor,
-          fontWeight: bold ? 700 : 400, fontSize, textAlign: "center",
-          fontFamily: mono ? "'JetBrains Mono', monospace" : "inherit",
-          outline: "none", height: "100%", appearance: "none", cursor: "pointer",
-        }}>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-      {picker && onStyleChange && (
-        <ColorPickerPopover x={picker.x} y={picker.y} currentBg={customStyle?.bg} currentColor={customStyle?.color}
-          onPick={(patch) => { onStyleChange({ ...customStyle, ...patch }); setPicker(null); }}
-          onClose={() => setPicker(null)} />
-      )}
-    </>
+    <select
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value)}
+      onClick={() => onSelect && onSelect(cellKey)}
+      onContextMenu={(e) => { e.preventDefault(); if (onSelect) onSelect(cellKey); if (onOpenMenu) onOpenMenu(e.clientX, e.clientY); }}
+      style={{
+        width, minWidth: width, maxWidth: width, boxSizing: "border-box",
+        padding: "2px 2px", border: "none", borderRight: `1px solid ${COLORS.border}`,
+        outline: selected ? `2px solid ${COLORS.accent}` : "none", outlineOffset: -2,
+        background: finalBg, color: finalColor,
+        fontWeight: finalBold ? 700 : 400, fontSize, textAlign: "center",
+        fontFamily: mono ? "'JetBrains Mono', monospace" : "inherit",
+        height: "100%", appearance: "none", cursor: "pointer",
+      }}>
+      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
   );
 }
 
@@ -333,14 +280,18 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
     syncingRef.current = false;
   };
 
-  // シート・日付が変わったら読み込み
-  useEffect(() => {
+  // シートの読み込み(シート・日付切替時、および手動更新ボタンから呼ぶ)
+  const reloadSheet = () => {
     setLoaded(false);
     fetch(`/api/state?key=uketsuke:${sheetKey}:${dateStr}`).then((r) => r.json()).then((d) => {
       if (d && d.value && d.value.rows) setSheet(d.value);
       else setSheet(emptySheet());
       setLoaded(true);
     }).catch(() => { setSheet(emptySheet()); setLoaded(true); });
+  };
+  useEffect(() => {
+    reloadSheet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetKey, dateStr]);
 
   // 保存(デバウンス)
@@ -373,6 +324,64 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
     const rows = sheet.rows.map((r, idx) => idx === i ? { ...r, styles: { ...(r.styles || {}), [key]: styleObj } } : r);
     save({ ...sheet, rows });
   };
+
+  // ============================================================
+  // セル選択・上部ツールバー(太字/背景色/文字色)・右クリックメニュー(コピー/ペースト/削除)
+  // ============================================================
+  const [selectedCell, setSelectedCell] = useState(null); // "rowIdx:field"
+  const [clipboard, setClipboard] = useState(null); // { value, styles }
+  const [menu, setMenu] = useState(null); // { x, y, rowIdx, field }
+
+  const selectCell = (cellKey) => setSelectedCell(cellKey);
+  const openCellMenu = (rowIdx, field, x, y) => setMenu({ x, y, rowIdx, field });
+  const closeMenu = () => setMenu(null);
+
+  const parseCellKey = (key) => {
+    if (!key) return null;
+    const idx = key.indexOf(":");
+    return { rowIdx: Number(key.slice(0, idx)), field: key.slice(idx + 1) };
+  };
+
+  // 選択中セルの現在のスタイルを更新(上部ツールバーから呼ぶ)
+  const applyStyleToSelected = (patch) => {
+    const cell = parseCellKey(selectedCell);
+    if (!cell) return;
+    const row = sheet.rows[cell.rowIdx];
+    const cur = row?.styles?.[cell.field] || {};
+    setRowStyle(cell.rowIdx, cell.field, { ...cur, ...patch });
+  };
+  const currentSelectedStyle = () => {
+    const cell = parseCellKey(selectedCell);
+    if (!cell) return {};
+    const row = sheet.rows[cell.rowIdx];
+    return row?.styles?.[cell.field] || {};
+  };
+
+  const copySelected = () => {
+    const cell = parseCellKey(menu ? `${menu.rowIdx}:${menu.field}` : selectedCell);
+    if (!cell) { closeMenu(); return; }
+    const row = sheet.rows[cell.rowIdx];
+    setClipboard({ value: row?.[cell.field] ?? "", styles: row?.styles?.[cell.field] || null });
+    closeMenu();
+  };
+  const pasteToSelected = () => {
+    const cell = parseCellKey(menu ? `${menu.rowIdx}:${menu.field}` : selectedCell);
+    if (!cell || !clipboard) { closeMenu(); return; }
+    const rows = sheet.rows.map((r, idx) => idx === cell.rowIdx ? {
+      ...r, [cell.field]: clipboard.value,
+      styles: { ...(r.styles || {}), [cell.field]: clipboard.styles },
+    } : r);
+    save({ ...sheet, rows });
+    closeMenu();
+  };
+  const deleteSelected = () => {
+    const cell = parseCellKey(menu ? `${menu.rowIdx}:${menu.field}` : selectedCell);
+    if (!cell) { closeMenu(); return; }
+    const rows = sheet.rows.map((r, idx) => idx === cell.rowIdx ? { ...r, [cell.field]: "" } : r);
+    save({ ...sheet, rows });
+    closeMenu();
+  };
+
   // 行の入れ替え(↑↓ボタン)
   const swapRow = (i, dir) => {
     const j = i + dir;
@@ -526,10 +535,35 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
         <SectionTitle>受付表</SectionTitle>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: COLORS.accent }}>{msg}</span>
+          <button onClick={reloadSheet} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>🔄 更新</button>
           <button onClick={sortByTime} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>⏱ 時間順にソート</button>
           <input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)}
             style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontWeight: 700, color: COLORS.textMain, background: "#FFF" }} />
         </div>
+      </div>
+
+      {/* カラーツールバー：太字・背景色・文字色(選択中セルに適用) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "8px 10px", background: "#F4F6F9", borderRadius: 8, marginTop: 8, marginBottom: 4 }}>
+        <button onClick={() => applyStyleToSelected({ bold: !currentSelectedStyle().bold })} disabled={!selectedCell}
+          style={{ width: 30, height: 26, borderRadius: 6, border: `1.5px solid ${currentSelectedStyle().bold ? COLORS.accent : COLORS.border}`, background: currentSelectedStyle().bold ? COLORS.accentBg : "#FFF", fontWeight: 700, fontSize: 13, cursor: selectedCell ? "pointer" : "default", opacity: selectedCell ? 1 : 0.4 }}>B</button>
+        <div style={{ width: 1, height: 20, background: COLORS.border }} />
+        <span style={{ fontSize: 10.5, color: COLORS.textSub, fontWeight: 600 }}>背景</span>
+        {BG_SWATCHES.map((c) => (
+          <button key={c || "none"} onClick={() => applyStyleToSelected({ bg: c })} disabled={!selectedCell} title={c || "なし"}
+            style={{ width: 20, height: 20, borderRadius: 4, cursor: selectedCell ? "pointer" : "default", opacity: selectedCell ? 1 : 0.4,
+              background: c || "repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 6px 6px",
+              border: c === currentSelectedStyle().bg ? `2px solid ${COLORS.accent}` : "1px solid #D8DEE6" }} />
+        ))}
+        <div style={{ width: 1, height: 20, background: COLORS.border }} />
+        <span style={{ fontSize: 10.5, color: COLORS.textSub, fontWeight: 600 }}>文字</span>
+        {TEXT_SWATCHES.map((c) => (
+          <button key={c || "none"} onClick={() => applyStyleToSelected({ color: c })} disabled={!selectedCell} title={c || "既定"}
+            style={{ width: 20, height: 20, borderRadius: 4, cursor: selectedCell ? "pointer" : "default", opacity: selectedCell ? 1 : 0.4,
+              background: c || "repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 6px 6px",
+              border: c === currentSelectedStyle().color ? `2px solid ${COLORS.accent}` : "1px solid #D8DEE6",
+              color: c || "#000", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>{c ? "A" : ""}</button>
+        ))}
+        {!selectedCell && <span style={{ fontSize: 11, color: COLORS.textSub }}>※セルをクリックすると色を変更できます</span>}
       </div>
 
       {/* シート(店舗)切り替え */}
@@ -642,19 +676,19 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                 {/* A 備考(左)・上下2段 */}
                 <div style={{ width: W.bikoL, minWidth: W.bikoL, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.bikoL} onChange={(v) => setRow(i, "bikoL", v)} width={W.bikoL - 2} align="left" fontSize={11} customStyle={r.styles?.["bikoL"]} onStyleChange={(s) => setRowStyle(i, "bikoL", s)} />
+                    <Cell value={r.bikoL} onChange={(v) => setRow(i, "bikoL", v)} width={W.bikoL - 2} align="left" fontSize={11} customStyle={r.styles?.["bikoL"]} cellKey={`${i}:bikoL`} selected={selectedCell === `${i}:bikoL`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoL", x, y)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
                     {r.ryoshu === "発行" ? (
                       <div style={{ width: W.bikoL - 2, height: "100%", background: "#FF0000", color: "#000000", fontWeight: 700, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>発行</div>
                     ) : (
-                      <Cell value={r.bikoL2} onChange={(v) => setRow(i, "bikoL2", v)} width={W.bikoL - 2} align="left" fontSize={11} customStyle={r.styles?.["bikoL2"]} onStyleChange={(s) => setRowStyle(i, "bikoL2", s)} />
+                      <Cell value={r.bikoL2} onChange={(v) => setRow(i, "bikoL2", v)} width={W.bikoL - 2} align="left" fontSize={11} customStyle={r.styles?.["bikoL2"]} cellKey={`${i}:bikoL2`} selected={selectedCell === `${i}:bikoL2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoL2", x, y)} />
                     )}
                   </div>
                 </div>
                 {/* B 待機場 */}
                 <div style={{ width: W.taiki, minWidth: W.taiki, borderRight: `1px solid ${COLORS.border}`, background: "#FFFFFF", display: "flex", alignItems: "center" }}>
-                  <Cell value={r.taiki} onChange={(v) => setRow(i, "taiki", v)} width={W.taiki - 2} bg="#FFFFFF" fontSize={10.5} bold customStyle={r.styles?.["taiki"]} onStyleChange={(s) => setRowStyle(i, "taiki", s)} />
+                  <Cell value={r.taiki} onChange={(v) => setRow(i, "taiki", v)} width={W.taiki - 2} bg="#FFFFFF" fontSize={10.5} bold customStyle={r.styles?.["taiki"]} cellKey={`${i}:taiki`} selected={selectedCell === `${i}:taiki`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "taiki", x, y)} />
                 </div>
                 {/* C 番号 */}
                 <div style={{ width: W.no, minWidth: W.no, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: COLORS.textMain }}>
@@ -664,10 +698,10 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                 {/* D/E 時間(上下2段) */}
                 <div style={{ width: W.time, minWidth: W.time, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.time} onChange={(v) => setRow(i, "time", v)} width={W.time - 2} bold placeholder="8:30" mono fontSize={12}  customStyle={r.styles?.["time"]} onStyleChange={(s) => setRowStyle(i, "time", s)}/>
+                    <Cell value={r.time} onChange={(v) => setRow(i, "time", v)} width={W.time - 2} bold placeholder="8:30" mono fontSize={12}  customStyle={r.styles?.["time"]} cellKey={`${i}:time`} selected={selectedCell === `${i}:time`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "time", x, y)}/>
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
-                    <SelCell value={r.depart} onChange={(v) => setRow(i, "depart", v)} options={["", "出発", "到着", "指定", "到着次第", "以降", "ごろ", "入室後出発"]} width={W.time - 2} fontSize={10} customStyle={r.styles?.["depart"]} onStyleChange={(s) => setRowStyle(i, "depart", s)} />
+                    <SelCell value={r.depart} onChange={(v) => setRow(i, "depart", v)} options={["", "出発", "到着", "指定", "到着次第", "以降", "ごろ", "入室後出発"]} width={W.time - 2} fontSize={10} customStyle={r.styles?.["depart"]} cellKey={`${i}:depart`} selected={selectedCell === `${i}:depart`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "depart", x, y)} />
                   </div>
                 </div>
 
@@ -676,7 +710,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                   {(() => {
                     const castObj = casts.find((c) => castFullName(c).trim() === String(r.cast || "").trim());
                     const isDiamond = castObj && castClass(castObj) === "diamond";
-                    return <AutoCompleteCell value={r.cast} onChange={(v) => setCastForRow(i, v)} options={castNames} width={W.cast - 2} bold fontSize={10.5} color={isDiamond ? "#C00000" : undefined} customStyle={r.styles?.["cast"]} onStyleChange={(s) => setRowStyle(i, "cast", s)} />;
+                    return <AutoCompleteCell value={r.cast} onChange={(v) => setCastForRow(i, v)} options={castNames} width={W.cast - 2} bold fontSize={10.5} color={isDiamond ? "#C00000" : undefined} customStyle={r.styles?.["cast"]} cellKey={`${i}:cast`} selected={selectedCell === `${i}:cast`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "cast", x, y)} />;
                   })()}
                 </div>
 
@@ -701,21 +735,21 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                 {/* H 会員 / 本指・写指 */}
                 <div style={{ width: W.kaiin, minWidth: W.kaiin, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, background: "#FFFFFF", display: "flex", alignItems: "center" }}>
-                    <SelCell value={r.kaiin} onChange={(v) => setRow(i, "kaiin", v)} options={["", "新規", "会員"]} width={W.kaiin - 2} bg="#FFFFFF" bold fontSize={10} customStyle={r.styles?.["kaiin"]} onStyleChange={(s) => setRowStyle(i, "kaiin", s)} />
+                    <SelCell value={r.kaiin} onChange={(v) => setRow(i, "kaiin", v)} options={["", "新規", "会員"]} width={W.kaiin - 2} bg="#FFFFFF" bold fontSize={10} customStyle={r.styles?.["kaiin"]} cellKey={`${i}:kaiin`} selected={selectedCell === `${i}:kaiin`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "kaiin", x, y)} />
                   </div>
                   <div style={{ height: ROW_H, background: "#FFFFFF", display: "flex", alignItems: "center" }}>
-                    <SelCell value={r.shimeiType} onChange={(v) => setShimeiTypeForRow(i, v)} options={["F", "写指", "本指"]} width={W.kaiin - 2} bg="#FFFFFF" bold fontSize={10} customStyle={r.styles?.["shimeiType"]} onStyleChange={(s) => setRowStyle(i, "shimeiType", s)} />
+                    <SelCell value={r.shimeiType} onChange={(v) => setShimeiTypeForRow(i, v)} options={["F", "写指", "本指"]} width={W.kaiin - 2} bg="#FFFFFF" bold fontSize={10} customStyle={r.styles?.["shimeiType"]} cellKey={`${i}:shimeiType`} selected={selectedCell === `${i}:shimeiType`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "shimeiType", x, y)} />
                   </div>
                 </div>
 
                 {/* J 氏名+電話番号 / ホテル名 */}
                 <div style={{ width: W.name, minWidth: W.name, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.name} onChange={(v) => setRow(i, "name", v)} width={100} align="center" bold fontSize={12} placeholder="やまもと" customStyle={r.styles?.["name"]} onStyleChange={(s) => setRowStyle(i, "name", s)} />
-                    <Cell value={r.tel} onChange={(v) => setRow(i, "tel", v)} width={W.name - 102} align="center" mono fontSize={11.5} placeholder="09000000000" customStyle={r.styles?.["tel"]} onStyleChange={(s) => setRowStyle(i, "tel", s)} />
+                    <Cell value={r.name} onChange={(v) => setRow(i, "name", v)} width={100} align="center" bold fontSize={12} placeholder="やまもと" customStyle={r.styles?.["name"]} cellKey={`${i}:name`} selected={selectedCell === `${i}:name`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "name", x, y)} />
+                    <Cell value={r.tel} onChange={(v) => setRow(i, "tel", v)} width={W.name - 102} align="center" mono fontSize={11.5} placeholder="09000000000" customStyle={r.styles?.["tel"]} cellKey={`${i}:tel`} selected={selectedCell === `${i}:tel`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "tel", x, y)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.hotel} onChange={(v) => setRow(i, "hotel", v)} width={W.name - 2} bold fontSize={11.5} placeholder="ホテル名　部屋番号" color={String(r.hotel || "").includes("※") ? "#C00000" : undefined} customStyle={r.styles?.["hotel"]} onStyleChange={(s) => setRowStyle(i, "hotel", s)}/>
+                    <Cell value={r.hotel} onChange={(v) => setRow(i, "hotel", v)} width={W.name - 2} bold fontSize={11.5} placeholder="ホテル名　部屋番号" color={String(r.hotel || "").includes("※") ? "#C00000" : undefined} customStyle={r.styles?.["hotel"]} cellKey={`${i}:hotel`} selected={selectedCell === `${i}:hotel`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "hotel", x, y)}/>
                   </div>
                 </div>
 
@@ -727,7 +761,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                     return (
                       <SelCell value={r.kotsu || "0"} onChange={(v) => setKotsuForRow(i, v)} options={kotsuOptions} width={W.kotsu - 2} mono bold={highlight}
                         bg={highlight ? "#FFFF00" : undefined} color={highlight ? "#C00000" : undefined}
-                        customStyle={r.styles?.["kotsu"]} onStyleChange={(s) => setRowStyle(i, "kotsu", s)} />
+                        customStyle={r.styles?.["kotsu"]} cellKey={`${i}:kotsu`} selected={selectedCell === `${i}:kotsu`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "kotsu", x, y)} />
                     );
                   })()}
                 </div>
@@ -739,11 +773,11 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                     const isFreeMode = r.course === FREE_COURSE || (r.course && !opts.includes(r.course));
                     if (isFreeMode) {
                       return (
-                        <Cell value={r.course === FREE_COURSE ? "" : r.course} onChange={(v) => setRow(i, "course", v)} width={W.course - 2} bold fontSize={11} placeholder="自由記述" customStyle={r.styles?.["course"]} onStyleChange={(s) => setRowStyle(i, "course", s)} />
+                        <Cell value={r.course === FREE_COURSE ? "" : r.course} onChange={(v) => setRow(i, "course", v)} width={W.course - 2} bold fontSize={11} placeholder="自由記述" customStyle={r.styles?.["course"]} cellKey={`${i}:course`} selected={selectedCell === `${i}:course`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "course", x, y)} />
                       );
                     }
                     return (
-                      <SelCell value={r.course} onChange={(v) => setCourseForRow(i, v)} options={opts} width={W.course - 2} bold fontSize={12} customStyle={r.styles?.["course"]} onStyleChange={(s) => setRowStyle(i, "course", s)} />
+                      <SelCell value={r.course} onChange={(v) => setCourseForRow(i, v)} options={opts} width={W.course - 2} bold fontSize={12} customStyle={r.styles?.["course"]} cellKey={`${i}:course`} selected={selectedCell === `${i}:course`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "course", x, y)} />
                     );
                   })()}
                 </div>
@@ -751,69 +785,69 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                 {/* O/P OP(上下2段×2列) */}
                 <div style={{ width: W.op * 2, minWidth: W.op * 2, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex" }}>
-                    <SelCell value={r.op1 || "なし"} onChange={(v) => setOpForRow(i, "op1", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op1"]} onStyleChange={(s) => setRowStyle(i, "op1", s)} />
-                    <SelCell value={r.op2 || "なし"} onChange={(v) => setOpForRow(i, "op2", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op2"]} onStyleChange={(s) => setRowStyle(i, "op2", s)} />
+                    <SelCell value={r.op1 || "なし"} onChange={(v) => setOpForRow(i, "op1", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op1"]} cellKey={`${i}:op1`} selected={selectedCell === `${i}:op1`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op1", x, y)} />
+                    <SelCell value={r.op2 || "なし"} onChange={(v) => setOpForRow(i, "op2", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op2"]} cellKey={`${i}:op2`} selected={selectedCell === `${i}:op2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op2", x, y)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex" }}>
-                    <SelCell value={r.op3 || "なし"} onChange={(v) => setOpForRow(i, "op3", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op3"]} onStyleChange={(s) => setRowStyle(i, "op3", s)} />
-                    <SelCell value={r.op4 || "なし"} onChange={(v) => setOpForRow(i, "op4", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op4"]} onStyleChange={(s) => setRowStyle(i, "op4", s)} />
+                    <SelCell value={r.op3 || "なし"} onChange={(v) => setOpForRow(i, "op3", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op3"]} cellKey={`${i}:op3`} selected={selectedCell === `${i}:op3`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op3", x, y)} />
+                    <SelCell value={r.op4 || "なし"} onChange={(v) => setOpForRow(i, "op4", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op4"]} cellKey={`${i}:op4`} selected={selectedCell === `${i}:op4`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op4", x, y)} />
                   </div>
                 </div>
 
                 {/* Q 退出(結合) */}
                 <div style={{ width: W.taishutsu, minWidth: W.taishutsu, borderRight: `1px solid ${COLORS.border}`, background: "#FFFFFF", display: "flex", alignItems: "center" }}>
-                  <Cell value={r.taishutsu} onChange={(v) => setRow(i, "taishutsu", v)} width={W.taishutsu - 2} bg="#FFFFFF" color={COLORS.textMain} bold mono fontSize={12} placeholder="9:54" customStyle={r.styles?.["taishutsu"]} onStyleChange={(s) => setRowStyle(i, "taishutsu", s)} />
+                  <Cell value={r.taishutsu} onChange={(v) => setRow(i, "taishutsu", v)} width={W.taishutsu - 2} bg="#FFFFFF" color={COLORS.textMain} bold mono fontSize={12} placeholder="9:54" customStyle={r.styles?.["taishutsu"]} cellKey={`${i}:taishutsu`} selected={selectedCell === `${i}:taishutsu`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "taishutsu", x, y)} />
                 </div>
 
                 {/* R 落とし(結合) */}
                 <div style={{ width: W.otoshi, minWidth: W.otoshi, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.otoshi} onChange={(v) => setRow(i, "otoshi", v)} width={W.otoshi - 2} mono bold fontSize={12}  customStyle={r.styles?.["otoshi"]} onStyleChange={(s) => setRowStyle(i, "otoshi", s)}/>
+                  <Cell value={r.otoshi} onChange={(v) => setRow(i, "otoshi", v)} width={W.otoshi - 2} mono bold fontSize={12}  customStyle={r.styles?.["otoshi"]} cellKey={`${i}:otoshi`} selected={selectedCell === `${i}:otoshi`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "otoshi", x, y)}/>
                 </div>
 
                 {/* S 女子給(結合) */}
                 <div style={{ width: W.joshi, minWidth: W.joshi, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.joshi} onChange={(v) => setRow(i, "joshi", v)} width={W.joshi - 2} mono bold fontSize={12}  customStyle={r.styles?.["joshi"]} onStyleChange={(s) => setRowStyle(i, "joshi", s)}/>
+                  <Cell value={r.joshi} onChange={(v) => setRow(i, "joshi", v)} width={W.joshi - 2} mono bold fontSize={12}  customStyle={r.styles?.["joshi"]} cellKey={`${i}:joshi`} selected={selectedCell === `${i}:joshi`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "joshi", x, y)}/>
                 </div>
 
                 {/* T 備考・上下2段(上段：1本目のキャストは自動で-500を赤文字表示) */}
                 <div style={{ width: W.biko, minWidth: W.biko, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.biko || (shimeiCounts[i] === 1 ? "-500" : "")} onChange={(v) => setRow(i, "biko", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko"]} onStyleChange={(s) => setRowStyle(i, "biko", s)} />
+                    <Cell value={r.biko || (shimeiCounts[i] === 1 ? "-500" : "")} onChange={(v) => setRow(i, "biko", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko"]} cellKey={`${i}:biko`} selected={selectedCell === `${i}:biko`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "biko", x, y)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.biko2} onChange={(v) => setRow(i, "biko2", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko2"]} onStyleChange={(s) => setRowStyle(i, "biko2", s)} />
+                    <Cell value={r.biko2} onChange={(v) => setRow(i, "biko2", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko2"]} cellKey={`${i}:biko2`} selected={selectedCell === `${i}:biko2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "biko2", x, y)} />
                   </div>
                 </div>
 
                 {/* U 送り(結合) */}
                 <div style={{ width: W.okuri, minWidth: W.okuri, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <SelCell value={r.okuri} onChange={(v) => setRow(i, "okuri", v)} options={driverNames} width={W.okuri - 2} fontSize={10.5}  customStyle={r.styles?.["okuri"]} onStyleChange={(s) => setRowStyle(i, "okuri", s)}/>
+                  <SelCell value={r.okuri} onChange={(v) => setRow(i, "okuri", v)} options={driverNames} width={W.okuri - 2} fontSize={10.5}  customStyle={r.styles?.["okuri"]} cellKey={`${i}:okuri`} selected={selectedCell === `${i}:okuri`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "okuri", x, y)}/>
                 </div>
 
                 {/* V 迎え(結合) */}
                 <div style={{ width: W.mukae, minWidth: W.mukae, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <SelCell value={r.mukae} onChange={(v) => setRow(i, "mukae", v)} options={driverNames} width={W.mukae - 2} fontSize={10.5}  customStyle={r.styles?.["mukae"]} onStyleChange={(s) => setRowStyle(i, "mukae", s)}/>
+                  <SelCell value={r.mukae} onChange={(v) => setRow(i, "mukae", v)} options={driverNames} width={W.mukae - 2} fontSize={10.5}  customStyle={r.styles?.["mukae"]} cellKey={`${i}:mukae`} selected={selectedCell === `${i}:mukae`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "mukae", x, y)}/>
                 </div>
 
                 {/* W 領収書(発行時は水色背景・左欄下段に発行マーク) */}
                 <div style={{ width: W.ryoshu, minWidth: W.ryoshu, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
                   <SelCell value={r.ryoshu || "未選択"} onChange={(v) => setRow(i, "ryoshu", v)} options={["未選択", "発行"]} width={W.ryoshu - 2} fontSize={10}
                     bg={r.ryoshu === "発行" ? "#B7E6F2" : undefined} color={r.ryoshu === "発行" ? "#000000" : undefined}
-                    customStyle={r.styles?.["ryoshu"]} onStyleChange={(s) => setRowStyle(i, "ryoshu", s)} />
+                    customStyle={r.styles?.["ryoshu"]} cellKey={`${i}:ryoshu`} selected={selectedCell === `${i}:ryoshu`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "ryoshu", x, y)} />
                 </div>
 
                 {/* X 媒体 */}
                 <div style={{ width: W.baitai, minWidth: W.baitai, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.baitai} onChange={(v) => setRow(i, "baitai", v)} width={W.baitai - 2} fontSize={10.5}  customStyle={r.styles?.["baitai"]} onStyleChange={(s) => setRowStyle(i, "baitai", s)}/>
+                  <Cell value={r.baitai} onChange={(v) => setRow(i, "baitai", v)} width={W.baitai - 2} fontSize={10.5}  customStyle={r.styles?.["baitai"]} cellKey={`${i}:baitai`} selected={selectedCell === `${i}:baitai`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "baitai", x, y)}/>
                 </div>
 
                 {/* Y 備考(NG等・赤文字)・上下2段・長文は折り返して複数行表示 */}
                 <div style={{ width: W.bikoR, minWidth: W.bikoR, display: "flex", flexDirection: "column" }}>
                   <div style={{ minHeight: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <WrapCell value={r.bikoR} onChange={(v) => setRow(i, "bikoR", v)} width={W.bikoR - 2} color="#C00000" fontSize={10.5} minHeight={ROW_H} customStyle={r.styles?.["bikoR"]} onStyleChange={(s) => setRowStyle(i, "bikoR", s)} />
+                    <WrapCell value={r.bikoR} onChange={(v) => setRow(i, "bikoR", v)} width={W.bikoR - 2} color="#C00000" fontSize={10.5} minHeight={ROW_H} customStyle={r.styles?.["bikoR"]} cellKey={`${i}:bikoR`} selected={selectedCell === `${i}:bikoR`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoR", x, y)} />
                   </div>
                   <div style={{ minHeight: ROW_H, display: "flex", alignItems: "center" }}>
-                    <WrapCell value={r.bikoR2} onChange={(v) => setRow(i, "bikoR2", v)} width={W.bikoR - 2} color="#C00000" fontSize={10.5} minHeight={ROW_H} customStyle={r.styles?.["bikoR2"]} onStyleChange={(s) => setRowStyle(i, "bikoR2", s)} />
+                    <WrapCell value={r.bikoR2} onChange={(v) => setRow(i, "bikoR2", v)} width={W.bikoR - 2} color="#C00000" fontSize={10.5} minHeight={ROW_H} customStyle={r.styles?.["bikoR2"]} cellKey={`${i}:bikoR2`} selected={selectedCell === `${i}:bikoR2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoR2", x, y)} />
                   </div>
                 </div>
               </div>
@@ -832,6 +866,11 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
           <span>女子給合計: <strong style={{ fontFamily: "'JetBrains Mono', monospace" }}>{totals.joshi.toLocaleString()}</strong></span>
         </div>
       </div>
+
+      {menu && (
+        <CellContextMenu x={menu.x} y={menu.y} canPaste={!!clipboard}
+          onCopy={copySelected} onPaste={pasteToSelected} onDelete={deleteSelected} onClose={closeMenu} />
+      )}
     </div>
   );
 }

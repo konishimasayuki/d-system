@@ -694,7 +694,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
                     <Cell value={r.tel} onChange={(v) => setRow(i, "tel", v)} width={W.name - 102} align="center" mono fontSize={11.5} placeholder="09000000000" customStyle={r.styles?.["tel"]} onStyleChange={(s) => setRowStyle(i, "tel", s)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.hotel} onChange={(v) => setRow(i, "hotel", v)} width={W.name - 2} bold fontSize={11.5} placeholder="ホテル名　部屋番号"  customStyle={r.styles?.["hotel"]} onStyleChange={(s) => setRowStyle(i, "hotel", s)}/>
+                    <Cell value={r.hotel} onChange={(v) => setRow(i, "hotel", v)} width={W.name - 2} bold fontSize={11.5} placeholder="ホテル名　部屋番号" color={String(r.hotel || "").includes("※") ? "#C00000" : undefined} customStyle={r.styles?.["hotel"]} onStyleChange={(s) => setRowStyle(i, "hotel", s)}/>
                   </div>
                 </div>
 

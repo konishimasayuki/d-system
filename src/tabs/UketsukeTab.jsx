@@ -12,6 +12,7 @@ const ROWS = 40; // 初期行数(1セット=予約1件)
 
 // 列幅(スプレッドの見た目に合わせる)
 export const W = {
+  move: 22,    // 行入れ替えボタン
   bikoL: 130,  // A 備考(左)
   taiki: 46,   // B 待機場
   no: 24,      // C 番号(34×0.7≒24)
@@ -372,6 +373,14 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
     const rows = sheet.rows.map((r, idx) => idx === i ? { ...r, styles: { ...(r.styles || {}), [key]: styleObj } } : r);
     save({ ...sheet, rows });
   };
+  // 行の入れ替え(↑↓ボタン)
+  const swapRow = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= sheet.rows.length) return;
+    const rows = [...sheet.rows];
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+    save({ ...sheet, rows });
+  };
   const setHeader = (key, val) => save({ ...sheet, header: { ...sheet.header, [key]: val } });
 
   // 落とし・女子給を自動計算：落とし = コース料金 + 交通費 + 指名料(Fの選択に応じ) + オプション(未実装分は0)
@@ -505,10 +514,10 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
       <Card style={{ padding: 0, overflow: "hidden" }}>
         {/* 上側スクロールバー(PC版で横スクロールしやすいように・下側と連動) */}
         <div className="top-scrollbar-pc" ref={topScrollRef} onScroll={syncFromTop} style={{ overflowX: "auto", overflowY: "hidden", height: 16 }}>
-          <div style={{ minWidth: 1700, height: 1 }} />
+          <div style={{ minWidth: 1722, height: 1 }} />
         </div>
         <div className="table-scroll" ref={bodyScrollRef} onScroll={syncFromBody} style={{ overflowX: "auto" }}>
-          <div style={{ minWidth: 1700 }}>
+          <div style={{ minWidth: 1722 }}>
 
             {/* ===== ヘッダー部(1〜3行目) ===== */}
             <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, background: "#FFF" }}>
@@ -561,6 +570,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
 
             {/* ===== 見出し行(4行目) ===== */}
             <div style={{ display: "flex", position: "sticky", top: 0, zIndex: 2 }}>
+              <Th width={W.move} />
               <Th width={W.bikoL} />
               <Th width={W.taiki}>待機場</Th>
               <Th width={W.no}>番</Th>
@@ -586,6 +596,11 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
             {/* ===== 明細(2行1セット) ===== */}
             {sheet.rows.map((r, i) => (
               <div key={i} style={{ display: "flex", borderBottom: `2px solid ${COLORS.border}` }}>
+                {/* 行入れ替えボタン */}
+                <div style={{ width: W.move, minWidth: W.move, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column", background: "#F4F6F9" }}>
+                  <button onClick={() => swapRow(i, -1)} disabled={i === 0} style={{ flex: 1, border: "none", background: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "#CCC" : COLORS.textSub, fontSize: 10, padding: 0 }}>▲</button>
+                  <button onClick={() => swapRow(i, 1)} disabled={i === sheet.rows.length - 1} style={{ flex: 1, border: "none", background: "none", cursor: i === sheet.rows.length - 1 ? "default" : "pointer", color: i === sheet.rows.length - 1 ? "#CCC" : COLORS.textSub, fontSize: 10, padding: 0, borderTop: `1px solid ${COLORS.border}` }}>▼</button>
+                </div>
                 {/* A 備考(左)・上下2段 */}
                 <div style={{ width: W.bikoL, minWidth: W.bikoL, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>

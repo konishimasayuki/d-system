@@ -438,6 +438,26 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
   };
 
   const addRows = () => save({ ...sheet, rows: [...sheet.rows, ...Array.from({ length: 10 }, () => emptyRow())] });
+  // 時間順ソート(入力済み行のみ対象。空行は末尾にまとめる。時間は"8:30"のような文字列を分換算して比較)
+  const timeToMinutes = (t) => {
+    const m = String(t || "").match(/(\d{1,2}):(\d{2})/);
+    if (!m) return null;
+    return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  };
+  const sortByTime = () => {
+    if (!window.confirm(`本日(${dateStr})の受付表を時間順にソートします。よろしいですか？`)) return;
+    const filled = sheet.rows.filter((r) => r.cast || r.name || r.hotel || r.time);
+    const empty = sheet.rows.filter((r) => !(r.cast || r.name || r.hotel || r.time));
+    const sorted = [...filled].sort((a, b) => {
+      const ma = timeToMinutes(a.time);
+      const mb = timeToMinutes(b.time);
+      if (ma == null && mb == null) return 0;
+      if (ma == null) return 1;
+      if (mb == null) return -1;
+      return ma - mb;
+    });
+    save({ ...sheet, rows: [...sorted, ...empty] });
+  };
 
   // 集計(落とし・女子給の合計)
   const totals = useMemo(() => {
@@ -506,6 +526,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
         <SectionTitle>受付表</SectionTitle>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: COLORS.accent }}>{msg}</span>
+          <button onClick={sortByTime} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>⏱ 時間順にソート</button>
           <input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)}
             style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontWeight: 700, color: COLORS.textMain, background: "#FFF" }} />
         </div>

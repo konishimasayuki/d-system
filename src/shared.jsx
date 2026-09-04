@@ -30,6 +30,13 @@ export function castLoginId(c) { return c.loginId || ""; }
 export function castPassword(c) { return c.password || ""; }
 // 旧データ(castClass未保存)との互換：未設定ならスタンダード扱いにする
 export function castClass(c) { return c.castClass || "standard"; }
+// 店舗別のクラス(2店舗所属の場合、店舗ごとに別クラスを持てる)。未設定ならcastClass(共通)にフォールバック
+export function castClassForShop(c, shopKey) {
+  if (c.castClassByShop && c.castClassByShop[shopKey]) return c.castClassByShop[shopKey];
+  return castClass(c);
+}
+// キャストが選択済みの対応可能オプションID一覧(未設定なら空)
+export function castAllowedOptionIds(c) { return c.allowedOptions || []; }
 export function castClassInfo(c) { return CAST_CLASS_OPTIONS.find((o) => o.key === castClass(c)) || CAST_CLASS_OPTIONS[0]; }
 // 旧データ(rewardRank未保存)との互換：未設定ならベース扱いにする(博多ココ・スタンダードのキャストのみ意味を持つ)
 export function castRewardRank(c) { return c.rewardRank || "base"; }

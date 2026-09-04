@@ -356,7 +356,7 @@ function ViewCell({ value, width, align = "center", color, bold, fontSize = 11.5
   );
 }
 
-function UketsukeViewer({ theme, myName }) {
+function UketsukeViewer({ theme, myName, casts }) {
   const [sheetKey, setSheetKey] = useState("hitozuma");
   const [sheet, setSheet] = useState(null);
   const [loaded, setLoaded] = useState(false);
@@ -446,9 +446,13 @@ function UketsukeViewer({ theme, myName }) {
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.time} width={W.time} bold mono fontSize={12} /></div>
                     <div style={{ height: ROW_H }}><ViewCell value={r.depart} width={W.time} fontSize={10} /></div>
                   </div>
-                  {/* キャスト */}
+                  {/* キャスト(ダイヤモンドクラスは赤字) */}
                   <div style={{ width: W.cast, minWidth: W.cast }}>
-                    <ViewCell value={r.cast} width={W.cast} align="left" bold fontSize={10.5} />
+                    {(() => {
+                      const castObj = (casts || []).find((c) => castFullName(c) === r.cast);
+                      const isDiamond = castObj && castObj.castClass === "diamond";
+                      return <ViewCell value={r.cast} width={W.cast} align="left" bold fontSize={10.5} color={isDiamond ? "#C00000" : undefined} />;
+                    })()}
                   </div>
                   {/* 指名数 */}
                   <div style={{ width: W.shimeiN, minWidth: W.shimeiN, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
@@ -859,7 +863,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
         !scheduleLoaded ? (
           <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: "60px 20px" }}>読み込み中…</div>
         ) : isWorkingToday ? (
-          <UketsukeViewer theme={theme} myName={me?.name} />
+          <UketsukeViewer theme={theme} myName={me?.name} casts={casts} />
         ) : (
           <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: "60px 20px" }}>
             本日出勤の方のみ閲覧できます。<br />シフトに入っている日にご確認ください。

@@ -361,15 +361,18 @@ function UketsukeViewer({ theme, myName, casts }) {
   const [sheet, setSheet] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const todayStr = isoDate(new Date());
+  const tomorrowStr = isoDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
+  const [dayOffset, setDayOffset] = useState(0); // 0=本日, 1=翌日
+  const viewDate = dayOffset === 0 ? todayStr : tomorrowStr;
   const ROW_H = 26;
 
   useEffect(() => {
     let cancelled = false;
     setLoaded(false);
-    fetchUketsukeSheet(sheetKey, todayStr).then((s) => { if (!cancelled) { setSheet(s); setLoaded(true); } });
+    fetchUketsukeSheet(sheetKey, viewDate).then((s) => { if (!cancelled) { setSheet(s); setLoaded(true); } });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheetKey]);
+  }, [sheetKey, viewDate]);
 
   const rowsAll = sheet?.rows || [];
   const shimeiCounts = computeShimeiCounts(rowsAll);
@@ -378,7 +381,17 @@ function UketsukeViewer({ theme, myName, casts }) {
 
   return (
     <div>
-      <Eyebrow>本日の受付表(閲覧専用)</Eyebrow>
+      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+        <button onClick={() => setDayOffset(0)}
+          style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: `1.5px solid ${dayOffset === 0 ? theme.accent : LINE}`, background: dayOffset === 0 ? theme.accent : "#FFF", color: dayOffset === 0 ? "#FFF" : SUB, fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
+          本日
+        </button>
+        <button onClick={() => setDayOffset(1)}
+          style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: `1.5px solid ${dayOffset === 1 ? theme.accent : LINE}`, background: dayOffset === 1 ? theme.accent : "#FFF", color: dayOffset === 1 ? "#FFF" : SUB, fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
+          翌日
+        </button>
+      </div>
+      <Eyebrow>{dayOffset === 0 ? "本日" : "翌日"}の受付表(閲覧専用)</Eyebrow>
       <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
         {SHEETS.map((s) => (
           <button key={s.key} onClick={() => setSheetKey(s.key)}
@@ -391,7 +404,7 @@ function UketsukeViewer({ theme, myName, casts }) {
       {!loaded ? (
         <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, padding: 24 }}>読み込み中…</div>
       ) : visibleIdx.length === 0 ? (
-        <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, padding: 24 }}>本日の受付データはありません</div>
+        <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, padding: 24 }}>{dayOffset === 0 ? "本日" : "翌日"}の受付データはありません</div>
       ) : (
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", border: `1px solid ${LINE}`, borderRadius: 10 }}>
           <div style={{ minWidth: W.bikoL + W.taiki + W.no + W.time + W.cast + W.shimeiN + W.kaiin + W.name + W.kotsu + W.course + W.op * 2 + W.taishutsu + W.otoshi + W.joshi + W.biko + W.okuri + W.mukae + W.ryoshu + W.baitai + W.bikoR }}>

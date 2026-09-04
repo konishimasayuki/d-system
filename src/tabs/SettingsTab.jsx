@@ -242,6 +242,7 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
   const [shop, setShop] = useState("hitozuma");
   const [cls, setCls] = useState("standard");
   const [oName, setOName] = useState(""); const [oPrice, setOPrice] = useState("");
+  const [exName, setExName] = useState(""); const [exPrice, setExPrice] = useState("");
 
   const filtered = courses.filter((c) => c.shop === shop && c.castClass === cls);
   const isHakataStandard = shop === "hakata" && cls === "standard";
@@ -272,6 +273,8 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
   const addOption = () => { if (!oName.trim()) return; setOptions((p) => [...p, { id: `op${Date.now()}`, name: oName.trim(), price: Number(oPrice) || 0 }]); setOName(""); setOPrice(""); };
   const removeOption = (id) => setOptions((prev) => prev.filter((o) => o.id !== id));
   const updateOptionPrice = (id, price) => setOptions((prev) => prev.map((o) => o.id === id ? { ...o, price: Number(price) || 0 } : o));
+  const addExtraOption = () => { if (!exName.trim()) return; setOptions((p) => [...p, { id: `exop${Date.now()}`, name: exName.trim(), price: Number(exPrice) || 0, type: "extra" }]); setExName(""); setExPrice(""); };
+  const extraOptions = options.filter((o) => o.type === "extra");
 
   const resetPricing = () => {
     if (!window.confirm("コース料金・指名料を初期値に戻します(現在の入力内容は失われます)。よろしいですか？")) return;
@@ -342,7 +345,7 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
       {/* 指名料 */}
       <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, marginBottom: 8 }}>指名料(受付表の「F」欄で選択)</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-        {options.map((o) => (
+        {options.filter((o) => o.type !== "extra").map((o) => (
           <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}>
             <span style={{ flex: 1 }}>{o.name}</span>
             <input value={o.price} onChange={(e) => updateOptionPrice(o.id, e.target.value)} type="number" style={{ width: 90, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, textAlign: "right" }} />
@@ -354,6 +357,24 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
         <input value={oName} onChange={(e) => setOName(e.target.value)} placeholder="名称" style={{ flex: "2 1 120px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box" }} />
         <input value={oPrice} onChange={(e) => setOPrice(e.target.value)} placeholder="料金" type="number" style={{ flex: "1 1 80px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box" }} />
         <button onClick={addOption} style={{ flexShrink: 0, padding: "0 14px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, cursor: "pointer" }}>＋</button>
+      </div>
+
+      {/* オプション */}
+      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, margin: "20px 0 8px" }}>オプション</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+        {extraOptions.map((o) => (
+          <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}>
+            <span style={{ flex: 1 }}>{o.name}</span>
+            <input value={o.price} onChange={(e) => updateOptionPrice(o.id, e.target.value)} type="number" style={{ width: 90, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, textAlign: "right" }} />
+            <button onClick={() => removeOption(o.id)} style={{ border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>
+          </div>
+        ))}
+        {extraOptions.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub, padding: "4px 2px" }}>オプションはまだ登録されていません。</div>}
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <input value={exName} onChange={(e) => setExName(e.target.value)} placeholder="名称" style={{ flex: "2 1 120px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box" }} />
+        <input value={exPrice} onChange={(e) => setExPrice(e.target.value)} placeholder="料金" type="number" style={{ flex: "1 1 80px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box" }} />
+        <button onClick={addExtraOption} style={{ flexShrink: 0, padding: "0 14px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, cursor: "pointer" }}>＋</button>
       </div>
     </Card>
   );

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { loadGoogleMaps, HOTEL_COORDS, OFFICE_LATLNG } from "./mapsLoader.js";
 import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName, staffThreadId, castThreadId, fetchThread, sendMessage, unreadCount, markThreadRead, fetchUketsukeSheet } from "./shared.jsx";
-import { useDriverSchedule, getCell, weekDays, saveScheduleCell, HALF_HOURS } from "./tabs/StaffScheduleTab.jsx";
+import { useDriverSchedule, getCell, weekDays } from "./tabs/StaffScheduleTab.jsx";
 import { SHEETS, W, Th, computeShimeiCounts } from "./tabs/UketsukeTab.jsx";
 
 // ============================================================
@@ -657,42 +657,6 @@ function CastApp({ theme, onLogout, casts, drivers, reservations, castId, update
 // ============================================================
 // ドライバーポータル
 // ============================================================
-// 全員のスケジュール表からセルをタップした時の簡易編集モーダル
-function ScheduleEditModal({ theme, driverName, dateStr, cell, saving, onSave, onClose }) {
-  const isOff = cell.type === "off";
-  const d = new Date(dateStr);
-  const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
-  const [note, setNote] = useState(cell.note || "");
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,35,0.45)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: "100%", maxWidth: 340, padding: 20, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: INK, marginBottom: 2 }}>{driverName}</div>
-        <div style={{ fontSize: 12.5, color: SUB, marginBottom: 16 }}>{d.getMonth() + 1}/{d.getDate()}({w})</div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          <button onClick={() => onSave("type", "work")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1.5px solid ${!isOff ? theme.accent : LINE}`, background: !isOff ? theme.accent : "#FFF", color: !isOff ? "#FFF" : SUB, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>出勤</button>
-          <button onClick={() => onSave("type", "off")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1.5px solid ${isOff ? "#98A2B0" : LINE}`, background: isOff ? "#98A2B0" : "#FFF", color: isOff ? "#FFF" : SUB, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>休み</button>
-        </div>
-        {!isOff && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
-            <select value={cell.start} onChange={(e) => onSave("start", e.target.value)} style={{ flex: 1, padding: "8px 6px", borderRadius: 8, border: `1px solid ${LINE}`, fontSize: 13 }}>
-              {HALF_HOURS.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <span style={{ fontSize: 13, color: SUB }}>〜</span>
-            <select value={cell.end} onChange={(e) => onSave("end", e.target.value)} style={{ flex: 1, padding: "8px 6px", borderRadius: 8, border: `1px solid ${LINE}`, fontSize: 13 }}>
-              <option value="">未定</option>
-              {HALF_HOURS.filter((t) => t > cell.start).map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-        )}
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} onBlur={() => onSave("note", note)} rows={3}
-          placeholder="メモ(例：現場直行、他店舗ヘルプなど)"
-          style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${LINE}`, fontSize: 12.5, boxSizing: "border-box", resize: "vertical", fontFamily: "inherit", marginBottom: 10 }} />
-        <div style={{ fontSize: 11, color: theme.accent, textAlign: "center", marginBottom: 10, minHeight: 14 }}>{saving ? "保存中…" : ""}</div>
-        <button onClick={onClose} style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: SUB, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>閉じる</button>
-      </div>
-    </div>
-  );
-}
 
 // 全員のスケジュール表の日付ヘッダー行(昼セクションの上=固定表示、夜セクションの上=見出しとして再掲)
 function ScheduleDateHeader({ theme, weekOffset, label, sticky }) {
@@ -719,9 +683,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
   const [toast, setToast] = useState("");
   const [routeJob, setRouteJob] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
-  const { schedule, setSchedule, loaded: scheduleLoaded } = useDriverSchedule();
-  const [editCell, setEditCell] = useState(null); // { driverId, dateStr }
-  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const { schedule, loaded: scheduleLoaded } = useDriverSchedule();
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(""), 2200); };
 
   const me = drivers.find((d) => d.id === driverId);
@@ -836,8 +798,8 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                       const isOff = cell.type === "off";
                       const hasNote = !!(cell.note && cell.note.trim());
                       return (
-                        <button key={dateStr} onClick={() => setEditCell({ driverId: d.id, dateStr, driverName: d.name })}
-                          style={{ width: 62, flexShrink: 0, padding: "4px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1.3 }}>
+                        <div key={dateStr}
+                          style={{ width: 62, flexShrink: 0, padding: "4px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontWeight: 700, color: isOff ? SUB : theme.accentDark, position: "relative", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1.3 }}>
                           {isOff ? (
                             <span style={{ fontSize: 9.5 }}>休</span>
                           ) : (
@@ -847,7 +809,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                             </>
                           )}
                           {hasNote && <span style={{ position: "absolute", top: 1, right: 3, fontSize: 7 }}>📝</span>}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -864,8 +826,8 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                       const isOff = cell.type === "off";
                       const hasNote = !!(cell.note && cell.note.trim());
                       return (
-                        <button key={dateStr} onClick={() => setEditCell({ driverId: d.id, dateStr, driverName: d.name })}
-                          style={{ width: 62, flexShrink: 0, padding: "4px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontWeight: 700, color: isOff ? SUB : theme.accentDark, background: "none", border: "none", borderLeftWidth: 1, borderLeftStyle: "solid", borderLeftColor: LINE, cursor: "pointer", position: "relative", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1.3 }}>
+                        <div key={dateStr}
+                          style={{ width: 62, flexShrink: 0, padding: "4px 2px", textAlign: "center", borderLeft: `1px solid ${LINE}`, fontWeight: 700, color: isOff ? SUB : theme.accentDark, position: "relative", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1.3 }}>
                           {isOff ? (
                             <span style={{ fontSize: 9.5 }}>休</span>
                           ) : (
@@ -875,7 +837,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
                             </>
                           )}
                           {hasNote && <span style={{ position: "absolute", top: 1, right: 3, fontSize: 7 }}>📝</span>}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -883,23 +845,8 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
               </div>
             </div>
           )}
-          <div style={{ fontSize: 10.5, color: SUB, textAlign: "center", marginTop: 8 }}>※セルをタップすると誰でも編集できます(横にスクロールできます)</div>
+          <div style={{ fontSize: 10.5, color: SUB, textAlign: "center", marginTop: 8 }}>※シフトの閲覧のみできます(横にスクロールできます)。変更が必要な場合は事務所にご連絡ください。</div>
         </div>
-      )}
-
-      {editCell && (
-        <ScheduleEditModal
-          theme={theme}
-          driverName={editCell.driverName}
-          dateStr={editCell.dateStr}
-          cell={getCell(schedule, editCell.driverId, editCell.dateStr)}
-          saving={scheduleSaving}
-          onSave={(field, val) => {
-            setScheduleSaving(true);
-            saveScheduleCell(schedule, setSchedule, editCell.driverId, editCell.dateStr, field, val, () => setScheduleSaving(false));
-          }}
-          onClose={() => setEditCell(null)}
-        />
       )}
 
       {tab === "uketsuke" && (

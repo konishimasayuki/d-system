@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // ============================================================
 // デザイントークン
@@ -1470,22 +1470,41 @@ export function usePersistedState(key, initialValue) {
   const [value, setValue] = useState(initialValue);
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState("");
+  // サーバーから実際にデータを受け取れたかどうか(falseのまま=まだ一度もサーバーの実データを見ていない)。
+  // これがtrueになるまでは絶対にPOST(上書き保存)しない。読み込み失敗や空応答で初期値のまま保存してしまい、
+  // せっかく登録したキャスト・スタッフ等が消える事故を防ぐための安全装置。
+  const hasLoadedRealDataRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/state?key=${key}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("load-failed");
+        return r.json();
+      })
       .then((d) => {
         if (cancelled) return;
-        if (d && d.value !== null && d.value !== undefined) setValue(d.value);
+        if (d && d.value !== null && d.value !== undefined) {
+          setValue(d.value);
+          hasLoadedRealDataRef.current = true;
+        } else {
+          // サーバーに何も保存されていない(初回起動など)場合のみ、初期値を「実データ」として扱ってよい
+          hasLoadedRealDataRef.current = true;
+        }
       })
-      .catch(() => { if (!cancelled) setErr("読み込みに失敗しました(初期データで表示中)"); })
+      .catch(() => {
+        if (!cancelled) {
+          setErr("読み込みに失敗しました。安全のため保存は行いません。再読み込みしてください。");
+          // 読み込み失敗時は hasLoadedRealDataRef を true にしない→以降のPOSTを止める
+        }
+      })
       .finally(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
   }, [key]);
 
   useEffect(() => {
     if (!loaded) return;
+    if (!hasLoadedRealDataRef.current) return; // 実データを確認できていないなら保存しない(初期値での上書き事故防止)
     fetch(`/api/state?key=${key}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value }),
     }).then((r) => { if (!r.ok) throw new Error("save-failed"); setErr(""); })
@@ -1502,22 +1521,38 @@ export function usePersistedReservations(dayDates, initialAll) {
   const [reservations, setReservations] = useState(initialAll);
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState("");
+  // 個別の日付取得がネットワーク障害等で失敗した場合、その日の実データが存在するかどうか確認できない。
+  // これを「データが無い」と誤判定して初期デモデータで埋めてしまうと、次の自動保存でサーバー側の実データが
+  // 消えてしまう事故につながるため、失敗した日は保存対象から除外して安全に倒す。
+  const failedDatesRef = useRef(new Set());
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all(isoList.map((d) => fetch(`/api/state?key=reservations:${d}`).then((r) => r.json()).catch(() => null)))
-      .then((results) => {
-        if (cancelled) return;
-        const merged = [];
-        results.forEach((res, i) => {
-          const d = isoList[i];
-          if (res && Array.isArray(res.value) && res.value.length > 0) merged.push(...res.value);
-          else merged.push(...initialAll.filter((r) => r.date === d));
-        });
-        setReservations(merged);
-      })
-      .catch(() => { if (!cancelled) setErr("読み込みに失敗しました(初期データで表示中)"); })
-      .finally(() => { if (!cancelled) setLoaded(true); });
+    Promise.all(isoList.map((d) =>
+      fetch(`/api/state?key=reservations:${d}`)
+        .then((r) => { if (!r.ok) throw new Error("load-failed"); return r.json(); })
+        .then((v) => ({ ok: true, value: v }))
+        .catch(() => ({ ok: false, value: null }))
+    )).then((results) => {
+      if (cancelled) return;
+      const merged = [];
+      const failed = new Set();
+      results.forEach((res, i) => {
+        const d = isoList[i];
+        if (res.ok && res.value && Array.isArray(res.value.value) && res.value.value.length > 0) {
+          merged.push(...res.value.value);
+        } else if (res.ok) {
+          // 取得は成功したがその日は空(本当にデータが無い)→初期デモデータで埋めてよい
+          merged.push(...initialAll.filter((r) => r.date === d));
+        } else {
+          // 取得に失敗した日は実際の状態が不明なので、安全のため初期データでは埋めず、保存対象からも外す
+          failed.add(d);
+        }
+      });
+      failedDatesRef.current = failed;
+      setReservations(merged);
+      if (failed.size > 0) setErr(`${failed.size}日分の読み込みに失敗しました。該当日は保存されません。再読み込みしてください。`);
+    }).finally(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1527,7 +1562,9 @@ export function usePersistedReservations(dayDates, initialAll) {
     const byDate = {};
     isoList.forEach((d) => { byDate[d] = []; });
     reservations.forEach((r) => { if (!byDate[r.date]) byDate[r.date] = []; byDate[r.date].push(r); });
-    Promise.all(Object.entries(byDate).map(([d, list]) =>
+    // 読み込みに失敗した日は、実データを見ていないため上書き保存しない(事故防止)
+    const targets = Object.entries(byDate).filter(([d]) => !failedDatesRef.current.has(d));
+    Promise.all(targets.map(([d, list]) =>
       fetch(`/api/state?key=reservations:${d}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: list }) })
     )).then((results) => {
       if (results.every((r) => r.ok)) setErr(""); else setErr("一部の保存に失敗しました");

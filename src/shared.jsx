@@ -1619,6 +1619,10 @@ export function unreadCount(messages, viewpoint) {
 
 // 指定視点で全メッセージを既読にする
 export async function markThreadRead(threadId, messages, viewpoint) {
+  // messagesが空配列の場合、それが「本当に会話が無い」のか「取得失敗でたまたま空だった」のか呼び出し側では
+  // 区別できないことがある。安全のため、空配列を丸ごと保存し直すことはせず、既読フラグの更新のみ意味があるので
+  // 中身が無ければ何もしない(空でmarkThreadReadが呼ばれても既存の会話を消さない)。
+  if (!Array.isArray(messages) || messages.length === 0) return messages || [];
   const key = viewpoint === "office" ? "readByOffice" : "readByUser";
   const next = messages.map((m) => ({ ...m, [key]: true }));
   await saveThread(threadId, next);

@@ -382,14 +382,24 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
     closeMenu();
   };
 
-  // 行の入れ替え(↑↓ボタン)
-  const swapRow = (i, dir) => {
-    const j = i + dir;
-    if (j < 0 || j >= sheet.rows.length) return;
+  // 行の並び替え(ドラッグ&ドロップ)：fromIdxの行をtoIdxの位置へ移動
+  const moveRow = (fromIdx, toIdx) => {
+    if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= sheet.rows.length || toIdx >= sheet.rows.length) return;
     const rows = [...sheet.rows];
-    [rows[i], rows[j]] = [rows[j], rows[i]];
+    const [moved] = rows.splice(fromIdx, 1);
+    rows.splice(toIdx, 0, moved);
     save({ ...sheet, rows });
   };
+  // 行の削除(内容をクリアするのではなく、行自体を配列から取り除く。末尾に空行を1件補充して行数を維持)
+  const deleteRow = (i) => {
+    if (!window.confirm("この行のデータを削除します。よろしいですか？")) return;
+    const rows = [...sheet.rows];
+    rows.splice(i, 1);
+    rows.push(emptyRow());
+    save({ ...sheet, rows });
+  };
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
   const setHeader = (key, val) => save({ ...sheet, header: { ...sheet.header, [key]: val } });
 
   // 落とし・女子給を自動計算：落とし = コース料金 + 交通費 + 指名料(Fの選択に応じ) + オプション(未実装分は0)
@@ -667,11 +677,20 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
 
             {/* ===== 明細(2行1セット) ===== */}
             {sheet.rows.map((r, i) => (
-              <div key={i} style={{ display: "flex", borderBottom: `2px solid ${COLORS.border}` }}>
-                {/* 行入れ替えボタン */}
+              <div key={i}
+                onDragOver={(e) => { e.preventDefault(); setDragOverIdx(i); }}
+                onDrop={(e) => { e.preventDefault(); if (dragIdx != null) moveRow(dragIdx, i); setDragIdx(null); setDragOverIdx(null); }}
+                style={{ display: "flex", borderBottom: `2px solid ${COLORS.border}`, background: dragOverIdx === i ? "#EAF3FF" : undefined }}>
+                {/* ドラッグハンドル(上)+削除ボタン(下) */}
                 <div style={{ width: W.move, minWidth: W.move, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column", background: "#F4F6F9" }}>
-                  <button onClick={() => swapRow(i, -1)} disabled={i === 0} style={{ flex: 1, border: "none", background: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "#CCC" : COLORS.textSub, fontSize: 10, padding: 0 }}>▲</button>
-                  <button onClick={() => swapRow(i, 1)} disabled={i === sheet.rows.length - 1} style={{ flex: 1, border: "none", background: "none", cursor: i === sheet.rows.length - 1 ? "default" : "pointer", color: i === sheet.rows.length - 1 ? "#CCC" : COLORS.textSub, fontSize: 10, padding: 0, borderTop: `1px solid ${COLORS.border}` }}>▼</button>
+                  <div
+                    draggable
+                    onDragStart={(e) => { setDragIdx(i); e.dataTransfer.effectAllowed = "move"; }}
+                    onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+                    title="ドラッグで並び替え"
+                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "grab", color: COLORS.textSub, fontSize: 12, userSelect: "none", touchAction: "none" }}>⋮⋮</div>
+                  <button onClick={() => deleteRow(i)} title="この行を削除"
+                    style={{ flex: 1, border: "none", background: "none", cursor: "pointer", color: COLORS.red, fontSize: 12, padding: 0, borderTop: `1px solid ${COLORS.border}` }}>🗑</button>
                 </div>
                 {/* A 備考(左)・上下2段 */}
                 <div style={{ width: W.bikoL, minWidth: W.bikoL, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>

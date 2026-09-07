@@ -400,6 +400,47 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
   };
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
+  const rowRefs = useRef([]); // 各行のDOM要素(ドラッグ中に現在位置がどの行にあるか判定するため)
+
+  // PC(マウス)・スマホ(タッチ)両対応のドラッグ処理。PointerEventで統一する(HTML5 D&DはiOS Safariで動かないため)
+  const handlePointerMove = (clientY) => {
+    const idx = rowRefs.current.findIndex((el) => {
+      if (!el) return false;
+      const rect = el.getBoundingClientRect();
+      return clientY >= rect.top && clientY <= rect.bottom;
+    });
+    if (idx >= 0) setDragOverIdx(idx);
+  };
+  const draggingRef = useRef(false);
+  const startDrag = (i) => (e) => {
+    e.preventDefault();
+    if (draggingRef.current) return; // タッチ+ポインタの二重発火防止
+    draggingRef.current = true;
+    setDragIdx(i);
+    setDragOverIdx(i);
+    const onMove = (ev) => {
+      const y = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      handlePointerMove(y);
+    };
+    const onUp = () => {
+      setDragIdx((curFrom) => {
+        setDragOverIdx((curTo) => {
+          if (curFrom != null && curTo != null) moveRow(curFrom, curTo);
+          return null;
+        });
+        return null;
+      });
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onUp);
+      draggingRef.current = false;
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", onUp);
+  };
   const setHeader = (key, val) => save({ ...sheet, header: { ...sheet.header, [key]: val } });
 
   // 落とし・女子給を自動計算：落とし = コース料金 + 交通費 + 指名料(Fの選択に応じ) + オプション(未実装分は0)
@@ -678,15 +719,13 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
             {/* ===== 明細(2行1セット) ===== */}
             {sheet.rows.map((r, i) => (
               <div key={i}
-                onDragOver={(e) => { e.preventDefault(); setDragOverIdx(i); }}
-                onDrop={(e) => { e.preventDefault(); if (dragIdx != null) moveRow(dragIdx, i); setDragIdx(null); setDragOverIdx(null); }}
-                style={{ display: "flex", borderBottom: `2px solid ${COLORS.border}`, background: dragOverIdx === i ? "#EAF3FF" : undefined }}>
+                ref={(el) => { rowRefs.current[i] = el; }}
+                style={{ display: "flex", borderBottom: `2px solid ${COLORS.border}`, background: dragIdx != null && dragOverIdx === i ? "#EAF3FF" : undefined, opacity: dragIdx === i ? 0.5 : 1 }}>
                 {/* ドラッグハンドル(上)+削除ボタン(下) */}
                 <div style={{ width: W.move, minWidth: W.move, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column", background: "#F4F6F9" }}>
                   <div
-                    draggable
-                    onDragStart={(e) => { setDragIdx(i); e.dataTransfer.effectAllowed = "move"; }}
-                    onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+                    onPointerDown={startDrag(i)}
+                    onTouchStart={startDrag(i)}
                     title="ドラッグで並び替え"
                     style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "grab", color: COLORS.textSub, fontSize: 12, userSelect: "none", touchAction: "none" }}>⋮⋮</div>
                   <button onClick={() => deleteRow(i)} title="この行を削除"

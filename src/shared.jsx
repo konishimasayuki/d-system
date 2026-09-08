@@ -1637,3 +1637,42 @@ export async function fetchUketsukeSheet(sheetKey, dateStr) {
     return (d && d.value && d.value.rows) ? d.value : null;
   } catch (e) { return null; }
 }
+
+// ============================================================
+// メッセージ通知(ブラウザ通知API)。ドライバー/キャストポータルのマイページ設定から有効化する。
+// ============================================================
+const NOTIFY_STORAGE_KEY = "portal_notify_enabled";
+
+export function isNotifyEnabled() {
+  try { return localStorage.getItem(NOTIFY_STORAGE_KEY) === "1"; } catch (e) { return false; }
+}
+
+export function setNotifyEnabled(on) {
+  try { localStorage.setItem(NOTIFY_STORAGE_KEY, on ? "1" : "0"); } catch (e) {}
+}
+
+// 通知をONにする操作(トグルON時に呼ぶ)。ブラウザの許可ダイアログもここで出す。
+// 戻り値:実際に有効化できたか(ユーザーが拒否した場合はfalse)
+export async function enableNotifications() {
+  if (typeof Notification === "undefined") { setNotifyEnabled(false); return false; }
+  let permission = Notification.permission;
+  if (permission === "default") {
+    permission = await Notification.requestPermission();
+  }
+  const ok = permission === "granted";
+  setNotifyEnabled(ok);
+  return ok;
+}
+
+export function disableNotifications() {
+  setNotifyEnabled(false);
+}
+
+// 新着メッセージ通知を出す(通知が有効・許可済みの場合のみ)
+export function notifyNewMessage(title, body) {
+  if (!isNotifyEnabled()) return;
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try {
+    new Notification(title, { body, icon: "/icon.png", tag: "portal-message" });
+  } catch (e) {}
+}

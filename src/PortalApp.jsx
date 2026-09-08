@@ -356,7 +356,7 @@ function ViewCell({ value, width, align = "center", color, bold, fontSize = 11.5
   );
 }
 
-function UketsukeViewer({ theme, myName, casts }) {
+function UketsukeViewer({ theme, myName, casts, active }) {
   const [sheetKey, setSheetKey] = useState("hitozuma");
   const [sheet, setSheet] = useState(null);
   const [loaded, setLoaded] = useState(false);
@@ -366,13 +366,37 @@ function UketsukeViewer({ theme, myName, casts }) {
   const viewDate = dayOffset === 0 ? todayStr : tomorrowStr;
   const ROW_H = 26;
 
+  const reload = () => {
+    fetchUketsukeSheet(sheetKey, viewDate).then((s) => setSheet(s));
+  };
+
+  // シート・日付が変わった時、およびこのタブが開かれた瞬間に読み込む
   useEffect(() => {
+    if (!active) return;
     let cancelled = false;
     setLoaded(false);
     fetchUketsukeSheet(sheetKey, viewDate).then((s) => { if (!cancelled) { setSheet(s); setLoaded(true); } });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheetKey, viewDate]);
+  }, [sheetKey, viewDate, active]);
+
+  // このタブを開いている間、スプレッドシートのように定期的に最新状態を反映する(20秒おき)。
+  // 他のタブに切り替えている間はポーリングを止めて通信量を抑える。
+  useEffect(() => {
+    if (!active) return;
+    const timer = setInterval(reload, 20000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, sheetKey, viewDate]);
+
+  // アプリがバックグラウンドから復帰した瞬間にも更新する(スマホでアプリ切替→戻ってきた場合など)
+  useEffect(() => {
+    if (!active) return;
+    const onVisible = () => { if (document.visibilityState === "visible") reload(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, sheetKey, viewDate]);
 
   const rowsAll = sheet?.rows || [];
   const shimeiCounts = computeShimeiCounts(rowsAll);
@@ -876,7 +900,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
         !scheduleLoaded ? (
           <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: "60px 20px" }}>読み込み中…</div>
         ) : isWorkingToday ? (
-          <UketsukeViewer theme={theme} myName={me?.name} casts={casts} />
+          <UketsukeViewer theme={theme} myName={me?.name} casts={casts} active={tab === "uketsuke"} />
         ) : (
           <div style={{ textAlign: "center", color: SUB, fontSize: 13, padding: "60px 20px" }}>
             本日出勤の方のみ閲覧できます。<br />シフトに入っている日にご確認ください。

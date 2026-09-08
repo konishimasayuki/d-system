@@ -414,10 +414,10 @@ function UketsukeViewer({ theme, myName, casts, active }) {
   }, [sheetKey, viewDate, active]);
 
   // このタブを開いている間、スプレッドシートのように定期的に最新状態を反映する(20秒おき)。
-  // 他のタブに切り替えている間はポーリングを止めて通信量を抑える。
+  // 他のタブに切り替えている間、および画面がバックグラウンドの間はポーリングを止めて通信量を抑える。
   useEffect(() => {
     if (!active) return;
-    const timer = setInterval(reload, 20000);
+    const timer = setInterval(() => { if (document.visibilityState === "visible") reload(); }, 20000);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, sheetKey, viewDate]);
@@ -641,7 +641,9 @@ function CastApp({ theme, onLogout, casts, drivers, reservations, castId, update
     refresh();
     const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
     document.addEventListener("visibilitychange", onVisible);
-    const timer = setInterval(refresh, 30000);
+    // 画面が実際に見えている(バックグラウンドでない)時だけポーリングする。
+    // アプリを裏に回した/画面ロック中は通信しないので、開きっぱなしでも料金への影響を抑えられる。
+    const timer = setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 30000);
     return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); clearInterval(timer); };
   }, [myThreadId]);
 
@@ -821,8 +823,9 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
     refresh();
     const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
     document.addEventListener("visibilitychange", onVisible);
-    // 通知を見逃さないよう、アプリを開いている間は30秒おきに未読状況を確認する
-    const timer = setInterval(refresh, 30000);
+    // 画面が実際に見えている(バックグラウンドでない)時だけポーリングする。
+    // アプリを裏に回した/画面ロック中は通信しないので、開きっぱなしでも料金への影響を抑えられる。
+    const timer = setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 30000);
     return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); clearInterval(timer); };
   }, [myThreadId]);
 

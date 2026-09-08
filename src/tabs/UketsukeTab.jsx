@@ -459,20 +459,25 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
   };
   const recalcRow = (row, idx) => {
     const info = courseInfo(row.course, row.cast);
-    if (!info) return row; // コース未選択なら自動計算しない(手入力のまま)
     const shimeiOpt = row.shimeiType === "写指" ? options.find((o) => o.name.includes("写指"))
       : row.shimeiType === "本指" ? options.find((o) => o.name.includes("本指"))
       : null;
     const shimeiPrice = shimeiOpt?.price || 0;
     const kotsu = Number(String(row.kotsu).replace(/[^0-9.-]/g, "")) || 0;
     const opTotal = [row.op1, row.op2, row.op3, row.op4].filter((n) => n && n !== "なし").reduce((sum, n) => sum + optionPriceByName(n), 0);
-    const otoshi = info.price + kotsu + shimeiPrice + opTotal;
-    // 女子給：博多ココ・スタンダードは報酬ランク別、それ以外は通常の女子給
-    let baseJoshi = info.joshi;
-    if (info.joshiByRank) {
-      const cast = casts.find((c) => castFullName(c) === row.cast);
-      const rank = cast ? castRewardRank(cast) : "base";
-      baseJoshi = info.joshiByRank[rank] ?? info.joshiByRank.base ?? 0;
+    // コース未選択でもOP・交通費・指名料だけで計算する(コース料金分は0として扱う)。
+    // コースを選んでいれば従来通りコース料金+交通費+指名料+OPを合算する。
+    const coursePrice = info ? info.price : 0;
+    const otoshi = coursePrice + kotsu + shimeiPrice + opTotal;
+    // 女子給：博多ココ・スタンダードは報酬ランク別、それ以外は通常の女子給(コース未選択ならOPのみ加算)
+    let baseJoshi = 0;
+    if (info) {
+      baseJoshi = info.joshi;
+      if (info.joshiByRank) {
+        const cast = casts.find((c) => castFullName(c) === row.cast);
+        const rank = cast ? castRewardRank(cast) : "base";
+        baseJoshi = info.joshiByRank[rank] ?? info.joshiByRank.base ?? 0;
+      }
     }
     // 本日1本目(備考欄の自動-500表示)は、女子給からも雑費500円を控除する
     const bikoValue = row.biko || (idx != null && shimeiCounts[idx] === 1 ? "-500" : "");

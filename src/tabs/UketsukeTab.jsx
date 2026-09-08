@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, castClass, castRewardRank, isoDate } from "../shared.jsx";
+import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, castClass, castClassForShop, castRewardRank, isoDate } from "../shared.jsx";
 
 // ============================================================
 // 受付表タブ(スプレッドシート再現・1日1シート)
@@ -559,9 +559,12 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
   const coursesForCastName = (castName) => {
     const cast = casts.find((c) => castFullName(c) === castName);
     if (!cast) return ["", ...courses.map((c) => c.code), FREE_COURSE];
-    const cls = castClass(cast);
-    const shops = castShops(cast);
-    const matched = courses.filter((c) => c.castClass === cls && shops.includes(c.shop));
+    // 今開いているシート(sheetKey=人妻専科/博多ココ)における、このキャストのクラスだけを見る。
+    // 以前は店舗共通のcastClassだけで判定していたため、2店舗所属で店舗ごとにクラスが違うキャストの場合、
+    // 両店舗ぶんのコースが混ざって出てしまうことがあった。
+    const cls = castClassForShop(cast, sheetKey);
+    if (!castShops(cast).includes(sheetKey)) return ["", ...courses.map((c) => c.code), FREE_COURSE];
+    const matched = courses.filter((c) => c.castClass === cls && c.shop === sheetKey);
     return ["", ...matched.map((c) => c.code), FREE_COURSE];
   };
   // コース記号(code)は店舗・クラスをまたいで重複しうる(例:人妻専科と博多ココの両方に"60"がある)ため、
@@ -569,9 +572,9 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
   const courseInfo = (code, castName) => {
     const cast = castName ? casts.find((c) => castFullName(c) === castName) : null;
     if (cast) {
-      const cls = castClass(cast);
-      const shops = castShops(cast);
-      const scoped = courses.find((c) => c.code === code && c.castClass === cls && shops.includes(c.shop));
+      // 今開いているシート(sheetKey)における、このキャストのクラス・店舗だけに絞って検索する
+      const cls = castClassForShop(cast, sheetKey);
+      const scoped = courses.find((c) => c.code === code && c.castClass === cls && c.shop === sheetKey);
       if (scoped) return scoped;
     }
     return courses.find((c) => c.code === code);

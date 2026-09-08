@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { loadGoogleMaps, HOTEL_COORDS, OFFICE_LATLNG } from "./mapsLoader.js";
-import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName, staffThreadId, castThreadId, fetchThread, sendMessage, unreadCount, markThreadRead, fetchUketsukeSheet } from "./shared.jsx";
+import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName, staffThreadId, castThreadId, fetchThread, sendMessage, unreadCount, markThreadRead, fetchUketsukeSheet, isNotifyEnabled, enableNotifications, disableNotifications, notifyNewMessage } from "./shared.jsx";
 import { useDriverSchedule, getCell, weekDays } from "./tabs/StaffScheduleTab.jsx";
 import { SHEETS, W, Th, computeShimeiCounts } from "./tabs/UketsukeTab.jsx";
 
@@ -274,6 +274,39 @@ function fmtMsgTime(ts) {
   const sameDay = d.toDateString() === now.toDateString();
   if (sameDay) return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+// マイページ内の通知設定トグル(ONにするとブラウザの通知許可ダイアログも出す)
+function NotifyToggle({ theme }) {
+  const [on, setOn] = useState(() => isNotifyEnabled());
+  const [msg, setMsg] = useState("");
+
+  const toggle = async () => {
+    if (on) {
+      disableNotifications();
+      setOn(false);
+      setMsg("");
+      return;
+    }
+    const granted = await enableNotifications();
+    setOn(granted);
+    setMsg(granted ? "" : "通知が許可されませんでした。端末の設定から通知を許可してください。");
+  };
+
+  return (
+    <Card style={{ marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>メッセージ通知</div>
+          <div style={{ fontSize: 11.5, color: SUB, marginTop: 2 }}>本部からメッセージが届いたら通知します</div>
+        </div>
+        <button onClick={toggle} style={{ width: 46, height: 26, borderRadius: 999, border: "none", background: on ? theme.accent : "#CBD3DB", position: "relative", cursor: "pointer", flexShrink: 0 }}>
+          <span style={{ position: "absolute", top: 3, left: on ? 23 : 3, width: 20, height: 20, borderRadius: "50%", background: "#FFF", transition: "left 0.15s" }} />
+        </button>
+      </div>
+      {msg && <div style={{ fontSize: 11, color: "#C0492B", marginTop: 8 }}>{msg}</div>}
+    </Card>
+  );
 }
 
 function ChatPanel({ theme, threadId, onUnreadChange }) {
@@ -592,13 +625,24 @@ function CastApp({ theme, onLogout, casts, drivers, reservations, castId, update
 
   const [msgUnread, setMsgUnread] = useState(0);
   const myThreadId = castThreadId(castId);
+  const prevUnreadRef = useRef(0);
   useEffect(() => {
     let cancelled = false;
-    const refresh = () => fetchThread(myThreadId).then((msgs) => { if (!cancelled) setMsgUnread(unreadCount(msgs, "user")); });
+    const refresh = () => fetchThread(myThreadId).then((msgs) => {
+      if (cancelled) return;
+      const n = unreadCount(msgs, "user");
+      if (n > prevUnreadRef.current) {
+        const latest = msgs.filter((m) => m.from === "office").slice(-1)[0];
+        notifyNewMessage("本部からメッセージ", latest?.text || "新着メッセージがあります");
+      }
+      prevUnreadRef.current = n;
+      setMsgUnread(n);
+    });
     refresh();
     const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
     document.addEventListener("visibilitychange", onVisible);
-    return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); };
+    const timer = setInterval(refresh, 30000);
+    return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); clearInterval(timer); };
   }, [myThreadId]);
 
   const nav = [
@@ -650,6 +694,9 @@ function CastApp({ theme, onLogout, casts, drivers, reservations, castId, update
               </Card>
             );
           })}
+
+          <Eyebrow>設定</Eyebrow>
+          <NotifyToggle theme={theme} />
         </div>
       )}
 
@@ -757,13 +804,26 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
 
   const [msgUnread, setMsgUnread] = useState(0);
   const myThreadId = staffThreadId(driverId);
+  const prevUnreadRef = useRef(0);
   useEffect(() => {
     let cancelled = false;
-    const refresh = () => fetchThread(myThreadId).then((msgs) => { if (!cancelled) setMsgUnread(unreadCount(msgs, "user")); });
+    const refresh = () => fetchThread(myThreadId).then((msgs) => {
+      if (cancelled) return;
+      const n = unreadCount(msgs, "user");
+      // 未読数が増えた(=新着が来た)タイミングでのみ通知を出す
+      if (n > prevUnreadRef.current) {
+        const latest = msgs.filter((m) => m.from === "office").slice(-1)[0];
+        notifyNewMessage("本部からメッセージ", latest?.text || "新着メッセージがあります");
+      }
+      prevUnreadRef.current = n;
+      setMsgUnread(n);
+    });
     refresh();
     const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
     document.addEventListener("visibilitychange", onVisible);
-    return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); };
+    // 通知を見逃さないよう、アプリを開いている間は30秒おきに未読状況を確認する
+    const timer = setInterval(refresh, 30000);
+    return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); clearInterval(timer); };
   }, [myThreadId]);
 
   const nav = [
@@ -921,6 +981,8 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><span style={{ color: SUB, fontSize: 13 }}>氏名</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{me.name}</span></div>
             <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: SUB, fontSize: 13 }}>担当車両</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{me.car}</span></div>
           </Card>
+          <Eyebrow>設定</Eyebrow>
+          <NotifyToggle theme={theme} />
         </div>
       )}
 

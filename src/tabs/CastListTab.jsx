@@ -77,14 +77,14 @@ function CastPhotoManager({ castId }) {
 
 // ============================================================
 export function CastDetailModal({ cast, onClose, onSave, allOptions }) {
-  const [f, setF] = useState({ ...cast, okText: cast.okOptions.join("、"), shops: castShops(cast), castClass: castClass(cast), rewardRank: castRewardRank(cast), castClassByShop: cast.castClassByShop || {}, allowedOptions: cast.allowedOptions || [] });
+  const [f, setF] = useState({ ...cast, shops: castShops(cast), castClass: castClass(cast), rewardRank: castRewardRank(cast), castClassByShop: cast.castClassByShop || {}, allowedOptions: cast.allowedOptions || [] });
   const [optOpen, setOptOpen] = useState(true);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
   const setShopClass = (shopKey, clsKey) => setF((p) => ({ ...p, castClassByShop: { ...p.castClassByShop, [shopKey]: clsKey } }));
   const toggleAllowedOption = (id) => setF((p) => ({ ...p, allowedOptions: p.allowedOptions.includes(id) ? p.allowedOptions.filter((x) => x !== id) : [...p.allowedOptions, id] }));
   const save = () => {
-    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, idVerified: f.idVerified, okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, allowedOptions: f.allowedOptions, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
+    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, idVerified: f.idVerified, shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, allowedOptions: f.allowedOptions, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
     onClose();
   };
   const showRewardRank = f.shops.includes("hakata") && (f.castClassByShop.hakata || f.castClass) === "standard";
@@ -167,7 +167,6 @@ export function CastDetailModal({ cast, onClose, onSave, allOptions }) {
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="入店日" value={f.joinDate} onChange={(v) => set("joinDate", v)} /></div>
       </div>
-      <TextField label="対応可能オプション(、区切り)" value={f.okText} onChange={(v) => set("okText", v)} placeholder="指名、本指名、延長30分" />
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="備考1" value={f.biko1 || ""} onChange={(v) => set("biko1", v)} /></div>
         <div style={{ flex: 1 }}><TextField label="備考2" value={f.biko2 || ""} onChange={(v) => set("biko2", v)} /></div>
@@ -186,7 +185,7 @@ export function CastDetailModal({ cast, onClose, onSave, allOptions }) {
 export function CastRegisterModal({ onClose, onCreate, defaultShop, allOptions }) {
   const [f, setF] = useState({
     name: "", honmyo: "", birthday: "", age: "20", phone: "", address: "",
-    idType: "運転免許証", idNo: "", joinDate: isoDate(new Date()), ratePct: "55", okText: "指名", idVerified: false,
+    idType: "運転免許証", idNo: "", joinDate: isoDate(new Date()), ratePct: "55", idVerified: false,
     shops: defaultShop ? [defaultShop] : [], taikiba: "", castClass: "standard", castClassByShop: {}, rewardRank: "base", allowedOptions: [], loginId: "", password: "", biko1: "", biko2: "",
   });
   const [msg, setMsg] = useState("");
@@ -209,7 +208,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop, allOptions }
       idType: f.idType, idNo: f.idNo || "-", joinDate: f.joinDate,
       shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0,
       itakuRate: (Number(f.ratePct) || 55) / 100, idVerified: f.idVerified,
-      stdLast: isoDate(new Date()), okOptions: f.okText.split(/[、,]/).map((s) => s.trim()).filter(Boolean), comment: "",
+      stdLast: isoDate(new Date()), okOptions: [], comment: "",
       shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, allowedOptions: f.allowedOptions,
       loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "",
     });
@@ -289,7 +288,6 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop, allOptions }
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="入店日" value={f.joinDate} onChange={(v) => set("joinDate", v)} /></div>
       </div>
-      <TextField label="対応可能オプション(、区切り)" value={f.okText} onChange={(v) => set("okText", v)} placeholder="指名、本指名、延長30分" />
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><TextField label="備考1" value={f.biko1} onChange={(v) => set("biko1", v)} /></div>
         <div style={{ flex: 1 }}><TextField label="備考2" value={f.biko2} onChange={(v) => set("biko2", v)} /></div>
@@ -320,8 +318,8 @@ export function CastList({ casts, setCasts, options }) {
   const detailCast = casts.find((c) => c.id === detailId);
   const thumbs = useCastThumbs(rows.map((c) => c.id));
 
-  // CSV列: name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,okOptions,shops,taikiba
-  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,okOptions,shops,taikiba,loginId,password,biko1,biko2,castClass,rewardRank";
+  // CSV列: name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,shops,taikiba
+  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,shops,taikiba,loginId,password,biko1,biko2,castClass,rewardRank";
   const classLabelMap = Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]));
   const classKeyMap = Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.label, o.key]));
   const rankLabelMap = Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.key, o.label]));
@@ -329,7 +327,7 @@ export function CastList({ casts, setCasts, options }) {
   const exportCSV = () => {
     const body = casts.map((c) => [
       c.name, c.honmyo, c.age, c.birthday, c.phone, c.address, c.idType, c.idNo, c.joinDate,
-      (c.okOptions || []).join("・"), castShops(c).join("・"), c.taikiba || "",
+      castShops(c).join("・"), c.taikiba || "",
       c.loginId || "", c.password || "", c.biko1 || "", c.biko2 || "", classLabelMap[castClass(c)] || "スタンダード",
       rankLabelMap[castRewardRank(c)] || "ベース",
     ].map(csvEscape).join(",")).join("\n");
@@ -349,12 +347,11 @@ export function CastList({ casts, setCasts, options }) {
       name: (r[0] || "").trim(), honmyo: (r[1] || "").trim(), age: (r[2] || "").trim(), birthday: (r[3] || "").trim(),
       phone: (r[4] || "").trim(), address: (r[5] || "").trim(),
       idType: (r[6] || "").trim(), idNo: (r[7] || "").trim(), joinDate: (r[8] || "").trim(),
-      okOptions: (r[9] || "").split("・").map((s) => s.trim()).filter(Boolean),
-      shops: (r[10] || "").split("・").map((s) => shopKeyMap[s.trim()] || s.trim()).filter(Boolean),
-      taikiba: (r[11] || "").trim(), loginId: (r[12] || "").trim(), password: (r[13] || "").trim(),
-      biko1: (r[14] || "").trim(), biko2: (r[15] || "").trim(),
-      castClass: classKeyMap[(r[16] || "").trim()] || (r[16] || "").trim(),
-      rewardRank: rankKeyMap[(r[17] || "").trim()] || (r[17] || "").trim(),
+      shops: (r[9] || "").split("・").map((s) => shopKeyMap[s.trim()] || s.trim()).filter(Boolean),
+      taikiba: (r[10] || "").trim(), loginId: (r[11] || "").trim(), password: (r[12] || "").trim(),
+      biko1: (r[13] || "").trim(), biko2: (r[14] || "").trim(),
+      castClass: classKeyMap[(r[15] || "").trim()] || (r[15] || "").trim(),
+      rewardRank: rankKeyMap[(r[16] || "").trim()] || (r[16] || "").trim(),
     })).filter((r) => r.name);
     if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,...)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
 
@@ -368,7 +365,7 @@ export function CastList({ casts, setCasts, options }) {
           ...ex,
           honmyo: inc.honmyo, age: inc.age === "" ? "" : (Number(inc.age) || 0), birthday: inc.birthday, phone: inc.phone, address: inc.address,
           idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
-          okOptions: inc.okOptions, shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba,
+          shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba,
           loginId: inc.loginId, password: inc.password,
           biko1: inc.biko1, biko2: inc.biko2,
           castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base",
@@ -379,7 +376,7 @@ export function CastList({ casts, setCasts, options }) {
           id: `c${Date.now()}${added}`, name: inc.name, honmyo: inc.honmyo, age: inc.age === "" ? "" : (Number(inc.age) || 0), birthday: inc.birthday,
           status: "before_shift", phone: inc.phone, address: inc.address, idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
           shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, idVerified: false,
-          stdLast: isoDate(new Date()), okOptions: inc.okOptions, comment: "", shops: inc.shops.length ? inc.shops : ["hakata"], taikiba: inc.taikiba,
+          stdLast: isoDate(new Date()), okOptions: [], comment: "", shops: inc.shops.length ? inc.shops : ["hakata"], taikiba: inc.taikiba,
           loginId: inc.loginId, password: inc.password, biko1: inc.biko1, biko2: inc.biko2, castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base",
         });
         added++;
@@ -422,7 +419,7 @@ export function CastList({ casts, setCasts, options }) {
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
-            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "クラス", "年齢", "待機場", "対応可能オプション", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "クラス", "年齢", "待機場", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
             <tbody>
               {rows.map((c) => {
                 const cls = castClassInfo(c);
@@ -439,9 +436,6 @@ export function CastList({ casts, setCasts, options }) {
                   </td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13 }}>{c.age}</td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, whiteSpace: "nowrap" }}>{c.taikiba || "-"}</td>
-                  <td style={{ padding: "12px 14px" }}>
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{c.okOptions.map((o) => <span key={o} style={{ fontSize: 11, color: COLORS.accent, background: COLORS.accentBg, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>{o}</span>)}</div>
-                  </td>
                   <td style={{ padding: "12px 14px" }}>
                     <button onClick={() => setDetailId(c.id)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>詳細</button>
                   </td>

@@ -420,6 +420,25 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     closeMenu();
   };
 
+  // キーボードショートカット(Ctrl+C/Ctrl+X/Ctrl+V/Delete)。Excel感覚でセルをコピー・切り取り・貼り付け・削除できるようにする。
+  // 入力欄にフォーカスしたままでも動くよう、input/textarea/select上でも許可する(ブラウザ標準のテキスト選択コピーとは別に、
+  // セル単位の値+色移動を行いたいため)。ただし他のショートカット(Ctrl+A全選択など)は邪魔しないよう対象キーだけ拾う。
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const isCtrl = e.ctrlKey || e.metaKey; // Windows:Ctrl / Mac:Cmd
+      if (!isCtrl || !selectedCell) return;
+      const key = e.key.toLowerCase();
+      if (key === "c") { copySelected(); }
+      else if (key === "x") { copySelected(); deleteSelected(); }
+      else if (key === "v") { pasteToSelected(); }
+      else { return; }
+      e.preventDefault();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCell, clipboard, sheet]);
+
   // 行の並び替え(ドラッグ&ドロップ)：fromIdxの行をtoIdxの位置へ移動
   const moveRow = (fromIdx, toIdx) => {
     if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= sheet.rows.length || toIdx >= sheet.rows.length) return;

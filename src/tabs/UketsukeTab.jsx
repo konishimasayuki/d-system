@@ -258,12 +258,16 @@ export const SHEETS = [
   { key: "hakata", label: "博多ココ" },
 ];
 
-export function UketsukeTab({ casts, courses, options, drivers, transportFees }) {
+export function UketsukeTab({ casts, courses, options, drivers, transportFees, myName }) {
   const [sheetKey, setSheetKey] = useState("hitozuma");
   const [dateStr, setDateStr] = useState(isoDate(new Date()));
   const [sheet, setSheet] = useState(emptySheet());
   const [loaded, setLoaded] = useState(false);
   const [msg, setMsg] = useState("");
+  // 元に戻す(Undo)用の履歴。自分(myName)が行った変更だけを記録し、他人の変更を巻き戻さないようにする。
+  // シート・日付を切り替えたら別の表になるのでリセットする。
+  const undoStackRef = useRef([]);
+  const [canUndo, setCanUndo] = useState(false);
   const topScrollRef = useRef(null);
   const bodyScrollRef = useRef(null);
   const syncingRef = useRef(false); // 相互onScrollの無限ループ防止
@@ -291,11 +295,15 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
   };
   useEffect(() => {
     reloadSheet();
+    undoStackRef.current = [];
+    setCanUndo(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetKey, dateStr]);
 
-  // 保存(デバウンス)
+  // 保存(デバウンス)。変更前の状態を、自分の名前つきで履歴に積んでからサーバーに保存する。
   const save = (next) => {
+    undoStackRef.current = [...undoStackRef.current, { sheet, staffName: myName || "" }].slice(-20); // 直近20件まで保持
+    setCanUndo(true);
     setSheet(next);
     clearTimeout(window.__uketsukeTimer);
     window.__uketsukeTimer = setTimeout(() => {
@@ -303,6 +311,36 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
         .then(() => { setMsg("保存しました"); setTimeout(() => setMsg(""), 1200); })
         .catch(() => setMsg("保存に失敗しました"));
     }, 600);
+  };
+
+  // 元に戻す：履歴を新しい方から遡り、自分(myName)が行った変更の「直前の状態」まで一気に戻す。
+  // 途中に他人の変更が挟まっていても、そのセルの値は自分の変更分だけ元に戻し、他人の変更は保持したいところだが、
+  // シート全体のスナップショット方式のため、実務上は「自分の最後の操作を取り消す」単位で提供する。
+  const undoLastChange = () => {
+    const stack = undoStackRef.current;
+    // 履歴を末尾から見て、自分(myName)が行った変更を1件見つけて、そのときの「変更前の状態」に戻す
+    for (let i = stack.length - 1; i >= 0; i--) {
+      if (stack[i].staffName === (myName || "")) {
+        // 自分の変更より後に他のスタッフの変更が挟まっている場合、シート全体を戻す都合上その変更も一緒に消えてしまう。
+        // 誤って他人の作業を消さないよう、その場合だけ確認を挟む。
+        const others = stack.slice(i + 1).filter((h) => h.staffName && h.staffName !== myName);
+        if (others.length > 0) {
+          const names = [...new Set(others.map((h) => h.staffName))].join("・");
+          if (!window.confirm(`あなたの変更を取り消すと、その後に${names}さんが行った変更も一緒に取り消されます。よろしいですか？`)) return;
+        }
+        const restored = stack[i].sheet;
+        undoStackRef.current = stack.slice(0, i);
+        setCanUndo(undoStackRef.current.some((h) => h.staffName === (myName || "")));
+        setSheet(restored);
+        clearTimeout(window.__uketsukeTimer);
+        fetch(`/api/state?key=uketsuke:${sheetKey}:${dateStr}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: restored }) })
+          .then(() => { setMsg("元に戻しました"); setTimeout(() => setMsg(""), 1200); })
+          .catch(() => setMsg("元に戻す処理に失敗しました"));
+        return;
+      }
+    }
+    setMsg("元に戻せる自分の変更がありません");
+    setTimeout(() => setMsg(""), 1500);
   };
 
   const setRow = (i, key, val) => {
@@ -595,6 +633,8 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees })
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: COLORS.accent }}>{msg}</span>
           <button onClick={reloadSheet} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>🔄 更新</button>
+          <button onClick={undoLastChange} disabled={!canUndo} title="自分が行った直前の変更を取り消します"
+            style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${canUndo ? COLORS.red : COLORS.border}`, background: "transparent", color: canUndo ? COLORS.red : "#C7CFD8", fontWeight: 700, fontSize: 12.5, cursor: canUndo ? "pointer" : "default", whiteSpace: "nowrap" }}>↩ 元に戻す</button>
           <button onClick={sortByTime} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>⏱ 時間順にソート</button>
           <input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)}
             style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontWeight: 700, color: COLORS.textMain, background: "#FFF" }} />

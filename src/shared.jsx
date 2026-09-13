@@ -40,6 +40,12 @@ export function castAllowedOptionIds(c) { return c.allowedOptions || []; }
 export function castClassInfo(c) { return CAST_CLASS_OPTIONS.find((o) => o.key === castClass(c)) || CAST_CLASS_OPTIONS[0]; }
 // 旧データ(rewardRank未保存)との互換：未設定ならベース扱いにする(博多ココ・スタンダードのキャストのみ意味を持つ)
 export function castRewardRank(c) { return c.rewardRank || "base"; }
+// 給与条件(クリア/新クリア)。一覧では待機場の右に表示する。未設定なら「クリア」扱い。
+export const SALARY_CONDITION_OPTIONS = [
+  { key: "clear", label: "クリア" },
+  { key: "shinclear", label: "新クリア" },
+];
+export function castSalaryCondition(c) { return c.salaryCondition || "clear"; }
 
 export const CAST_STATUS = {
   before_shift: { label: "出勤前", color: "#7B77C4", bg: "rgba(123,119,196,0.12)" },

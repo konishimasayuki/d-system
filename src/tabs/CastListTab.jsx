@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, CAST_CLASS_OPTIONS, castClass, castClassInfo, REWARD_RANK_OPTIONS, castRewardRank, isoDate, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
+import { COLORS, Card, Modal, PrimaryButton, SectionTitle, SelectField, TextField, CastAvatar, useCastPhotos, useCastThumbs, fileToPhotoSet, castFullName, kanaNormalize, truncateName, SHOP_OPTIONS, castShops, CAST_CLASS_OPTIONS, castClass, castClassInfo, REWARD_RANK_OPTIONS, castRewardRank, SALARY_CONDITION_OPTIONS, castSalaryCondition, isoDate, parseCSV, csvEscape, readCSVFile } from "../shared.jsx";
 
 // キャストの写真管理(最大10枚・縦3:4)。詳細モーダル内で使用
 function CastPhotoManager({ castId }) {
@@ -77,14 +77,14 @@ function CastPhotoManager({ castId }) {
 
 // ============================================================
 export function CastDetailModal({ cast, onClose, onSave, allOptions }) {
-  const [f, setF] = useState({ ...cast, shops: castShops(cast), castClass: castClass(cast), rewardRank: castRewardRank(cast), castClassByShop: cast.castClassByShop || {}, allowedOptions: cast.allowedOptions || [] });
+  const [f, setF] = useState({ ...cast, shops: castShops(cast), castClass: castClass(cast), rewardRank: castRewardRank(cast), salaryCondition: castSalaryCondition(cast), castClassByShop: cast.castClassByShop || {}, allowedOptions: cast.allowedOptions || [] });
   const [optOpen, setOptOpen] = useState(true);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleShop = (key) => setF((p) => ({ ...p, shops: p.shops.includes(key) ? p.shops.filter((s) => s !== key) : [...p.shops, key] }));
   const setShopClass = (shopKey, clsKey) => setF((p) => ({ ...p, castClassByShop: { ...p.castClassByShop, [shopKey]: clsKey } }));
   const toggleAllowedOption = (id) => setF((p) => ({ ...p, allowedOptions: p.allowedOptions.includes(id) ? p.allowedOptions.filter((x) => x !== id) : [...p.allowedOptions, id] }));
   const save = () => {
-    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, idVerified: f.idVerified, shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, allowedOptions: f.allowedOptions, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
+    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, idVerified: f.idVerified, shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, salaryCondition: f.salaryCondition, allowedOptions: f.allowedOptions, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
     onClose();
   };
   const showRewardRank = f.shops.includes("hakata") && (f.castClassByShop.hakata || f.castClass) === "standard";
@@ -123,6 +123,7 @@ export function CastDetailModal({ cast, onClose, onSave, allOptions }) {
       {showRewardRank && (
         <SelectField label="報酬ランク(博多ココ・スタンダード)" value={f.rewardRank} onChange={(v) => set("rewardRank", v)} options={REWARD_RANK_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.key, o.label]))} />
       )}
+      <SelectField label="給与条件" value={f.salaryCondition} onChange={(v) => set("salaryCondition", v)} options={SALARY_CONDITION_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(SALARY_CONDITION_OPTIONS.map((o) => [o.key, o.label]))} />
       <div style={{ marginBottom: 14 }}>
         <div onClick={() => setOptOpen(!optOpen)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontSize: 12, color: COLORS.textSub, fontWeight: 600, marginBottom: 6 }}>
           <span>対応可能オプション(店舗・クラス別。受付表のOP欄で選択可)</span>
@@ -186,7 +187,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop, allOptions }
   const [f, setF] = useState({
     name: "", honmyo: "", birthday: "", age: "20", phone: "", address: "",
     idType: "運転免許証", idNo: "", joinDate: isoDate(new Date()), ratePct: "55", idVerified: false,
-    shops: defaultShop ? [defaultShop] : [], taikiba: "", castClass: "standard", castClassByShop: {}, rewardRank: "base", allowedOptions: [], loginId: "", password: "", biko1: "", biko2: "",
+    shops: defaultShop ? [defaultShop] : [], taikiba: "", castClass: "standard", castClassByShop: {}, rewardRank: "base", salaryCondition: "clear", allowedOptions: [], loginId: "", password: "", biko1: "", biko2: "",
   });
   const [msg, setMsg] = useState("");
   const [optOpen, setOptOpen] = useState(true);
@@ -209,7 +210,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop, allOptions }
       shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0,
       itakuRate: (Number(f.ratePct) || 55) / 100, idVerified: f.idVerified,
       stdLast: isoDate(new Date()), okOptions: [], comment: "",
-      shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, allowedOptions: f.allowedOptions,
+      shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, salaryCondition: f.salaryCondition, allowedOptions: f.allowedOptions,
       loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "",
     });
     onClose();
@@ -244,6 +245,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop, allOptions }
       {showRewardRank && (
         <SelectField label="報酬ランク(博多ココ・スタンダード)" value={f.rewardRank} onChange={(v) => set("rewardRank", v)} options={REWARD_RANK_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.key, o.label]))} />
       )}
+      <SelectField label="給与条件" value={f.salaryCondition} onChange={(v) => set("salaryCondition", v)} options={SALARY_CONDITION_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(SALARY_CONDITION_OPTIONS.map((o) => [o.key, o.label]))} />
       <div style={{ marginBottom: 14 }}>
         <div onClick={() => setOptOpen(!optOpen)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontSize: 12, color: COLORS.textSub, fontWeight: 600, marginBottom: 6 }}>
           <span>対応可能オプション(店舗・クラス別。受付表のOP欄で選択可)</span>
@@ -319,17 +321,19 @@ export function CastList({ casts, setCasts, options }) {
   const thumbs = useCastThumbs(rows.map((c) => c.id));
 
   // CSV列: name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,shops,taikiba
-  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,shops,taikiba,loginId,password,biko1,biko2,castClass,rewardRank";
+  const CSV_HEADER = "name,honmyo,age,birthday,phone,address,idType,idNo,joinDate,shops,taikiba,loginId,password,biko1,biko2,castClass,rewardRank,salaryCondition";
   const classLabelMap = Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.key, o.label]));
   const classKeyMap = Object.fromEntries(CAST_CLASS_OPTIONS.map((o) => [o.label, o.key]));
   const rankLabelMap = Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.key, o.label]));
   const rankKeyMap = Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.label, o.key]));
+  const salaryLabelMap = Object.fromEntries(SALARY_CONDITION_OPTIONS.map((o) => [o.key, o.label]));
+  const salaryKeyMap = Object.fromEntries(SALARY_CONDITION_OPTIONS.map((o) => [o.label, o.key]));
   const exportCSV = () => {
     const body = casts.map((c) => [
       c.name, c.honmyo, c.age, c.birthday, c.phone, c.address, c.idType, c.idNo, c.joinDate,
       castShops(c).join("・"), c.taikiba || "",
       c.loginId || "", c.password || "", c.biko1 || "", c.biko2 || "", classLabelMap[castClass(c)] || "スタンダード",
-      rankLabelMap[castRewardRank(c)] || "ベース",
+      rankLabelMap[castRewardRank(c)] || "ベース", salaryLabelMap[castSalaryCondition(c)] || "クリア",
     ].map(csvEscape).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + CSV_HEADER + "\n" + body], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "casts.csv"; a.click();
@@ -352,6 +356,7 @@ export function CastList({ casts, setCasts, options }) {
       biko1: (r[13] || "").trim(), biko2: (r[14] || "").trim(),
       castClass: classKeyMap[(r[15] || "").trim()] || (r[15] || "").trim(),
       rewardRank: rankKeyMap[(r[16] || "").trim()] || (r[16] || "").trim(),
+      salaryCondition: salaryKeyMap[(r[17] || "").trim()] || (r[17] || "").trim(),
     })).filter((r) => r.name);
     if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,...)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
 
@@ -368,7 +373,7 @@ export function CastList({ casts, setCasts, options }) {
           shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba,
           loginId: inc.loginId, password: inc.password,
           biko1: inc.biko1, biko2: inc.biko2,
-          castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base",
+          castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base", salaryCondition: inc.salaryCondition || "clear",
         });
         updated++;
       } else {
@@ -377,7 +382,7 @@ export function CastList({ casts, setCasts, options }) {
           status: "before_shift", phone: inc.phone, address: inc.address, idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
           shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, idVerified: false,
           stdLast: isoDate(new Date()), okOptions: [], comment: "", shops: inc.shops.length ? inc.shops : ["hakata"], taikiba: inc.taikiba,
-          loginId: inc.loginId, password: inc.password, biko1: inc.biko1, biko2: inc.biko2, castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base",
+          loginId: inc.loginId, password: inc.password, biko1: inc.biko1, biko2: inc.biko2, castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base", salaryCondition: inc.salaryCondition || "clear",
         });
         added++;
       }
@@ -419,7 +424,7 @@ export function CastList({ casts, setCasts, options }) {
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
-            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "クラス", "年齢", "待機場", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "クラス", "年齢", "待機場", "給与条件", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
             <tbody>
               {rows.map((c) => {
                 const cls = castClassInfo(c);
@@ -436,6 +441,7 @@ export function CastList({ casts, setCasts, options }) {
                   </td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13 }}>{c.age}</td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, whiteSpace: "nowrap" }}>{c.taikiba || "-"}</td>
+                  <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, whiteSpace: "nowrap" }}>{SALARY_CONDITION_OPTIONS.find((o) => o.key === castSalaryCondition(c))?.label}</td>
                   <td style={{ padding: "12px 14px" }}>
                     <button onClick={() => setDetailId(c.id)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>詳細</button>
                   </td>

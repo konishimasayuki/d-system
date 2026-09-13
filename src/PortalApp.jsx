@@ -500,7 +500,7 @@ function UketsukeViewer({ theme, myName, casts, active }) {
                 <div key={i} style={{ display: "flex", borderBottom: `2px solid ${LINE}` }}>
                   {/* 備考(左)・上下2段 */}
                   <div style={{ width: W.bikoL, minWidth: W.bikoL, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
-                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.bikoL} width={W.bikoL} align="left" fontSize={11} /></div>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.bikoL} width={W.bikoL} align="left" fontSize={11} bg={String(r.bikoL || "").includes("お客様降ろし") ? "#FFFF00" : undefined} /></div>
                     <div style={{ height: ROW_H }}><ViewCell value={r.bikoL2} width={W.bikoL} align="left" fontSize={11} /></div>
                   </div>
                   {/* 待機場 */}
@@ -557,12 +557,12 @@ function UketsukeViewer({ theme, myName, casts, active }) {
                   {/* OP(上下2段×2列) */}
                   <div style={{ width: W.op * 2, minWidth: W.op * 2, display: "flex", flexDirection: "column" }}>
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}`, display: "flex" }}>
-                      <ViewCell value={r.op1} width={W.op} fontSize={10.5} />
-                      <ViewCell value={r.op2} width={W.op} fontSize={10.5} />
+                      <ViewCell value={r.op1} width={W.op} fontSize={10.5} bg={r.op1 && r.op1 !== "なし" ? "#FFFF00" : undefined} />
+                      <ViewCell value={r.op2} width={W.op} fontSize={10.5} bg={r.op2 && r.op2 !== "なし" ? "#FFFF00" : undefined} />
                     </div>
                     <div style={{ height: ROW_H, display: "flex" }}>
-                      <ViewCell value={r.op3} width={W.op} fontSize={10.5} />
-                      <ViewCell value={r.op4} width={W.op} fontSize={10.5} />
+                      <ViewCell value={r.op3} width={W.op} fontSize={10.5} bg={r.op3 && r.op3 !== "なし" ? "#FFFF00" : undefined} />
+                      <ViewCell value={r.op4} width={W.op} fontSize={10.5} bg={r.op4 && r.op4 !== "なし" ? "#FFFF00" : undefined} />
                     </div>
                   </div>
                   {/* 退出(緑) */}

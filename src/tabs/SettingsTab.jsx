@@ -276,6 +276,23 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
   const addExtraOption = () => { if (!exName.trim()) return; setOptions((p) => [...p, { id: `exop${Date.now()}`, name: exName.trim(), price: Number(exPrice) || 0, type: "extra", shop, castClass: cls }]); setExName(""); setExPrice(""); };
   const removeExtraOption = (id) => setOptions((prev) => prev.filter((o) => o.id !== id));
   const updateExtraPrice = (id, price) => setOptions((prev) => prev.map((o) => o.id === id ? { ...o, price: Number(price) || 0 } : o));
+  // オプションの並び替え(↑↓)。表示中の一覧(extraOptions=同じ店舗・クラスのものだけ)での前後関係で入れ替える。
+  // options配列全体には他の店舗・クラスのオプションも混ざっているため、対象2件のoptions配列内での位置を
+  // 直接入れ替えることで、表示順(=extraOptionsの並び)を正しく前後させる。
+  const moveExtraOption = (id, dir) => {
+    const visibleIdx = extraOptions.findIndex((o) => o.id === id);
+    const targetVisibleIdx = visibleIdx + dir;
+    if (visibleIdx < 0 || targetVisibleIdx < 0 || targetVisibleIdx >= extraOptions.length) return;
+    const targetId = extraOptions[targetVisibleIdx].id;
+    setOptions((prev) => {
+      const i = prev.findIndex((o) => o.id === id);
+      const j = prev.findIndex((o) => o.id === targetId);
+      if (i < 0 || j < 0) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
   const extraOptions = options.filter((o) => o.type === "extra" && o.shop === shop && o.castClass === cls);
 
   const resetPricing = () => {
@@ -366,8 +383,12 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
         オプション({SHOP_OPTIONS.find((s) => s.key === shop)?.label} ・ {CAST_CLASS_OPTIONS.find((c) => c.key === cls)?.label})
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-        {extraOptions.map((o) => (
+        {extraOptions.map((o, idx) => (
           <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <button onClick={() => moveExtraOption(o.id, -1)} disabled={idx === 0} style={{ border: "none", background: "none", cursor: idx === 0 ? "default" : "pointer", color: idx === 0 ? "#CBD3DB" : COLORS.textSub, fontSize: 11, padding: 0, lineHeight: 1 }}>▲</button>
+              <button onClick={() => moveExtraOption(o.id, 1)} disabled={idx === extraOptions.length - 1} style={{ border: "none", background: "none", cursor: idx === extraOptions.length - 1 ? "default" : "pointer", color: idx === extraOptions.length - 1 ? "#CBD3DB" : COLORS.textSub, fontSize: 11, padding: 0, lineHeight: 1 }}>▼</button>
+            </div>
             <span style={{ flex: 1 }}>{o.name}</span>
             <input value={o.price} onChange={(e) => updateExtraPrice(o.id, e.target.value)} type="number" style={{ width: 90, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, textAlign: "right" }} />
             <button onClick={() => removeExtraOption(o.id)} style={{ border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>

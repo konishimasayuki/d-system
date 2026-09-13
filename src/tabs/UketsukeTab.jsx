@@ -402,14 +402,32 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     setClipboard({ value: row?.[cell.field] ?? "", styles: row?.styles?.[cell.field] || null });
     closeMenu();
   };
-  const pasteToSelected = () => {
-    const cell = parseCellKey(menu ? `${menu.rowIdx}:${menu.field}` : selectedCell);
-    if (!cell || !clipboard) { closeMenu(); return; }
-    const rows = sheet.rows.map((r, idx) => idx === cell.rowIdx ? {
-      ...r, [cell.field]: clipboard.value,
-      styles: { ...(r.styles || {}), [cell.field]: clipboard.styles },
-    } : r);
+  // 値だけをセルに書き込む(色は変えない)。外部(Excel・メモ帳等)からの貼り付け用。
+  const pasteValueToCell = (rowIdx, field, value) => {
+    const rows = sheet.rows.map((r, idx) => idx === rowIdx ? { ...r, [field]: value } : r);
     save({ ...sheet, rows });
+  };
+  const pasteToSelected = async () => {
+    const cell = parseCellKey(menu ? `${menu.rowIdx}:${menu.field}` : selectedCell);
+    if (!cell) { closeMenu(); return; }
+    if (clipboard) {
+      // このシステム内でコピーした内容があれば、値と色をまとめて貼り付ける(従来通り)
+      const rows = sheet.rows.map((r, idx) => idx === cell.rowIdx ? {
+        ...r, [cell.field]: clipboard.value,
+        styles: { ...(r.styles || {}), [cell.field]: clipboard.styles },
+      } : r);
+      save({ ...sheet, rows });
+      closeMenu();
+      return;
+    }
+    // システム内クリップボードが空の場合、OS標準のクリップボード(Excel・メモ帳等からコピーした文字列)を読んで貼り付ける
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) pasteValueToCell(cell.rowIdx, cell.field, text.trim());
+    } catch (e) {
+      setMsg("貼り付けできませんでした(ブラウザのクリップボード許可をご確認ください)");
+      setTimeout(() => setMsg(""), 2000);
+    }
     closeMenu();
   };
   const deleteSelected = () => {

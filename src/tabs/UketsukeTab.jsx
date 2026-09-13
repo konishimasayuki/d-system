@@ -349,6 +349,14 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
   };
   // キャストを選んだら、そのキャストの設定済み待機場・備考1/2も自動で入れる(既に入力済みの内容は上書きしない)
   const setCastForRow = (i, castName) => {
+    // キャスト名を空にした場合は、そのキャストに紐づいて自動入力されていた待機場・備考(左右)もまとめてクリアする
+    if (!castName) {
+      const rows = sheet.rows.map((r, idx) => idx === i ? {
+        ...r, cast: "", taiki: "", bikoR: "", bikoR2: "",
+      } : r);
+      save({ ...sheet, rows });
+      return;
+    }
     const matched = casts.find((c) => castFullName(c) === castName);
     const rows = sheet.rows.map((r, idx) => idx === i ? {
       ...r, cast: castName,

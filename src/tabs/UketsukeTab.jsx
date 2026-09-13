@@ -819,7 +819,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                 {/* A 備考(左)・上下2段 */}
                 <div style={{ width: W.bikoL, minWidth: W.bikoL, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.bikoL} onChange={(v) => setRow(i, "bikoL", v)} width={W.bikoL - 2} align="left" fontSize={11} bg={String(r.bikoL || "").includes("お客様降ろし") ? "#FFFF00" : undefined} customStyle={r.styles?.["bikoL"]} cellKey={`${i}:bikoL`} selected={selectedCell === `${i}:bikoL`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoL", x, y)} />
+                    <Cell value={r.bikoL} onChange={(v) => setRow(i, "bikoL", v)} width={W.bikoL - 2} align="center" fontSize={11} bg={String(r.bikoL || "").includes("お客様降ろし") ? "#FFFF00" : undefined} customStyle={r.styles?.["bikoL"]} cellKey={`${i}:bikoL`} selected={selectedCell === `${i}:bikoL`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoL", x, y)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
                     {r.ryoshu === "発行" ? (

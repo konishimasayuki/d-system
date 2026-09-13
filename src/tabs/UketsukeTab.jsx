@@ -801,7 +801,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                 {/* A 備考(左)・上下2段 */}
                 <div style={{ width: W.bikoL, minWidth: W.bikoL, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.bikoL} onChange={(v) => setRow(i, "bikoL", v)} width={W.bikoL - 2} align="left" fontSize={11} customStyle={r.styles?.["bikoL"]} cellKey={`${i}:bikoL`} selected={selectedCell === `${i}:bikoL`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoL", x, y)} />
+                    <Cell value={r.bikoL} onChange={(v) => setRow(i, "bikoL", v)} width={W.bikoL - 2} align="left" fontSize={11} bg={String(r.bikoL || "").includes("お客様降ろし") ? "#FFFF00" : undefined} customStyle={r.styles?.["bikoL"]} cellKey={`${i}:bikoL`} selected={selectedCell === `${i}:bikoL`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoL", x, y)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
                     {r.ryoshu === "発行" ? (
@@ -910,12 +910,12 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                 {/* O/P OP(上下2段×2列) */}
                 <div style={{ width: W.op * 2, minWidth: W.op * 2, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex" }}>
-                    <SelCell value={r.op1 || "なし"} onChange={(v) => setOpForRow(i, "op1", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op1"]} cellKey={`${i}:op1`} selected={selectedCell === `${i}:op1`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op1", x, y)} />
-                    <SelCell value={r.op2 || "なし"} onChange={(v) => setOpForRow(i, "op2", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op2"]} cellKey={`${i}:op2`} selected={selectedCell === `${i}:op2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op2", x, y)} />
+                    <SelCell value={r.op1 || "なし"} onChange={(v) => setOpForRow(i, "op1", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} bg={r.op1 && r.op1 !== "なし" ? "#FFFF00" : undefined} customStyle={r.styles?.["op1"]} cellKey={`${i}:op1`} selected={selectedCell === `${i}:op1`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op1", x, y)} />
+                    <SelCell value={r.op2 || "なし"} onChange={(v) => setOpForRow(i, "op2", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} bg={r.op2 && r.op2 !== "なし" ? "#FFFF00" : undefined} customStyle={r.styles?.["op2"]} cellKey={`${i}:op2`} selected={selectedCell === `${i}:op2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op2", x, y)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex" }}>
-                    <SelCell value={r.op3 || "なし"} onChange={(v) => setOpForRow(i, "op3", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op3"]} cellKey={`${i}:op3`} selected={selectedCell === `${i}:op3`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op3", x, y)} />
-                    <SelCell value={r.op4 || "なし"} onChange={(v) => setOpForRow(i, "op4", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} customStyle={r.styles?.["op4"]} cellKey={`${i}:op4`} selected={selectedCell === `${i}:op4`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op4", x, y)} />
+                    <SelCell value={r.op3 || "なし"} onChange={(v) => setOpForRow(i, "op3", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} bg={r.op3 && r.op3 !== "なし" ? "#FFFF00" : undefined} customStyle={r.styles?.["op3"]} cellKey={`${i}:op3`} selected={selectedCell === `${i}:op3`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op3", x, y)} />
+                    <SelCell value={r.op4 || "なし"} onChange={(v) => setOpForRow(i, "op4", v)} options={["なし", ...optionsForRowCast(r.cast).filter(Boolean)]} width={W.op} fontSize={10} bg={r.op4 && r.op4 !== "なし" ? "#FFFF00" : undefined} customStyle={r.styles?.["op4"]} cellKey={`${i}:op4`} selected={selectedCell === `${i}:op4`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "op4", x, y)} />
                   </div>
                 </div>
 

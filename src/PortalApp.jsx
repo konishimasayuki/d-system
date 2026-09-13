@@ -500,7 +500,7 @@ function UketsukeViewer({ theme, myName, casts, active }) {
                 <div key={i} style={{ display: "flex", borderBottom: `2px solid ${LINE}` }}>
                   {/* 備考(左)・上下2段 */}
                   <div style={{ width: W.bikoL, minWidth: W.bikoL, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column" }}>
-                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.bikoL} width={W.bikoL} align="left" fontSize={11} bg={String(r.bikoL || "").includes("お客様降ろし") ? "#FFFF00" : undefined} /></div>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.bikoL} width={W.bikoL} align="center" fontSize={11} bg={String(r.bikoL || "").includes("お客様降ろし") ? "#FFFF00" : undefined} /></div>
                     <div style={{ height: ROW_H }}><ViewCell value={r.bikoL2} width={W.bikoL} align="left" fontSize={11} /></div>
                   </div>
                   {/* 待機場 */}

@@ -588,7 +588,12 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
   const addRows = () => save({ ...sheet, rows: [...sheet.rows, ...Array.from({ length: 10 }, () => emptyRow())] });
   // 時間順ソート(入力済み行のみ対象。空行は末尾にまとめる。時間は"8:30"のような文字列を分換算して比較)
   const timeToMinutes = (t) => {
-    const m = String(t || "").match(/(\d{1,2}):(\d{2})/);
+    // 全角数字・全角コロンで入力されるケースがあるため、半角に正規化してから時刻として解釈する
+    const normalized = String(t || "").replace(/[０-９：]/g, (ch) => {
+      if (ch === "：") return ":";
+      return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); // 全角数字→半角数字
+    });
+    const m = normalized.match(/(\d{1,2}):(\d{2})/);
     if (!m) return null;
     return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
   };

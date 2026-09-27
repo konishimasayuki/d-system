@@ -464,7 +464,7 @@ function UketsukeViewer({ theme, myName, casts, active }) {
         <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, padding: 24 }}>{dayOffset === 0 ? "本日" : "翌日"}の受付データはありません</div>
       ) : (
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-          <div style={{ minWidth: W.bikoL + W.taiki + W.no + W.time + W.cast + W.shimeiN + W.kaiin + W.name + W.kotsu + W.course + W.op * 2 + W.taishutsu + W.otoshi + W.joshi + W.biko + W.okuri + W.mukae + W.ryoshu + W.baitai + W.bikoR }}>
+          <div style={{ minWidth: W.bikoL + W.taiki + W.no + W.time + W.cast + W.shimeiN + W.kaiin + W.name + W.kotsu + W.course + W.op * 2 + W.taishutsu + W.otoshi + W.joshi + W.biko + W.okuri + W.mukae + W.ryoshu + W.bikoR + W.memoR + W.method + W.net + W.baitai + W.status }}>
             {/* 見出し行 */}
             <div style={{ display: "flex", position: "sticky", top: 0, zIndex: 2 }}>
               <Th width={W.bikoL} />
@@ -485,8 +485,12 @@ function UketsukeViewer({ theme, myName, casts, active }) {
               <Th width={W.okuri}>送り</Th>
               <Th width={W.mukae}>迎え</Th>
               <Th width={W.ryoshu}>領収書</Th>
-              <Th width={W.baitai}>媒体</Th>
               <Th width={W.bikoR}>備考(NG等)</Th>
+              <Th width={W.memoR}>備考</Th>
+              <Th width={W.method}>予約方法</Th>
+              <Th width={W.net}>ネット予約</Th>
+              <Th width={W.baitai}>媒体</Th>
+              <Th width={W.status}>予約状況</Th>
             </div>
 
             {/* 明細(2行1セット・入力があった行のみ表示) */}
@@ -582,12 +586,21 @@ function UketsukeViewer({ theme, myName, casts, active }) {
                   <div style={{ width: W.mukae, minWidth: W.mukae }}><ViewCell value={r.mukae} width={W.mukae} fontSize={10.5} bold={!!myName && r.mukae === myName} color={!!myName && r.mukae === myName ? theme.accentDark : undefined} /></div>
                   {/* 領収書 */}
                   <div style={{ width: W.ryoshu, minWidth: W.ryoshu }}><ViewCell value={r.ryoshu} width={W.ryoshu} fontSize={10.5} /></div>
-                  {/* 媒体 */}
-                  <div style={{ width: W.baitai, minWidth: W.baitai }}><ViewCell value={r.baitai} width={W.baitai} fontSize={10.5} /></div>
                   {/* 備考(NG等・上下2段) */}
                   <div style={{ width: W.bikoR, minWidth: W.bikoR, display: "flex", flexDirection: "column" }}>
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.bikoR} width={W.bikoR} align="left" color="#C00000" fontSize={10.5} /></div>
                     <div style={{ height: ROW_H }}><ViewCell value={r.bikoR2} width={W.bikoR} align="left" color="#C00000" fontSize={10.5} /></div>
+                  </div>
+                  <div style={{ width: W.memoR, minWidth: W.memoR, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.memoR} width={W.memoR} align="left" fontSize={10.5} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.memoR2} width={W.memoR} align="left" fontSize={10.5} /></div>
+                  </div>
+                  <div style={{ width: W.method, minWidth: W.method }}><ViewCell value={r.method} width={W.method} fontSize={10.5} /></div>
+                  <div style={{ width: W.net, minWidth: W.net }}><ViewCell value={r.net} width={W.net} fontSize={10.5} /></div>
+                  <div style={{ width: W.baitai, minWidth: W.baitai }}><ViewCell value={r.baitai} width={W.baitai} fontSize={10.5} /></div>
+                  <div style={{ width: W.status, minWidth: W.status, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.status} width={W.status} fontSize={10.5} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.status2} width={W.status} fontSize={10.5} /></div>
                   </div>
                 </div>
               );

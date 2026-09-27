@@ -348,6 +348,12 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     save({ ...sheet, rows });
   };
   // キャストを選んだら、そのキャストの設定済み待機場・備考1/2も自動で入れる(既に入力済みの内容は上書きしない)
+  // キャスト名(手入力)と一覧のキャスト名を、前後の空白を無視して照合する
+  const findCastByName = (name) => {
+    const n = String(name || "").trim();
+    if (!n) return undefined;
+    return casts.find((c) => castFullName(c).trim() === n);
+  };
   const setCastForRow = (i, castName) => {
     // キャスト名を空にした場合は、そのキャストに紐づいて自動入力されていた待機場・備考(左右)もまとめてクリアする
     if (!castName) {
@@ -357,7 +363,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
       save({ ...sheet, rows });
       return;
     }
-    const matched = casts.find((c) => castFullName(c) === castName);
+    const matched = findCastByName(castName);
     const rows = sheet.rows.map((r, idx) => idx === i ? {
       ...r, cast: castName,
       taiki: matched?.taikiba || r.taiki,
@@ -530,7 +536,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
   //  ※手動で上書きした値は、コース・指名種別・交通費のいずれかを再度変更するまで保持される
   // 行のキャストが対応可能なオプション名一覧(所属店舗×クラスに応じたもの。OP欄のプルダウン用)
   const optionsForRowCast = (castName) => {
-    const cast = casts.find((c) => castFullName(c) === castName);
+    const cast = findCastByName(castName);
     if (!cast) return [""];
     const allowed = cast.allowedOptions || [];
     const matched = options.filter((o) => o.type === "extra" && allowed.includes(o.id));
@@ -557,7 +563,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     if (info) {
       baseJoshi = info.joshi;
       if (info.joshiByRank) {
-        const cast = casts.find((c) => castFullName(c) === row.cast);
+        const cast = findCastByName(row.cast);
         const rank = cast ? castRewardRank(cast) : "base";
         baseJoshi = info.joshiByRank[rank] ?? info.joshiByRank.base ?? 0;
       }
@@ -650,7 +656,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
   // 指定したキャスト名の所属店舗・クラスに応じたコース記号の選択肢を返す(未選択時は全件)
   const FREE_COURSE = "自由入力"; // コース選択の一番下：無料やカスタマイズ対応用の自由記述
   const coursesForCastName = (castName) => {
-    const cast = casts.find((c) => castFullName(c) === castName);
+    const cast = findCastByName(castName);
     if (!cast) return ["", ...courses.map((c) => c.code), FREE_COURSE];
     // 今開いているシート(sheetKey=人妻専科/博多ココ)における、このキャストのクラスだけを見る。
     // 以前は店舗共通のcastClassだけで判定していたため、2店舗所属で店舗ごとにクラスが違うキャストの場合、
@@ -663,7 +669,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
   // コース記号(code)は店舗・クラスをまたいで重複しうる(例:人妻専科と博多ココの両方に"60"がある)ため、
   // キャスト名から所属店舗・クラスを特定し、その範囲内で検索する(見つからなければ記号のみで検索するフォールバック)
   const courseInfo = (code, castName) => {
-    const cast = castName ? casts.find((c) => castFullName(c) === castName) : null;
+    const cast = castName ? findCastByName(castName) : null;
     if (cast) {
       // 今開いているシート(sheetKey)における、このキャストのクラス・店舗だけに絞って検索する
       const cls = castClassForShop(cast, sheetKey);
@@ -866,7 +872,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                   {(() => {
                     const castObj = casts.find((c) => castFullName(c).trim() === String(r.cast || "").trim());
                     const isDiamond = castObj && castClass(castObj) === "diamond";
-                    return <AutoCompleteCell value={r.cast} onChange={(v) => setCastForRow(i, v)} options={castNames} width={W.cast - 2} bold fontSize={10.5} color={isDiamond ? "#C00000" : undefined} customStyle={r.styles?.["cast"]} cellKey={`${i}:cast`} selected={selectedCell === `${i}:cast`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "cast", x, y)} />;
+                    return <Cell value={r.cast} onChange={(v) => setCastForRow(i, v)} placeholder="キャスト名" width={W.cast - 2} bold fontSize={10.5} color={isDiamond ? "#C00000" : undefined} customStyle={r.styles?.["cast"]} cellKey={`${i}:cast`} selected={selectedCell === `${i}:cast`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "cast", x, y)} />;
                   })()}
                 </div>
 

@@ -33,7 +33,11 @@ export const W = {
   okuri: 46,   // U 送り
   mukae: 46,   // V 迎え
   ryoshu: 40,  // W 領収書
-  baitai: 46,  // X 媒体
+  baitai: 70,  // 媒体(備考NG等の右へ移動)
+  memoR: 160,  // 備考(自由入力・2段)
+  method: 80,  // 予約方法
+  net: 70,     // ネット予約
+  status: 90,  // 予約状況(2段)
   bikoR: 340,  // Y 備考(NG等)・長文が多いため広め
 };
 
@@ -52,7 +56,7 @@ const emptyRow = () => ({
   kaiin: "", shimeiType: "F", name: "", tel: "", hotel: "",
   kotsu: "", course: "", op1: "なし", op2: "なし", op3: "なし", op4: "なし",
   taishutsu: "", otoshi: "", joshi: "", biko: "", biko2: "", okuri: "", mukae: "",
-  ryoshu: "", baitai: "", bikoR: "", bikoR2: "",
+  ryoshu: "", baitai: "", bikoR: "", bikoR2: "", memoR: "", memoR2: "", method: "", net: "", status: "", status2: "",
   styles: {}, // { [フィールド名]: { bg, color } } ユーザーが選んだセル色
 });
 
@@ -741,10 +745,10 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
       <Card style={{ padding: 0, overflow: "hidden" }}>
         {/* 上側スクロールバー(PC版で横スクロールしやすいように・下側と連動) */}
         <div className="top-scrollbar-pc" ref={topScrollRef} onScroll={syncFromTop} style={{ overflowX: "auto", overflowY: "hidden", height: 16 }}>
-          <div style={{ minWidth: 1722, height: 1 }} />
+          <div style={{ minWidth: 2146, height: 1 }} />
         </div>
         <div className="table-scroll" ref={bodyScrollRef} onScroll={syncFromBody} style={{ overflowX: "auto" }}>
-          <div style={{ minWidth: 1722 }}>
+          <div style={{ minWidth: 2146 }}>
 
             {/* ===== ヘッダー部(1〜3行目) ===== */}
             <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, background: "#FFF" }}>
@@ -816,8 +820,12 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
               <Th width={W.okuri}>送り</Th>
               <Th width={W.mukae}>迎え</Th>
               <Th width={W.ryoshu}>領収書</Th>
-              <Th width={W.baitai}>媒体</Th>
               <Th width={W.bikoR}>備考(NG等)</Th>
+              <Th width={W.memoR}>備考</Th>
+              <Th width={W.method}>予約方法</Th>
+              <Th width={W.net}>ネット予約</Th>
+              <Th width={W.baitai}>媒体</Th>
+              <Th width={W.status}>予約状況</Th>
             </div>
 
             {/* ===== 明細(2行1セット) ===== */}
@@ -998,19 +1006,34 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                     customStyle={r.styles?.["ryoshu"]} cellKey={`${i}:ryoshu`} selected={selectedCell === `${i}:ryoshu`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "ryoshu", x, y)} />
                 </div>
 
-                {/* X 媒体 */}
-                <div style={{ width: W.baitai, minWidth: W.baitai, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.baitai} onChange={(v) => setRow(i, "baitai", v)} width={W.baitai - 2} fontSize={10.5}  customStyle={r.styles?.["baitai"]} cellKey={`${i}:baitai`} selected={selectedCell === `${i}:baitai`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "baitai", x, y)}/>
-                </div>
-
                 {/* Y 備考(NG等・赤文字)・上下2段・長文は折り返して複数行表示 */}
-                <div style={{ width: W.bikoR, minWidth: W.bikoR, display: "flex", flexDirection: "column" }}>
+                <div style={{ width: W.bikoR, minWidth: W.bikoR, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ minHeight: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
                     <WrapCell value={r.bikoR} onChange={(v) => setRow(i, "bikoR", v)} width={W.bikoR - 2} color="#C00000" fontSize={10.5} minHeight={ROW_H} customStyle={r.styles?.["bikoR"]} cellKey={`${i}:bikoR`} selected={selectedCell === `${i}:bikoR`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoR", x, y)} />
                   </div>
                   <div style={{ minHeight: ROW_H, display: "flex", alignItems: "center" }}>
                     <WrapCell value={r.bikoR2} onChange={(v) => setRow(i, "bikoR2", v)} width={W.bikoR - 2} color="#C00000" fontSize={10.5} minHeight={ROW_H} customStyle={r.styles?.["bikoR2"]} cellKey={`${i}:bikoR2`} selected={selectedCell === `${i}:bikoR2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoR2", x, y)} />
                   </div>
+                </div>
+                {/* 備考(自由入力・2段) */}
+                <div style={{ width: W.memoR, minWidth: W.memoR, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
+                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}><Cell value={r.memoR} onChange={(v) => setRow(i, "memoR", v)} width={W.memoR - 2} fontSize={10.5} customStyle={r.styles?.["memoR"]} cellKey={`${i}:memoR`} selected={selectedCell === `${i}:memoR`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "memoR", x, y)} align="left" /></div>
+                  <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}><Cell value={r.memoR2} onChange={(v) => setRow(i, "memoR2", v)} width={W.memoR - 2} fontSize={10.5} customStyle={r.styles?.["memoR2"]} cellKey={`${i}:memoR2`} selected={selectedCell === `${i}:memoR2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "memoR2", x, y)} align="left" /></div>
+                </div>
+                {/* 予約方法 / ネット予約 / 媒体(各1段) */}
+                <div style={{ width: W.method, minWidth: W.method, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
+                  <Cell value={r.method} onChange={(v) => setRow(i, "method", v)} width={W.method - 2} fontSize={10.5} customStyle={r.styles?.["method"]} cellKey={`${i}:method`} selected={selectedCell === `${i}:method`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "method", x, y)} />
+                </div>
+                <div style={{ width: W.net, minWidth: W.net, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
+                  <Cell value={r.net} onChange={(v) => setRow(i, "net", v)} width={W.net - 2} fontSize={10.5} customStyle={r.styles?.["net"]} cellKey={`${i}:net`} selected={selectedCell === `${i}:net`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "net", x, y)} />
+                </div>
+                <div style={{ width: W.baitai, minWidth: W.baitai, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
+                  <Cell value={r.baitai} onChange={(v) => setRow(i, "baitai", v)} width={W.baitai - 2} fontSize={10.5} customStyle={r.styles?.["baitai"]} cellKey={`${i}:baitai`} selected={selectedCell === `${i}:baitai`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "baitai", x, y)} />
+                </div>
+                {/* 予約状況(2段) */}
+                <div style={{ width: W.status, minWidth: W.status, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
+                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}><Cell value={r.status} onChange={(v) => setRow(i, "status", v)} width={W.status - 2} fontSize={10.5} customStyle={r.styles?.["status"]} cellKey={`${i}:status`} selected={selectedCell === `${i}:status`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "status", x, y)} /></div>
+                  <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}><Cell value={r.status2} onChange={(v) => setRow(i, "status2", v)} width={W.status - 2} fontSize={10.5} customStyle={r.styles?.["status2"]} cellKey={`${i}:status2`} selected={selectedCell === `${i}:status2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "status2", x, y)} /></div>
                 </div>
               </div>
             ))}

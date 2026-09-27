@@ -1,0 +1,9 @@
+{
+  "name": "d-system",
+  "short_name": "d-system",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#2E6DB4"
+}

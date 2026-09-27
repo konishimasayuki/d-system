@@ -316,7 +316,25 @@ export function CastList({ casts, setCasts, options }) {
   const [csvBusy, setCsvBusy] = useState(false);
   const nq = kanaNormalize(query);
   const shopCasts = casts.filter((c) => castShops(c).includes(shopKey));
-  const rows = shopCasts.filter((c) => kanaNormalize(castFullName(c)).includes(nq) || kanaNormalize(c.honmyo).includes(nq));
+  const [sortKey, setSortKey] = useState(null); // 見出しクリックで並び替え
+  const [sortDir, setSortDir] = useState(1);
+  const SORT_FIELDS = {
+    "キャスト名": (c) => kanaNormalize(castFullName(c)),
+    "クラス": (c) => castClass(c),
+    "年齢": (c) => Number(c.age) || 0,
+    "待機場": (c) => c.taikiba || "",
+    "給与条件": (c) => castSalaryCondition(c),
+  };
+  const toggleSort = (h) => {
+    if (!SORT_FIELDS[h]) return;
+    if (sortKey === h) setSortDir((d) => -d); else { setSortKey(h); setSortDir(1); }
+  };
+  const filteredRows = shopCasts.filter((c) => kanaNormalize(castFullName(c)).includes(nq) || kanaNormalize(c.honmyo).includes(nq));
+  const rows = sortKey ? [...filteredRows].sort((a, b) => {
+    const va = SORT_FIELDS[sortKey](a), vb = SORT_FIELDS[sortKey](b);
+    if (typeof va === "number" && typeof vb === "number") return (va - vb) * sortDir;
+    return String(va).localeCompare(String(vb), "ja") * sortDir;
+  }) : filteredRows;
   const detailCast = casts.find((c) => c.id === detailId);
   const thumbs = useCastThumbs(rows.map((c) => c.id));
 
@@ -424,7 +442,7 @@ export function CastList({ casts, setCasts, options }) {
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
-            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "クラス", "年齢", "待機場", "給与条件", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "クラス", "年齢", "待機場", "給与条件", ""].map((h) => <th key={h} onClick={() => toggleSort(h)} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: sortKey === h ? COLORS.accent : COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap", cursor: SORT_FIELDS[h] ? "pointer" : "default", userSelect: "none" }}>{h}{SORT_FIELDS[h] ? (sortKey === h ? (sortDir === 1 ? " ▲" : " ▼") : " ⇅") : ""}</th>)}</tr></thead>
             <tbody>
               {rows.map((c) => {
                 const cls = castClassInfo(c);

@@ -101,7 +101,7 @@ function Cell({ value, onChange, width, align = "center", bg, color, bold, fontS
   const finalColor = customStyle?.color || color || COLORS.textMain;
   const finalBold = customStyle?.bold || bold;
   return (
-    <input
+    <input data-cell={cellKey}
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -128,7 +128,7 @@ function WrapCell({ value, onChange, width, color, fontSize = 10.5, customStyle,
   const finalColor = customStyle?.color || color || COLORS.textMain;
   const finalBold = customStyle?.bold;
   return (
-    <textarea
+    <textarea data-cell={cellKey}
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value)}
       onClick={() => onSelect && onSelect(cellKey)}
@@ -226,7 +226,7 @@ function SelCell({ value, onChange, options, width, bg, color, bold, fontSize = 
   const finalColor = customStyle?.color || color || COLORS.textMain;
   const finalBold = customStyle?.bold || bold;
   return (
-    <select
+    <select data-cell={cellKey}
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value)}
       onClick={() => onSelect && onSelect(cellKey)}
@@ -261,6 +261,28 @@ export const SHEETS = [
   { key: "hitozuma", label: "人妻専科" },
   { key: "hakata", label: "博多ココ" },
 ];
+
+// Enterキーで移動する順番(Excel感覚の入力用)。最後の退出まで行ったら次の行の時間へ。
+const ENTER_NAV_ORDER = ["time", "depart", "cast", "kaiin", "shimeiType", "name", "tel", "hotel", "kotsu", "course", "taishutsu"];
+function handleEnterNav(e) {
+  if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.nativeEvent?.isComposing || e.keyCode === 229) return; // 日本語変換の確定Enterでは移動しない
+  const key = e.target?.getAttribute?.("data-cell");
+  if (!key) return;
+  const sep = key.indexOf(":");
+  const row = Number(key.slice(0, sep)), field = key.slice(sep + 1);
+  const pos = ENTER_NAV_ORDER.indexOf(field);
+  if (pos < 0) return;
+  e.preventDefault();
+  const tryFocus = (r, p) => {
+    const el = document.querySelector(`[data-cell="${r}:${ENTER_NAV_ORDER[p]}"]`);
+    if (el) { el.focus(); if (el.select && el.tagName === "INPUT") el.select(); return true; }
+    return false;
+  };
+  // 次の項目へ(見つからない項目は飛ばす)。最後なら次の行の先頭へ
+  for (let p = pos + 1; p < ENTER_NAV_ORDER.length; p++) if (tryFocus(row, p)) return;
+  tryFocus(row + 1, 0);
+}
 
 export function UketsukeTab({ casts, courses, options, drivers, transportFees, myName }) {
   const [sheetKey, setSheetKey] = useState("hitozuma");
@@ -747,7 +769,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
         <div className="top-scrollbar-pc" ref={topScrollRef} onScroll={syncFromTop} style={{ overflowX: "auto", overflowY: "hidden", height: 16 }}>
           <div style={{ minWidth: 2146, height: 1 }} />
         </div>
-        <div className="table-scroll" ref={bodyScrollRef} onScroll={syncFromBody} style={{ overflowX: "auto" }}>
+        <div className="table-scroll" ref={bodyScrollRef} onScroll={syncFromBody} onKeyDown={handleEnterNav} style={{ overflowX: "auto" }}>
           <div style={{ minWidth: 2146 }}>
 
             {/* ===== ヘッダー部(1〜3行目) ===== */}

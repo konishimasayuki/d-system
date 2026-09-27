@@ -74,6 +74,7 @@ export const TAB_DEFS = [
   { key: "timetable", label: "タイムテーブル", restricted: true },
   { key: "shift", label: "出勤管理", restricted: true },
   { key: "castlist", label: "キャスト一覧", restricted: false },
+  { key: "hotels", label: "ホテル一覧", restricted: false },
   { key: "reservation", label: "予約管理", restricted: true },
   { key: "uketsuke", label: "受付表", restricted: false },
   { key: "dispatch", label: "配車管理", restricted: true },
@@ -91,8 +92,8 @@ export const RESTRICTED_TAB_PASSWORD = "2911"; // 閲覧制限タブの解除パ
 
 // 役割別ビュー(初期値。経営者が設定画面から変更できる／実データはUpstashのviewrolesキーに保存)
 export const INITIAL_VIEW_ROLES = {
-  owner: { label: "経営者", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "uketsuke", "dispatch", "messages", "customer", "media", "report", "accounting", "payout", "std", "driverschedule", "settings"] },
-  operator: { label: "オペレーター", tabs: ["dashboard", "timetable", "shift", "castlist", "reservation", "uketsuke", "dispatch", "messages", "customer", "media", "driverschedule"] },
+  owner: { label: "経営者", tabs: ["dashboard", "timetable", "shift", "castlist", "hotels", "reservation", "uketsuke", "dispatch", "messages", "customer", "media", "report", "accounting", "payout", "std", "driverschedule", "settings"] },
+  operator: { label: "オペレーター", tabs: ["dashboard", "timetable", "shift", "castlist", "hotels", "reservation", "uketsuke", "dispatch", "messages", "customer", "media", "driverschedule"] },
   cast: { label: "キャスト", tabs: ["mypage"] },
   driver: { label: "ドライバー", tabs: ["driverpage"] },
 };

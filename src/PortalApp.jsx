@@ -277,20 +277,20 @@ function fmtMsgTime(ts) {
 }
 
 // マイページ内の通知設定トグル(ONにするとブラウザの通知許可ダイアログも出す)
-function NotifyToggle({ theme }) {
+function NotifyToggle({ theme, threadId }) {
   const [on, setOn] = useState(() => isNotifyEnabled());
   const [msg, setMsg] = useState("");
 
   const toggle = async () => {
     if (on) {
-      disableNotifications();
+      disableNotifications(threadId);
       setOn(false);
       setMsg("");
       return;
     }
-    const granted = await enableNotifications();
-    setOn(granted);
-    setMsg(granted ? "" : "通知が許可されませんでした。端末の設定から通知を許可してください。");
+    const result = await enableNotifications(threadId);
+    setOn(result.ok);
+    setMsg(result.message);
   };
 
   return (
@@ -698,7 +698,7 @@ function CastApp({ theme, onLogout, casts, drivers, reservations, castId, update
           })}
 
           <Eyebrow>設定</Eyebrow>
-          <NotifyToggle theme={theme} />
+          <NotifyToggle theme={theme} threadId={myThreadId} />
         </div>
       )}
 
@@ -985,7 +985,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
             <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: SUB, fontSize: 13 }}>担当車両</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{me.car}</span></div>
           </Card>
           <Eyebrow>設定</Eyebrow>
-          <NotifyToggle theme={theme} />
+          <NotifyToggle theme={theme} threadId={myThreadId} />
         </div>
       )}
 

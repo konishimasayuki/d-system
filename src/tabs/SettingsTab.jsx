@@ -58,6 +58,17 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
     setMsg(`${name}を登録しました`); setName(""); setCar(""); setWage(""); setLoginId(""); setPassword(""); setDriverShift("day");
   };
   const removeDriver = (id) => { if (window.confirm("このドライバーを削除しますか？")) setDrivers((prev) => prev.filter((d) => d.id !== id)); };
+  const moveDriver = (id, dir) => setDrivers((prev) => {
+    const i = prev.findIndex((d) => d.id === id); const j = i + dir;
+    if (i < 0 || j < 0 || j >= prev.length) return prev;
+    const next = [...prev]; [next[i], next[j]] = [next[j], next[i]]; return next;
+  });
+  const fmtLastLogin = (iso) => {
+    if (!iso) return "-";
+    const d = new Date(iso); if (isNaN(d.getTime())) return "-";
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
 
   // CSV列: name,car,area,wage,loginId,password (差分はログインIDで判定：一意なため)
   const DRIVER_CSV_HEADER = "name,car,area,wage,loginId,password,shift";
@@ -121,11 +132,17 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
         {csvMsg && <div style={{ marginBottom: 10, fontSize: 12, color: COLORS.accent, background: "#EDF3FA", padding: "8px 12px", borderRadius: 8 }}>{csvMsg}</div>}
         <div style={{ fontSize: 11, color: COLORS.textSub, marginBottom: 10 }}>CSV列：{DRIVER_CSV_HEADER}(shiftは「昼」「夜」) ／ 差分は<strong>ログインID</strong>で判定(同IDは上書き・新規IDは追加・CSVに無い既存は保持)</div>
         <div className="table-scroll" style={{ maxHeight: 320, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 10 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
-            <thead><tr style={{ background: "#EDF3FA" }}>{["車両", "氏名", "昼夜", "状態", "エリア", "時給", "ログインID", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 11, color: COLORS.textSub, fontWeight: 600, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#EDF3FA" }}>{h}</th>)}</tr></thead>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["", "車両", "氏名", "昼夜", "状態", "エリア", "時給", "ログインID", "最終ログイン", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 11, color: COLORS.textSub, fontWeight: 600, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#EDF3FA" }}>{h}</th>)}</tr></thead>
             <tbody>
-              {drivers.map((d) => (
+              {drivers.map((d, idx) => (
                 <tr key={d.id} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                  <td style={{ padding: "8px 6px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      <button onClick={() => moveDriver(d.id, -1)} disabled={idx === 0} style={{ border: "none", background: "none", cursor: idx === 0 ? "default" : "pointer", color: idx === 0 ? "#CBD3DB" : COLORS.textSub, fontSize: 11, padding: 0, lineHeight: 1 }}>▲</button>
+                      <button onClick={() => moveDriver(d.id, 1)} disabled={idx === drivers.length - 1} style={{ border: "none", background: "none", cursor: idx === drivers.length - 1 ? "default" : "pointer", color: idx === drivers.length - 1 ? "#CBD3DB" : COLORS.textSub, fontSize: 11, padding: 0, lineHeight: 1 }}>▼</button>
+                    </div>
+                  </td>
                   <td style={{ padding: "8px 10px", fontSize: 13, fontWeight: 600, color: COLORS.textMain, whiteSpace: "nowrap" }}>{d.car || "-"}</td>
                   <td style={{ padding: "8px 10px", fontSize: 13, color: COLORS.textMain, whiteSpace: "nowrap" }}>{d.name}</td>
                   <td style={{ padding: "8px 10px", fontSize: 11 }}><span style={{ fontWeight: 700, color: (d.shift || "day") === "night" ? "#5C6BC0" : "#E08A1E" }}>{DRIVER_SHIFT[d.shift || "day"]}</span></td>
@@ -133,6 +150,7 @@ export function DriverRegisterForm({ drivers, setDrivers }) {
                   <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub }}>{d.area || "-"}</td>
                   <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textMain }}>{d.wage === "" || d.wage == null ? "-" : <Yen value={d.wage} />}</td>
                   <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub, fontFamily: "'JetBrains Mono', monospace" }}>{d.loginId || "-"}</td>
+                  <td style={{ padding: "8px 10px", fontSize: 11.5, color: COLORS.textSub, whiteSpace: "nowrap" }}>{fmtLastLogin(d.lastLoginAt)}</td>
                   <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>
                     <button onClick={() => setEditTarget(d)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontSize: 11, fontWeight: 600, cursor: "pointer", marginRight: 6 }}>編集</button>
                     <button onClick={() => removeDriver(d.id)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>削除</button>
@@ -716,7 +734,7 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
 }
 
 export const SETTINGS_SUBTABS = [
-  { key: "driver", label: "ドライバー登録" }, { key: "hotel", label: "ホテル・営業所" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "料金設定" }, { key: "transport", label: "交通費設定" }, { key: "permissions", label: "権限管理" }, { key: "security", label: "セキュリティ" },
+  { key: "driver", label: "ドライバー登録" }, { key: "staff", label: "スタッフ登録" }, { key: "master", label: "料金設定" }, { key: "transport", label: "交通費設定" }, { key: "permissions", label: "権限管理" }, { key: "security", label: "セキュリティ" },
 ];
 export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, office, setOffice, staff, setStaff, courses, setCourses, options, setOptions, transportFees, setTransportFees, setReservations, syncMsg, viewRoles, setViewRoles, isOwner, myStaffId }) {
   const [sub, setSub] = useState("driver");
@@ -728,7 +746,6 @@ export function SettingsTab({ setCasts, drivers, setDrivers, hotels, setHotels, 
         {SETTINGS_SUBTABS.map((t) => <button key={t.key} onClick={() => setSub(t.key)} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${sub === t.key ? COLORS.accent : COLORS.border}`, background: sub === t.key ? COLORS.accent : "#FFF", color: sub === t.key ? "#FFF" : COLORS.textMain, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.label}</button>)}
       </div>
       {sub === "driver" && <DriverRegisterForm drivers={drivers} setDrivers={setDrivers} />}
-      {sub === "hotel" && <HotelForm hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} />}
       {sub === "staff" && <StaffRegisterForm staff={staff} setStaff={setStaff} isOwner={isOwner} myStaffId={myStaffId} />}
       {sub === "master" && <MasterForm courses={courses} setCourses={setCourses} options={options} setOptions={setOptions} />}
       {sub === "transport" && <TransportFeeForm transportFees={transportFees} setTransportFees={setTransportFees} />}

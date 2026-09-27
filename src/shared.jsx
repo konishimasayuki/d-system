@@ -1615,6 +1615,7 @@ export async function sendMessage(threadId, messages, from, text) {
   };
   const next = [...messages, msg];
   await saveThread(threadId, next);
+  if (from === "office") pushNotifyThread(threadId, text);
   return next;
 }
 
@@ -1646,40 +1647,67 @@ export async function fetchUketsukeSheet(sheetKey, dateStr) {
 }
 
 // ============================================================
-// メッセージ通知(ブラウザ通知API)。ドライバー/キャストポータルのマイページ設定から有効化する。
+// メッセージ通知(Web Push)。アプリを閉じていても本部からのメッセージを通知する。
+// iPhoneは「ホーム画面に追加」したアプリからのみ利用可能(iOS 16.4以降)。
 // ============================================================
 const NOTIFY_STORAGE_KEY = "portal_notify_enabled";
+const VAPID_PUBLIC_KEY = "BB9R8rnyYiCNjcY2YmPBjR8kp07ws69-RTU_f7YbT9pfzJC36h7peIFSfBkBtj5SCJzKwXBV3oPDaL1dMHV3ljM";
 
 export function isNotifyEnabled() {
   try { return localStorage.getItem(NOTIFY_STORAGE_KEY) === "1"; } catch (e) { return false; }
 }
-
-export function setNotifyEnabled(on) {
+function setNotifyEnabled(on) {
   try { localStorage.setItem(NOTIFY_STORAGE_KEY, on ? "1" : "0"); } catch (e) {}
 }
+function urlBase64ToUint8Array(base64) {
+  const pad = "=".repeat((4 - (base64.length % 4)) % 4);
+  const raw = atob((base64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from([...raw].map((ch) => ch.charCodeAt(0)));
+}
+function isIOS() { return /iPhone|iPad|iPod/.test(navigator.userAgent); }
+function isStandalone() { return window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true; }
 
-// 通知をONにする操作(トグルON時に呼ぶ)。ブラウザの許可ダイアログもここで出す。
-// 戻り値:実際に有効化できたか(ユーザーが拒否した場合はfalse)
-export async function enableNotifications() {
-  if (typeof Notification === "undefined") { setNotifyEnabled(false); return false; }
-  let permission = Notification.permission;
-  if (permission === "default") {
-    permission = await Notification.requestPermission();
+// 通知ON。戻り値 { ok, message }
+export async function enableNotifications(threadId) {
+  if (isIOS() && !isStandalone()) return { ok: false, message: "iPhoneは、Safariの共有ボタン→「ホーム画面に追加」から開いたアプリでONにしてください。" };
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || typeof Notification === "undefined") {
+    return { ok: false, message: "この端末・ブラウザは通知に対応していません。" };
   }
-  const ok = permission === "granted";
-  setNotifyEnabled(ok);
-  return ok;
-}
-
-export function disableNotifications() {
-  setNotifyEnabled(false);
-}
-
-// 新着メッセージ通知を出す(通知が有効・許可済みの場合のみ)
-export function notifyNewMessage(title, body) {
-  if (!isNotifyEnabled()) return;
-  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
   try {
-    new Notification(title, { body, icon: "/icon.png", tag: "portal-message" });
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+    let permission = Notification.permission;
+    if (permission === "default") permission = await Notification.requestPermission();
+    if (permission !== "granted") { setNotifyEnabled(false); return { ok: false, message: "通知が許可されませんでした。端末の設定から通知を許可してください。" }; }
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+    const r = await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "subscribe", threadId, subscription: sub.toJSON() }) });
+    if (!r.ok) throw new Error("subscribe-failed");
+    setNotifyEnabled(true);
+    return { ok: true, message: "" };
+  } catch (e) {
+    setNotifyEnabled(false);
+    return { ok: false, message: "通知の設定に失敗しました。時間をおいて再度お試しください。" };
+  }
+}
+
+export async function disableNotifications(threadId) {
+  setNotifyEnabled(false);
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration("/sw.js");
+    const sub = await reg?.pushManager.getSubscription();
+    if (sub) {
+      await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "unsubscribe", threadId, endpoint: sub.endpoint }) });
+      await sub.unsubscribe();
+    }
   } catch (e) {}
 }
+
+// 本部からメッセージを送った時に、相手の端末へプッシュ通知を送る(失敗しても送信自体は成功扱い)
+export function pushNotifyThread(threadId, text) {
+  const url = threadId.startsWith("staff_") ? "/#driver" : "/#cast";
+  fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "send", threadId, title: "本部からメッセージ", body: String(text || "").slice(0, 120), url }) }).catch(() => {});
+}
+
+// 互換用(以前の画面表示中のみの通知)。Web Pushに一本化したため何もしない
+export function notifyNewMessage() {}

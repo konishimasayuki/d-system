@@ -1,0 +1,9 @@
+{
+  "name": "スタッフポータル",
+  "short_name": "スタッフポータル",
+  "start_url": "/#driver",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#2E6DB4"
+}

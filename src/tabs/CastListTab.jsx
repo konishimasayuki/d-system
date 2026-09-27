@@ -123,7 +123,9 @@ export function CastDetailModal({ cast, onClose, onSave, allOptions }) {
       {showRewardRank && (
         <SelectField label="報酬ランク(博多ココ・スタンダード)" value={f.rewardRank} onChange={(v) => set("rewardRank", v)} options={REWARD_RANK_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.key, o.label]))} />
       )}
-      <SelectField label="給与条件" value={f.salaryCondition} onChange={(v) => set("salaryCondition", v)} options={SALARY_CONDITION_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(SALARY_CONDITION_OPTIONS.map((o) => [o.key, o.label]))} />
+      {f.shops.includes("hitozuma") && (
+        <SelectField label="給与条件(人妻専科)" value={f.salaryCondition} onChange={(v) => set("salaryCondition", v)} options={SALARY_CONDITION_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(SALARY_CONDITION_OPTIONS.map((o) => [o.key, o.label]))} />
+      )}
       <div style={{ marginBottom: 14 }}>
         <div onClick={() => setOptOpen(!optOpen)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontSize: 12, color: COLORS.textSub, fontWeight: 600, marginBottom: 6 }}>
           <span>対応可能オプション(店舗・クラス別。受付表のOP欄で選択可)</span>
@@ -245,7 +247,9 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop, allOptions }
       {showRewardRank && (
         <SelectField label="報酬ランク(博多ココ・スタンダード)" value={f.rewardRank} onChange={(v) => set("rewardRank", v)} options={REWARD_RANK_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(REWARD_RANK_OPTIONS.map((o) => [o.key, o.label]))} />
       )}
-      <SelectField label="給与条件" value={f.salaryCondition} onChange={(v) => set("salaryCondition", v)} options={SALARY_CONDITION_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(SALARY_CONDITION_OPTIONS.map((o) => [o.key, o.label]))} />
+      {f.shops.includes("hitozuma") && (
+        <SelectField label="給与条件(人妻専科)" value={f.salaryCondition} onChange={(v) => set("salaryCondition", v)} options={SALARY_CONDITION_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(SALARY_CONDITION_OPTIONS.map((o) => [o.key, o.label]))} />
+      )}
       <div style={{ marginBottom: 14 }}>
         <div onClick={() => setOptOpen(!optOpen)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontSize: 12, color: COLORS.textSub, fontWeight: 600, marginBottom: 6 }}>
           <span>対応可能オプション(店舗・クラス別。受付表のOP欄で選択可)</span>
@@ -442,7 +446,7 @@ export function CastList({ casts, setCasts, options }) {
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
-            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "クラス", "年齢", "待機場", "給与条件", ""].map((h) => <th key={h} onClick={() => toggleSort(h)} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: sortKey === h ? COLORS.accent : COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap", cursor: SORT_FIELDS[h] ? "pointer" : "default", userSelect: "none" }}>{h}{SORT_FIELDS[h] ? (sortKey === h ? (sortDir === 1 ? " ▲" : " ▼") : " ⇅") : ""}</th>)}</tr></thead>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "クラス", "年齢", "待機場", ...(shopKey === "hakata" ? [] : ["給与条件"]), ""].map((h) => <th key={h} onClick={() => toggleSort(h)} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: sortKey === h ? COLORS.accent : COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap", cursor: SORT_FIELDS[h] ? "pointer" : "default", userSelect: "none" }}>{h}{SORT_FIELDS[h] ? (sortKey === h ? (sortDir === 1 ? " ▲" : " ▼") : " ⇅") : ""}</th>)}</tr></thead>
             <tbody>
               {rows.map((c) => {
                 const cls = castClassInfo(c);
@@ -459,7 +463,7 @@ export function CastList({ casts, setCasts, options }) {
                   </td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13 }}>{c.age}</td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, whiteSpace: "nowrap" }}>{c.taikiba || "-"}</td>
-                  <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, whiteSpace: "nowrap" }}>{SALARY_CONDITION_OPTIONS.find((o) => o.key === castSalaryCondition(c))?.label}</td>
+                  {shopKey !== "hakata" && <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, whiteSpace: "nowrap" }}>{SALARY_CONDITION_OPTIONS.find((o) => o.key === castSalaryCondition(c))?.label}</td>}
                   <td style={{ padding: "12px 14px" }}>
                     <button onClick={() => setDetailId(c.id)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>詳細</button>
                   </td>

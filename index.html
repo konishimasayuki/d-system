@@ -3,6 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" id="app-manifest" href="/manifest.json" />
+    <script>
+      // ポータル(#driver / #cast)ごとにホーム画面追加時の起動URLを分ける
+      (function () {
+        var h = location.hash + location.pathname;
+        var m = h.indexOf("driver") >= 0 ? "/manifest-driver.json" : h.indexOf("cast") >= 0 ? "/manifest-cast.json" : "/manifest.json";
+        document.getElementById("app-manifest").setAttribute("href", m);
+      })();
+    </script>
     <title>ポータル</title>
   </head>
   <body>

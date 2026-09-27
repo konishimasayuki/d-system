@@ -434,7 +434,7 @@ function UketsukeViewer({ theme, myName, casts, active }) {
   const rowsAll = sheet?.rows || [];
   const shimeiCounts = computeShimeiCounts(rowsAll);
   // 表示は入力がある行のみ(未入力の空行は隠す。ただし番号は元の行番号を維持)
-  const visibleIdx = rowsAll.map((r, i) => i).filter((i) => rowsAll[i].cast || rowsAll[i].name || rowsAll[i].hotel);
+  const visibleIdx = rowsAll.map((r, i) => i); // スプレッドシートと同じく空行も含めて全件表示
 
   return (
     <div>
@@ -1142,6 +1142,12 @@ export default function PortalApp() {
       if (app === "driver" && id) setDriverId(id);
       if (app === "cast" && id) setCastId(id);
       saveLoginState(app, { authed: true, driverId: app === "driver" ? id : null, castId: app === "cast" ? id : null });
+      // 最終ログイン時刻を記録(設定→ドライバー登録の一覧で確認)。読み込み済みの時だけ保存して上書き事故を防ぐ
+      if (app === "driver" && id && data.loaded && data.drivers.length > 0) {
+        const next = data.drivers.map((d) => d.id === id ? { ...d, lastLoginAt: new Date().toISOString() } : d);
+        setData((prev) => ({ ...prev, drivers: next }));
+        apiSet("drivers", next);
+      }
     }} />;
   }
 

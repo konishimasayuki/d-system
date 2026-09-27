@@ -19,7 +19,7 @@ import { AccountingTab } from "./tabs/AccountingTab.jsx";
 import { Payout } from "./tabs/PayoutTab.jsx";
 import { StdManagement } from "./tabs/StdTab.jsx";
 import { DriverPage, CastMyPage } from "./tabs/FieldPages.jsx";
-import { SettingsTab } from "./tabs/SettingsTab.jsx";
+import { SettingsTab, HotelForm } from "./tabs/SettingsTab.jsx";
 import { DriverScheduleTab } from "./tabs/StaffScheduleTab.jsx";
 import { UketsukeTab } from "./tabs/UketsukeTab.jsx";
 import { MessageTab, fetchOfficeTotalUnread } from "./tabs/MessageTab.jsx";
@@ -58,7 +58,7 @@ function CtiPopup({ customer, onClose, onReserve }) {
 // ============================================================
 const TAB_GROUPS = [
   { group: "業務", tabs: [
-    { key: "uketsuke", label: "受付表" }, { key: "castlist", label: "キャスト一覧" },
+    { key: "uketsuke", label: "受付表" }, { key: "castlist", label: "キャスト一覧" }, { key: "hotels", label: "ホテル一覧" },
     { key: "driverschedule", label: "スタッフスケジュール" }, { key: "messages", label: "メッセージ" },
     { key: "dashboard", label: "ダッシュボード" }, { key: "timetable", label: "タイムテーブル" },
     { key: "shift", label: "出勤管理" },
@@ -273,6 +273,7 @@ export default function KanriApp() {
           {tab === "timetable" && <Timetable reservations={reservations} casts={casts} setCasts={setCasts} drivers={drivers} courses={courses} options={options} onOpenReservation={setOpenReservation} />}
           {tab === "shift" && <ShiftManagement casts={casts} setCasts={setCasts} />}
           {tab === "castlist" && <CastList casts={casts} setCasts={setCasts} options={options} />}
+          {tab === "hotels" && <HotelForm hotels={hotels} setHotels={setHotels} office={office} setOffice={setOffice} />}
           {tab === "reservation" && <ReservationManagement reservations={reservations} setReservations={setReservations} casts={casts} drivers={drivers} courses={courses} options={options} hotels={hotels} />}
           {tab === "dispatch" && <DispatchMap drivers={drivers} reservations={reservations} setReservations={setReservations} casts={casts} hotels={hotels} office={office} />}
           {tab === "messages" && <MessageTab drivers={drivers} casts={casts} />}

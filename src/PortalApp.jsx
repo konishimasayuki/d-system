@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { loadGoogleMaps, HOTEL_COORDS, OFFICE_LATLNG } from "./mapsLoader.js";
 import { isoDate, buildDispatchJobs, advanceJobStatus, castFullName, fmtHour, JOB_STATUS, coordForHotelName, staffThreadId, castThreadId, fetchThread, sendMessage, unreadCount, markThreadRead, fetchUketsukeSheet, isNotifyEnabled, enableNotifications, disableNotifications, notifyNewMessage } from "./shared.jsx";
 import { useDriverSchedule, getCell, weekDays } from "./tabs/StaffScheduleTab.jsx";
-import { SHEETS, W, Th, computeShimeiCounts } from "./tabs/UketsukeTab.jsx";
+import { SHEETS, W, Th, computeShimeiCounts, METHOD_BG, NET_BG } from "./tabs/UketsukeTab.jsx";
 
 // ============================================================
 // サーバー(Upstash経由 /api/state)との簡易読み書き
@@ -595,12 +595,12 @@ function UketsukeViewer({ theme, myName, casts, active }) {
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.memoR} width={W.memoR} align="left" fontSize={10.5} /></div>
                     <div style={{ height: ROW_H }}><ViewCell value={r.memoR2} width={W.memoR} align="left" fontSize={10.5} /></div>
                   </div>
-                  <div style={{ width: W.method, minWidth: W.method }}><ViewCell value={r.method} width={W.method} fontSize={10.5} /></div>
-                  <div style={{ width: W.net, minWidth: W.net }}><ViewCell value={r.net} width={W.net} fontSize={10.5} /></div>
-                  <div style={{ width: W.baitai, minWidth: W.baitai }}><ViewCell value={r.baitai} width={W.baitai} fontSize={10.5} /></div>
+                  <div style={{ width: W.method, minWidth: W.method }}><ViewCell value={r.method} width={W.method} fontSize={10.5} color="#000000" bg={METHOD_BG[r.method] || (r.method ? "#FFFFFF" : undefined)} /></div>
+                  <div style={{ width: W.net, minWidth: W.net }}><ViewCell value={r.net} width={W.net} fontSize={10.5} color="#000000" bg={NET_BG[r.net] || (r.net ? "#FFFFFF" : undefined)} /></div>
+                  <div style={{ width: W.baitai, minWidth: W.baitai }}><ViewCell value={r.baitai} width={W.baitai} fontSize={10.5} color="#000000" bg={{}[r.baitai] || (r.baitai ? "#FFFFFF" : undefined)} /></div>
                   <div style={{ width: W.status, minWidth: W.status, display: "flex", flexDirection: "column" }}>
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.status} width={W.status} fontSize={10.5} /></div>
-                    <div style={{ height: ROW_H }}><ViewCell value={r.status2} width={W.status} fontSize={10.5} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.status2} width={W.status} fontSize={10.5} color="#000000" bg={{}[r.status2] || (r.status2 ? "#FFFFFF" : undefined)} /></div>
                   </div>
                 </div>
               );

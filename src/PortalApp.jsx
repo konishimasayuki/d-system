@@ -578,7 +578,7 @@ function UketsukeViewer({ theme, myName, casts, active }) {
                   {/* 備考(上下2段) */}
                   <div style={{ width: W.biko, minWidth: W.biko, display: "flex", flexDirection: "column" }}>
                     <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.biko || (isFirst ? "-500" : "")} width={W.biko} color="#C00000" bold mono fontSize={11} /></div>
-                    <div style={{ height: ROW_H }}><ViewCell value={r.biko2} width={W.biko} color="#C00000" bold mono fontSize={11} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.biko2} width={W.biko} color={r.biko2 ? "#000000" : "#C00000"} bg={r.biko2 ? "#FFFF00" : undefined} bold mono fontSize={11} /></div>
                   </div>
                   {/* 送り(自分が担当の場合は太字で強調) */}
                   <div style={{ width: W.okuri, minWidth: W.okuri }}><ViewCell value={r.okuri} width={W.okuri} fontSize={10.5} bold={!!myName && r.okuri === myName} color={!!myName && r.okuri === myName ? theme.accentDark : undefined} /></div>

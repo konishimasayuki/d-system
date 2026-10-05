@@ -313,6 +313,25 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
   };
   const extraOptions = options.filter((o) => o.type === "extra" && o.shop === shop && o.castClass === cls);
 
+  // ---- 割引(店舗×クラスごと。受付表の備考下段でプルダウン選択し、割引額が備考上段・女子給から引かれる) ----
+  const [dcName, setDcName] = useState(""); const [dcPrice, setDcPrice] = useState("");
+  const discounts = options.filter((o) => o.type === "discount" && o.shop === shop && o.castClass === cls);
+  const addDiscount = () => {
+    if (!dcName.trim()) return;
+    setOptions((p) => [...p, { id: `dc${Date.now()}`, name: dcName.trim(), price: Math.abs(Number(dcPrice) || 0), type: "discount", shop, castClass: cls }]);
+    setDcName(""); setDcPrice("");
+  };
+  const moveDiscount = (id, dir) => {
+    const vi = discounts.findIndex((o) => o.id === id);
+    const target = discounts[vi + dir];
+    if (vi < 0 || !target) return;
+    setOptions((prev) => {
+      const i = prev.findIndex((o) => o.id === id); const j = prev.findIndex((o) => o.id === target.id);
+      if (i < 0 || j < 0) return prev;
+      const next = [...prev]; [next[i], next[j]] = [next[j], next[i]]; return next;
+    });
+  };
+
   const resetPricing = () => {
     if (!window.confirm("コース料金・指名料を初期値に戻します(現在の入力内容は失われます)。よろしいですか？")) return;
     setCourses(INITIAL_COURSES);
@@ -382,7 +401,7 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
       {/* 指名料 */}
       <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, marginBottom: 8 }}>指名料(受付表の「F」欄で選択)</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-        {options.filter((o) => o.type !== "extra").map((o) => (
+        {options.filter((o) => o.type !== "extra" && o.type !== "discount").map((o) => (
           <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}>
             <span style={{ flex: 1 }}>{o.name}</span>
             <input value={o.price} onChange={(e) => updateOptionPrice(o.id, e.target.value)} type="number" style={{ width: 90, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, textAlign: "right" }} />
@@ -418,6 +437,31 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
         <input value={exName} onChange={(e) => setExName(e.target.value)} placeholder="名称" style={{ flex: "2 1 120px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box" }} />
         <input value={exPrice} onChange={(e) => setExPrice(e.target.value)} placeholder="料金" type="number" style={{ flex: "1 1 80px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box" }} />
         <button onClick={addExtraOption} style={{ flexShrink: 0, padding: "0 14px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, cursor: "pointer" }}>＋</button>
+      </div>
+
+      {/* 割引(受付表の備考下段で選択) */}
+      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, margin: "20px 0 8px" }}>
+        割引({SHOP_OPTIONS.find((s) => s.key === shop)?.label} ・ {CAST_CLASS_OPTIONS.find((c) => c.key === cls)?.label})
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+        {discounts.map((o, idx) => (
+          <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <button onClick={() => moveDiscount(o.id, -1)} disabled={idx === 0} style={{ border: "none", background: "none", cursor: idx === 0 ? "default" : "pointer", color: idx === 0 ? "#CBD3DB" : COLORS.textSub, fontSize: 11, padding: 0, lineHeight: 1 }}>▲</button>
+              <button onClick={() => moveDiscount(o.id, 1)} disabled={idx === discounts.length - 1} style={{ border: "none", background: "none", cursor: idx === discounts.length - 1 ? "default" : "pointer", color: idx === discounts.length - 1 ? "#CBD3DB" : COLORS.textSub, fontSize: 11, padding: 0, lineHeight: 1 }}>▼</button>
+            </div>
+            <span style={{ flex: 1 }}>{o.name}</span>
+            <span style={{ fontSize: 11, color: COLORS.textSub }}>-</span>
+            <input value={o.price} onChange={(e) => updateExtraPrice(o.id, e.target.value)} type="number" style={{ width: 90, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, textAlign: "right" }} />
+            <button onClick={() => removeExtraOption(o.id)} style={{ border: "none", background: "none", color: COLORS.red, cursor: "pointer", fontSize: 15 }}>×</button>
+          </div>
+        ))}
+        {discounts.length === 0 && <div style={{ fontSize: 12, color: COLORS.textSub, padding: "4px 2px" }}>割引はまだ登録されていません。</div>}
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <input value={dcName} onChange={(e) => setDcName(e.target.value)} placeholder="割引名" style={{ flex: "2 1 120px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box" }} />
+        <input value={dcPrice} onChange={(e) => setDcPrice(e.target.value)} placeholder="割引金額" type="number" style={{ flex: "1 1 80px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: "border-box" }} />
+        <button onClick={addDiscount} style={{ flexShrink: 0, padding: "0 14px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, cursor: "pointer" }}>＋</button>
       </div>
     </Card>
   );

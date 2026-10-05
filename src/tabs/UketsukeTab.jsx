@@ -909,7 +909,14 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                 {/* A 備考(左)・上下2段 */}
                 <div style={{ width: W.bikoL, minWidth: W.bikoL, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.bikoL} onChange={(v) => setRow(i, "bikoL", v)} width={W.bikoL - 2} align="center" fontSize={11} bg={String(r.bikoL || "").includes("お客様降ろし") ? "#FFFF00" : undefined} customStyle={r.styles?.["bikoL"]} cellKey={`${i}:bikoL`} selected={selectedCell === `${i}:bikoL`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoL", x, y)} />
+                    {(() => {
+                      // 左上の欄:プルダウン(お客様降ろし=黄色背景)+「自由入力」を選ぶとテキスト入力(白背景)に切り替わる
+                      const v = r.bikoL || "";
+                      const isDrop = v.trim() === "お客様降ろし";
+                      const freeMode = v === "自由入力" || (v !== "" && !isDrop);
+                      if (freeMode) return <Cell value={v === "自由入力" ? "" : v} onChange={(nv) => setRow(i, "bikoL", nv)} width={W.bikoL - 2} align="center" fontSize={11} placeholder="自由入力" bg="#FFFFFF" customStyle={r.styles?.["bikoL"]} cellKey={`${i}:bikoL`} selected={selectedCell === `${i}:bikoL`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoL", x, y)} />;
+                      return <SelCell value={v} onChange={(nv) => setRow(i, "bikoL", nv)} options={["", "お客様降ろし", "自由入力"]} width={W.bikoL - 2} fontSize={11} bg={isDrop ? "#FFFF00" : undefined} color="#000000" customStyle={r.styles?.["bikoL"]} cellKey={`${i}:bikoL`} selected={selectedCell === `${i}:bikoL`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "bikoL", x, y)} />;
+                    })()}
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
                     {r.ryoshu === "発行" ? (

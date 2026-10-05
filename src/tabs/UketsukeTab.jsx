@@ -262,6 +262,17 @@ export const SHEETS = [
   { key: "hakata", label: "博多ココ" },
 ];
 
+// 予約関連のプルダウン選択肢と背景色(文字は全て黒)。管理画面・ドライバーポータル閲覧の両方で使用
+const RES_BLUE = "#B7E6F2";
+export const METHOD_OPTS = ["", "ネット予約", "電話受付"];
+export const METHOD_BG = { "ネット予約": RES_BLUE, "電話受付": "#FFFF00" };
+export const NET_OPTS = ["", "上位30名", "入力済", "未入力", "入力なし", "出勤未提出", "確定", "ネット予約リセット済"];
+export const NET_BG = { "上位30名": "#FFB347", "入力済": RES_BLUE, "未入力": "#A9D18E", "入力なし": "#FFFFFF", "出勤未提出": "#B4A7D6", "確定": RES_BLUE, "ネット予約リセット済": "#FFFFFF" };
+export const MEDIA_OPTS = ["", "ヘブン", "タウン", "OHP", "フーコレ", "ぴゅあらば", "デリじゃ", "風じゃ", "カクブツ", "アソビーノ", "呼べるホテル", "ネット検索", "友人紹介", "ココより", "不明"];
+export const STATUS2_OPTS = ["", "メール済み", "電話済み"];
+// 以前に自由入力された値が選択肢に無い場合も、消さずに表示できるよう選択肢へ加える
+const withLegacy = (opts, v) => (v && !opts.includes(v) ? [...opts, v] : opts);
+
 // Enterキーで移動する順番(Excel感覚の入力用)。最後の退出まで行ったら次の行の時間へ。
 const ENTER_NAV_ORDER = ["time", "depart", "cast", "kaiin", "shimeiType", "name", "tel", "hotel", "kotsu", "course", "taishutsu"];
 function handleEnterNav(e) {
@@ -1074,18 +1085,18 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                 </div>
                 {/* 予約方法 / ネット予約 / 媒体(各1段) */}
                 <div style={{ width: W.method, minWidth: W.method, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.method} onChange={(v) => setRow(i, "method", v)} width={W.method - 2} fontSize={10.5} customStyle={r.styles?.["method"]} cellKey={`${i}:method`} selected={selectedCell === `${i}:method`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "method", x, y)} />
+                  <SelCell value={r.method || ""} onChange={(v) => setRow(i, "method", v)} options={withLegacy(METHOD_OPTS, r.method)} width={W.method - 2} fontSize={10.5} bg={METHOD_BG[r.method] || (r.method ? "#FFFFFF" : undefined)} color="#000000" customStyle={r.styles?.["method"]} cellKey={`${i}:method`} selected={selectedCell === `${i}:method`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "method", x, y)} />
                 </div>
                 <div style={{ width: W.net, minWidth: W.net, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.net} onChange={(v) => setRow(i, "net", v)} width={W.net - 2} fontSize={10.5} customStyle={r.styles?.["net"]} cellKey={`${i}:net`} selected={selectedCell === `${i}:net`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "net", x, y)} />
+                  <SelCell value={r.net || ""} onChange={(v) => setRow(i, "net", v)} options={withLegacy(NET_OPTS, r.net)} width={W.net - 2} fontSize={10.5} bg={NET_BG[r.net] || (r.net ? "#FFFFFF" : undefined)} color="#000000" customStyle={r.styles?.["net"]} cellKey={`${i}:net`} selected={selectedCell === `${i}:net`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "net", x, y)} />
                 </div>
                 <div style={{ width: W.baitai, minWidth: W.baitai, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.baitai} onChange={(v) => setRow(i, "baitai", v)} width={W.baitai - 2} fontSize={10.5} customStyle={r.styles?.["baitai"]} cellKey={`${i}:baitai`} selected={selectedCell === `${i}:baitai`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "baitai", x, y)} />
+                  <SelCell value={r.baitai || ""} onChange={(v) => setRow(i, "baitai", v)} options={withLegacy(MEDIA_OPTS, r.baitai)} width={W.baitai - 2} fontSize={10.5} bg={{}[r.baitai] || (r.baitai ? "#FFFFFF" : undefined)} color="#000000" customStyle={r.styles?.["baitai"]} cellKey={`${i}:baitai`} selected={selectedCell === `${i}:baitai`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "baitai", x, y)} />
                 </div>
                 {/* 予約状況(2段) */}
                 <div style={{ width: W.status, minWidth: W.status, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
                   <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}><Cell value={r.status} onChange={(v) => setRow(i, "status", v)} width={W.status - 2} fontSize={10.5} customStyle={r.styles?.["status"]} cellKey={`${i}:status`} selected={selectedCell === `${i}:status`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "status", x, y)} /></div>
-                  <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}><Cell value={r.status2} onChange={(v) => setRow(i, "status2", v)} width={W.status - 2} fontSize={10.5} customStyle={r.styles?.["status2"]} cellKey={`${i}:status2`} selected={selectedCell === `${i}:status2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "status2", x, y)} /></div>
+                  <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}><SelCell value={r.status2 || ""} onChange={(v) => setRow(i, "status2", v)} options={withLegacy(STATUS2_OPTS, r.status2)} width={W.status - 2} fontSize={10.5} bg={{}[r.status2] || (r.status2 ? "#FFFFFF" : undefined)} color="#000000" customStyle={r.styles?.["status2"]} cellKey={`${i}:status2`} selected={selectedCell === `${i}:status2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "status2", x, y)} /></div>
                 </div>
               </div>
             ))}

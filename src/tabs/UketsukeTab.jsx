@@ -574,8 +574,8 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
   };
   const recalcRow = (row, idx) => {
     const info = courseInfo(row.course, row.cast);
-    const shimeiOpt = row.shimeiType === "写指" ? options.find((o) => o.name.includes("写指"))
-      : row.shimeiType === "本指" ? options.find((o) => o.name.includes("本指"))
+    const shimeiOpt = row.shimeiType === "写指" ? options.find((o) => o.type !== "extra" && o.type !== "discount" && o.name.includes("写指"))
+      : row.shimeiType === "本指" ? options.find((o) => o.type !== "extra" && o.type !== "discount" && o.name.includes("本指"))
       : null;
     const shimeiPrice = shimeiOpt?.price || 0;
     const kotsu = Number(String(row.kotsu).replace(/[^0-9.-]/g, "")) || 0;
@@ -599,6 +599,25 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     const bikoDeduction = Number(String(bikoValue).replace(/[^0-9.-]/g, "")) || 0; // マイナス値としてそのまま加算(控除)
     const joshi = baseJoshi + opTotal + bikoDeduction;
     return { ...row, otoshi: String(otoshi), joshi: String(joshi) };
+  };
+  // ---- 割引:備考(T列)の下段でプルダウン選択。割引額は上段(1本目なら-500)に合算し、女子給からも引く ----
+  const discountsForRowCast = (castName) => {
+    const cast = findCastByName(castName);
+    return options.filter((o) => o.type === "discount" && o.shop === sheetKey && (!cast || o.castClass === castClassForShop(cast, sheetKey)));
+  };
+  const discountOptionsForRow = (row) => {
+    const list = ["", ...new Set(discountsForRowCast(row.cast).map((o) => o.name))];
+    if (row.biko2 && !list.includes(row.biko2)) list.push(row.biko2); // 以前の自由入力の値もそのまま表示
+    return list;
+  };
+  const setDiscountForRow = (i, name) => {
+    const rows = sheet.rows.map((r, idx) => {
+      if (idx !== i) return r;
+      const amt = name ? (discountsForRowCast(r.cast).find((o) => o.name === name)?.price || 0) : 0;
+      const total = (shimeiCounts[idx] === 1 ? 500 : 0) + Math.abs(Number(amt) || 0); // 1本目の-500に割引額を合算
+      return recalcRow({ ...r, biko2: name, biko: name && total > 0 ? `-${total}` : "" }, idx);
+    });
+    save({ ...sheet, rows });
   };
   const setOpForRow = (i, field, val) => {
     const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, [field]: val }, idx) : r);
@@ -1007,7 +1026,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                     <Cell value={r.biko || (shimeiCounts[i] === 1 ? "-500" : "")} onChange={(v) => setRow(i, "biko", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko"]} cellKey={`${i}:biko`} selected={selectedCell === `${i}:biko`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "biko", x, y)} />
                   </div>
                   <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.biko2} onChange={(v) => setRow(i, "biko2", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko2"]} cellKey={`${i}:biko2`} selected={selectedCell === `${i}:biko2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "biko2", x, y)} />
+                    <SelCell value={r.biko2 || ""} onChange={(v) => setDiscountForRow(i, v)} options={discountOptionsForRow(r)} width={W.biko - 2} bold mono fontSize={10} bg={r.biko2 ? "#FFFF00" : undefined} color={r.biko2 ? "#000000" : undefined} customStyle={r.styles?.["biko2"]} cellKey={`${i}:biko2`} selected={selectedCell === `${i}:biko2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "biko2", x, y)} />
                   </div>
                 </div>
 

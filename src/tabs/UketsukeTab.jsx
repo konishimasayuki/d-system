@@ -606,6 +606,8 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
       const cast = findCastByName(row.cast);
       if (cast) honshimeiBonus = castSalaryCondition(cast) === "shinclear" ? 3000 : 2000;
     }
+    // 博多ココは指名の下欄が「本指」なら全員一律+2000円(キャスト未入力でも加算)
+    if (sheetKey === "hakata" && row.shimeiType === "本指") honshimeiBonus = 2000;
     const joshi = baseJoshi + opTotal + bikoDeduction + honshimeiBonus;
     return { ...row, otoshi: String(otoshi), joshi: String(joshi) };
   };

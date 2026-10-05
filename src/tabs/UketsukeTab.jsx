@@ -596,7 +596,10 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     }
     // 本日1本目(備考欄の自動-500表示)は、女子給からも雑費500円を控除する
     const bikoValue = row.biko || (idx != null && shimeiCounts[idx] === 1 ? "-500" : "");
-    const bikoDeduction = Number(String(bikoValue).replace(/[^0-9.-]/g, "")) || 0; // マイナス値としてそのまま加算(控除)
+    let bikoDeduction = Number(String(bikoValue).replace(/[^0-9.-]/g, "")) || 0; // マイナス値としてそのまま加算(控除)
+    // 備考下段の割引は上段に合算表示するが、女子給からは引かない(1本目の-500などの分だけ引く)
+    const dcAmt = row.biko2 ? (discountsForRowCast(row.cast).find((o) => o.name === row.biko2)?.price || 0) : 0;
+    if (dcAmt > 0) bikoDeduction = Math.min(0, bikoDeduction + Math.abs(Number(dcAmt) || 0));
     const joshi = baseJoshi + opTotal + bikoDeduction;
     return { ...row, otoshi: String(otoshi), joshi: String(joshi) };
   };

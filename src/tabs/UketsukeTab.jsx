@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, castClass, castClassForShop, castRewardRank, isoDate } from "../shared.jsx";
+import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, castClass, castClassForShop, castRewardRank, castSalaryCondition, isoDate } from "../shared.jsx";
 
 // ============================================================
 // 受付表タブ(スプレッドシート再現・1日1シート)
@@ -600,7 +600,13 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     // 備考下段の割引は上段に合算表示するが、女子給からは引かない(1本目の-500などの分だけ引く)
     const dcAmt = row.biko2 ? (discountsForRowCast(row.cast).find((o) => o.name === row.biko2)?.price || 0) : 0;
     if (dcAmt > 0) bikoDeduction = Math.min(0, bikoDeduction + Math.abs(Number(dcAmt) || 0));
-    const joshi = baseJoshi + opTotal + bikoDeduction;
+    // 人妻専科で指名の下欄が「本指」の場合、給与条件に応じて女子給に加算(クリア+2000円/新クリア+3000円)
+    let honshimeiBonus = 0;
+    if (sheetKey === "hitozuma" && row.shimeiType === "本指") {
+      const cast = findCastByName(row.cast);
+      if (cast) honshimeiBonus = castSalaryCondition(cast) === "shinclear" ? 3000 : 2000;
+    }
+    const joshi = baseJoshi + opTotal + bikoDeduction + honshimeiBonus;
     return { ...row, otoshi: String(otoshi), joshi: String(joshi) };
   };
   // ---- 割引:備考(T列)の下段でプルダウン選択。割引額は上段(1本目なら-500)に合算し、女子給からも引く ----

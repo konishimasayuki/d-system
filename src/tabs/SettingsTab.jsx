@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AREAS, COLORS, Card, DRIVER_STATUS, DRIVER_SHIFT, SHOP_OPTIONS, CAST_CLASS_OPTIONS, REWARD_RANK_OPTIONS, INITIAL_VIEW_ROLES, TAB_DEFS, PrimaryButton, SectionTitle, SelectField, TextField, Yen, parseCSV, csvEscape, readCSVFile, INITIAL_STAFF, INITIAL_COURSES, INITIAL_OPTIONS } from "../shared.jsx";
 import { geocodeAddress } from "../mapsLoader.js";
 
@@ -618,11 +618,42 @@ export function ViewRolePermissionForm({ staff, setStaff, isOwner }) {
 // ---- CSVユーティリティ ----
 export function nextHotelId(hotels) { let max = 0; hotels.forEach((h) => { const n = parseInt(h.id, 10); if (!isNaN(n) && n > max) max = n; }); return String(max + 1).padStart(4, "0"); }
 
+// ホテルの◯✖️△マーク(ID と ホテル名 の間に表示)
+const HOTEL_MARKS = ["", "◯", "✖️", "△"];
+const HOTEL_MARK_COLOR = { "◯": "#1E8E5A", "✖️": "#C0392B", "△": "#D98A00" };
+const HOTEL_MARK_RANK = { "◯": 0, "△": 1, "✖️": 2, "": 3 };
+
+// 一覧で直接編集できる入力欄(入力中は保存せず、確定(フォーカスを外す/Enter)した時だけ保存して通信を減らす)
+function HotelEditInput({ value, onCommit, style, required }) {
+  const [v, setV] = useState(value ?? "");
+  useEffect(() => { setV(value ?? ""); }, [value]);
+  const commit = () => {
+    if (v === (value ?? "")) return;
+    if (required && !v.trim()) { setV(value ?? ""); return; }
+    onCommit(v.trim());
+  };
+  return <input value={v} onChange={(e) => setV(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={style} />;
+}
+
 export function HotelForm({ hotels, setHotels, office, setOffice }) {
   const [name, setName] = useState(""); const [area, setArea] = useState(AREAS[0]); const [address, setAddress] = useState("");
   const [offAddr, setOffAddr] = useState(office.address);
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState("");
   const [geocoding, setGeocoding] = useState(false);
+  const [mark, setMark] = useState(""); // 追加時の◯✖️△
+  const [sortKey, setSortKey] = useState(null); // 見出しクリックで並び替え
+  const [sortDir, setSortDir] = useState(1);
+  const SORTERS = {
+    "ID": (h) => h.id, "マーク": (h) => HOTEL_MARK_RANK[h.mark || ""] ?? 3, "ホテル名": (h) => h.name || "",
+    "エリア": (h) => h.area || "", "住所": (h) => h.address || "", "座標": (h) => (h.lat != null ? 0 : 1),
+  };
+  const toggleSort = (h) => { if (!SORTERS[h]) return; if (sortKey === h) setSortDir((d) => -d); else { setSortKey(h); setSortDir(1); } };
+  const shownHotels = sortKey ? [...hotels].sort((a, b) => {
+    const va = SORTERS[sortKey](a), vb = SORTERS[sortKey](b);
+    if (typeof va === "number" && typeof vb === "number") return (va - vb) * sortDir;
+    return String(va).localeCompare(String(vb), "ja") * sortDir;
+  }) : hotels;
+  const updateHotel = (id, patch) => setHotels((p) => p.map((h) => (h.id === id ? { ...h, ...patch } : h)));
 
   const missingCount = hotels.filter((h) => h.lat == null && h.address).length;
 
@@ -666,20 +697,20 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
     setBusy(true); setMsg("座標を取得中…");
     try {
       const c = await geocodeAddress(address.trim());
-      setHotels((p) => [...p, { id, name: name.trim(), area, address: address.trim(), lat: c.lat, lng: c.lng }]);
+      setHotels((p) => [...p, { id, name: name.trim(), area, address: address.trim(), mark, lat: c.lat, lng: c.lng }]);
       setMsg(`${name}(ID:${id})を追加しました。`);
     } catch (e) {
-      setHotels((p) => [...p, { id, name: name.trim(), area, address: address.trim(), lat: null, lng: null }]);
+      setHotels((p) => [...p, { id, name: name.trim(), area, address: address.trim(), mark, lat: null, lng: null }]);
       setMsg(`${name}(ID:${id})を追加しましたが、座標取得に失敗しました。住所をご確認ください。`);
     }
-    setBusy(false); setName(""); setAddress("");
+    setBusy(false); setName(""); setAddress(""); setMark("");
   };
 
   const del = (id) => setHotels((p) => p.filter((h) => h.id !== id));
 
   const exportCSV = () => {
-    const header = "id,name,area,address";
-    const body = hotels.map((h) => [h.id, h.name, h.area, h.address].map(csvEscape).join(",")).join("\n");
+    const header = "id,name,area,address,mark";
+    const body = hotels.map((h) => [h.id, h.name, h.area, h.address, h.mark || ""].map(csvEscape).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + header + "\n" + body], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "hotels.csv"; a.click();
   };
@@ -690,13 +721,13 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
     const rows = parseCSV(text);
     let start = 0;
     if (rows[0] && (rows[0][0] || "").trim().toLowerCase() === "id") start = 1;
-    const incoming = rows.slice(start).map((r) => ({ id: (r[0] || "").trim(), name: (r[1] || "").trim(), area: (r[2] || "").trim(), address: (r[3] || "").trim() })).filter((r) => r.id && r.name);
+    const incoming = rows.slice(start).map((r) => ({ id: (r[0] || "").trim(), name: (r[1] || "").trim(), area: (r[2] || "").trim(), address: (r[3] || "").trim(), mark: r.length > 4 ? (r[4] || "").trim() : undefined })).filter((r) => r.id && r.name);
     if (incoming.length === 0) { setMsg("取り込める行がありませんでした。"); e.target.value = ""; return; }
     const map = new Map(hotels.map((h) => [h.id, h]));
     const toGeocode = [];
     incoming.forEach((inc) => {
       const ex = map.get(inc.id);
-      if (ex) { const changed = ex.address !== inc.address; map.set(inc.id, { ...ex, ...inc, lat: changed ? null : ex.lat, lng: changed ? null : ex.lng }); if (changed) toGeocode.push(inc.id); }
+      if (ex) { const changed = ex.address !== inc.address; map.set(inc.id, { ...ex, ...Object.fromEntries(Object.entries(inc).filter(([, v]) => v !== undefined)), lat: changed ? null : ex.lat, lng: changed ? null : ex.lng }); if (changed) toGeocode.push(inc.id); }
       else { map.set(inc.id, { ...inc, lat: null, lng: null }); toGeocode.push(inc.id); }
     });
     const merged = Array.from(map.values()).sort((a, b) => a.id.localeCompare(b.id));
@@ -732,7 +763,7 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
             </label>
           </div>
         </div>
-        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 12 }}>CSV列：id,name,area,address ／ 差分はホテルIDで判定(同一IDは上書き・新規IDは追加・CSVに無い既存は保持) ／ 変更は自動的に保存されます</div>
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 12 }}>CSV列：id,name,area,address,mark(◯/✖️/△) ／ 差分はホテルIDで判定(同一IDは上書き・新規IDは追加・CSVに無い既存は保持) ／ 一覧の名前・エリア・住所・マークはそのまま編集できます(住所を変えると座標は未取得に戻ります) ／ 変更は自動的に保存されます</div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 12px", borderRadius: 10, marginBottom: 12, background: missingCount > 0 ? "#FBF3E6" : "#EAF6EF", border: `1px solid ${missingCount > 0 ? "#E7C983" : "#BFE3CE"}` }}>
           <div style={{ fontSize: 12.5, color: COLORS.textMain, fontWeight: 600 }}>
@@ -747,17 +778,26 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
         </div>
 
         <div className="table-scroll" style={{ maxHeight: 320, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 10, marginBottom: 16 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
-            <thead><tr style={{ background: "#EDF3FA" }}>{["ID", "ホテル名", "エリア", "住所", "座標", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 11, color: COLORS.textSub, fontWeight: 600, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#EDF3FA" }}>{h}</th>)}</tr></thead>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["ID", "マーク", "ホテル名", "エリア", "住所", "座標", ""].map((h) => <th key={h} onClick={() => toggleSort(h)} style={{ textAlign: "left", padding: "8px 10px", fontSize: 11, color: sortKey === h ? COLORS.accent : COLORS.textSub, fontWeight: 600, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#EDF3FA", cursor: SORTERS[h] ? "pointer" : "default", userSelect: "none" }}>{h}{SORTERS[h] ? (sortKey === h ? (sortDir === 1 ? " ▲" : " ▼") : " ⇅") : ""}</th>)}</tr></thead>
             <tbody>
-              {hotels.map((h) => (
+              {shownHotels.map((h) => (
                 <tr key={h.id} style={{ borderTop: `1px solid ${COLORS.border}` }}>
-                  <td style={{ padding: "8px 10px", fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: COLORS.textMain }}>{h.id}</td>
-                  <td style={{ padding: "8px 10px", fontSize: 13, color: COLORS.textMain, fontWeight: 600, whiteSpace: "nowrap" }}>{h.name}</td>
-                  <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub }}>{h.area}</td>
-                  <td style={{ padding: "8px 10px", fontSize: 12, color: COLORS.textSub }}>{h.address}</td>
-                  <td style={{ padding: "8px 10px", fontSize: 11 }}><span style={{ color: h.lat != null ? COLORS.green : COLORS.red, fontWeight: 700 }}>{h.lat != null ? "取得済" : "未取得"}</span></td>
-                  <td style={{ padding: "8px 10px" }}><button onClick={() => del(h.id)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>削除</button></td>
+                  <td style={{ padding: "6px 10px", fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: COLORS.textMain }}>{h.id}</td>
+                  <td style={{ padding: "6px 6px" }}>
+                    <select value={h.mark || ""} onChange={(e) => updateHotel(h.id, { mark: e.target.value })} style={{ width: 64, padding: "5px 4px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 14, fontWeight: 700, textAlign: "center", background: "#FFF", color: HOTEL_MARK_COLOR[h.mark] || COLORS.textSub }}>
+                      {HOTEL_MARKS.map((m) => <option key={m || "none"} value={m}>{m || "-"}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ padding: "6px 6px" }}><HotelEditInput required value={h.name} onCommit={(v) => updateHotel(h.id, { name: v })} style={{ ...{ padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12.5, boxSizing: "border-box", background: "#FFF", color: COLORS.textMain }, width: 190, fontWeight: 600 }} /></td>
+                  <td style={{ padding: "6px 6px" }}>
+                    <select value={h.area || ""} onChange={(e) => updateHotel(h.id, { area: e.target.value })} style={{ ...{ padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12.5, boxSizing: "border-box", background: "#FFF", color: COLORS.textMain }, width: 110 }}>
+                      {(AREAS.includes(h.area) ? AREAS : [...AREAS, h.area]).map((a) => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ padding: "6px 6px" }}><HotelEditInput value={h.address} onCommit={(v) => updateHotel(h.id, { address: v, lat: null, lng: null })} style={{ ...{ padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12.5, boxSizing: "border-box", background: "#FFF", color: COLORS.textMain }, width: 260 }} /></td>
+                  <td style={{ padding: "6px 10px", fontSize: 11 }}><span style={{ color: h.lat != null ? COLORS.green : COLORS.red, fontWeight: 700 }}>{h.lat != null ? "取得済" : "未取得"}</span></td>
+                  <td style={{ padding: "6px 10px" }}><button onClick={() => del(h.id)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${COLORS.red}`, background: "transparent", color: COLORS.red, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>削除</button></td>
                 </tr>
               ))}
             </tbody>
@@ -766,6 +806,7 @@ export function HotelForm({ hotels, setHotels, office, setOffice }) {
 
         <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, marginBottom: 8 }}>ホテルを追加</div>
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <div style={{ flex: "0 0 84px" }}><SelectField label="マーク" value={mark} onChange={setMark} options={HOTEL_MARKS} optionLabels={{ "": "-" }} /></div>
           <div style={{ flex: 2 }}><TextField label="ホテル名" value={name} onChange={setName} placeholder="例: 博多〇〇ホテル" /></div>
           <div style={{ flex: 1 }}><SelectField label="エリア" value={area} onChange={setArea} options={AREAS} /></div>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  COLORS, GLOBAL_CSS, CUSTOMER_COLORS, VIEW_ROLES, INITIAL_VIEW_ROLES, TAB_DEFS, RESTRICTED_TAB_PASSWORD, staffAllowedTabs, DAY_DATES, DEFAULT_OFFICE,
+  COLORS, GLOBAL_CSS, CUSTOMER_COLORS, VIEW_ROLES, INITIAL_VIEW_ROLES, TAB_DEFS, RESTRICTED_TAB_PASSWORD, staffAllowedTabs, migrateShimeiOptions, DAY_DATES, DEFAULT_OFFICE,
   INITIAL_CASTS, INITIAL_RESERVATIONS, INITIAL_DRIVERS, INITIAL_CUSTOMERS,
   INITIAL_HOTELS, INITIAL_STAFF, INITIAL_COURSES, INITIAL_OPTIONS, INITIAL_TRANSPORT_FEES, INITIAL_EXPENSES,
   usePersistedState, usePersistedReservations, PrimaryButton,
@@ -174,6 +174,13 @@ export default function KanriApp() {
   const [viewRoles, setViewRoles, viewRolesSync] = usePersistedState("viewroles", INITIAL_VIEW_ROLES);
   const [courses, setCourses, coursesSync] = usePersistedState("courses", INITIAL_COURSES);
   const [options, setOptions, optionsSync] = usePersistedState("options", INITIAL_OPTIONS);
+  // 全店共通だった指名料を、店舗×クラスの4種類に分けて移行(読み込み完了後に一度だけ)
+  useEffect(() => {
+    if (!optionsSync.loaded) return;
+    const migrated = migrateShimeiOptions(options);
+    if (migrated) setOptions(migrated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [optionsSync.loaded, options]);
   const [transportFees, setTransportFees, transportFeesSync] = usePersistedState("transportfees", INITIAL_TRANSPORT_FEES);
   const [expenses, setExpenses, expensesSync] = usePersistedState("expenses", INITIAL_EXPENSES);
   const syncErrors = [castsSync, customersSync, driversSync, reservationsSync, hotelsSync, officeSync, staffSync, viewRolesSync, coursesSync, optionsSync, transportFeesSync, expensesSync].map((s) => s.err).filter(Boolean);

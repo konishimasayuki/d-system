@@ -190,10 +190,22 @@ export const INITIAL_COURSES = [
   ]),
 ];
 // 指名料(写真指名・本指名とも共通1,100円。受付表の「F」欄で選ぶ)
-export const INITIAL_OPTIONS = [
-  { id: "shimei", name: "写指(写真指名)", price: 1100 },
-  { id: "honshimei", name: "本指(本指名)", price: 1100 },
-];
+// 指名料は店舗(人妻専科/博多ココ)×クラス(スタンダード/ダイヤモンド)の4種類それぞれ独立して持つ
+const SHIMEI_SHOPS = ["hitozuma", "hakata"];
+const SHIMEI_CLASSES = ["standard", "diamond"];
+export const INITIAL_OPTIONS = SHIMEI_SHOPS.flatMap((shop) => SHIMEI_CLASSES.flatMap((cls) => [
+  { id: `shimei_${shop}_${cls}`, name: "写指(写真指名)", price: 1100, type: "shimei", shop, castClass: cls },
+  { id: `honshimei_${shop}_${cls}`, name: "本指(本指名)", price: 1100, type: "shimei", shop, castClass: cls },
+]));
+// 旧データ(全店共通の指名料=typeなし)を、4種類それぞれのコピーに分けて移行する。移行不要ならnullを返す
+export function migrateShimeiOptions(options) {
+  if (!Array.isArray(options)) return null;
+  const legacy = options.filter((o) => !o.type);
+  if (legacy.length === 0 || options.some((o) => o.type === "shimei")) return null;
+  const copies = SHIMEI_SHOPS.flatMap((shop) => SHIMEI_CLASSES.flatMap((cls) =>
+    legacy.map((o) => ({ ...o, id: `${o.id}_${shop}_${cls}`, type: "shimei", shop, castClass: cls }))));
+  return [...options.filter((o) => o.type), ...copies];
+}
 
 // 交通費マスタ(福岡市内、区・地名別。出典: 交通費.xlsxより。ホテル名も含む。yomiは元データに読みが無い場合は空欄)
 // 交通費マスタ(福岡市内、区・地名別。出典: 交通費.xlsxより。ホテル名も含む。readingは判明分のみ)

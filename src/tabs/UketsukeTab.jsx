@@ -583,10 +583,19 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     const found = options.find((o) => o.type === "extra" && o.name === name);
     return found ? found.price : 0;
   };
+  // 指名料:今のシートの店舗×そのキャストのクラスの設定を使う(4種類それぞれ独立)。旧データ(共通)にも対応
+  const findShimeiOpt = (row, kw) => {
+    if (options.some((o) => o.type === "shimei")) {
+      const cast = findCastByName(row.cast);
+      const cls = cast ? castClassForShop(cast, sheetKey) : "standard";
+      return options.find((o) => o.type === "shimei" && o.shop === sheetKey && o.castClass === cls && o.name.includes(kw));
+    }
+    return options.find((o) => !o.type && o.name.includes(kw));
+  };
   const recalcRow = (row, idx) => {
     const info = courseInfo(row.course, row.cast);
-    const shimeiOpt = row.shimeiType === "写指" ? options.find((o) => o.type !== "extra" && o.type !== "discount" && o.name.includes("写指"))
-      : row.shimeiType === "本指" ? options.find((o) => o.type !== "extra" && o.type !== "discount" && o.name.includes("本指"))
+    const shimeiOpt = row.shimeiType === "写指" ? findShimeiOpt(row, "写指")
+      : row.shimeiType === "本指" ? findShimeiOpt(row, "本指")
       : null;
     const shimeiPrice = shimeiOpt?.price || 0;
     const kotsu = Number(String(row.kotsu).replace(/[^0-9.-]/g, "")) || 0;

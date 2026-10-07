@@ -288,7 +288,7 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
     }]);
   };
 
-  const addOption = () => { if (!oName.trim()) return; setOptions((p) => [...p, { id: `op${Date.now()}`, name: oName.trim(), price: Number(oPrice) || 0 }]); setOName(""); setOPrice(""); };
+  const addOption = () => { if (!oName.trim()) return; setOptions((p) => [...p, { id: `op${Date.now()}`, name: oName.trim(), price: Number(oPrice) || 0, type: "shimei", shop, castClass: cls }]); setOName(""); setOPrice(""); };
   const removeOption = (id) => setOptions((prev) => prev.filter((o) => o.id !== id));
   const updateOptionPrice = (id, price) => setOptions((prev) => prev.map((o) => o.id === id ? { ...o, price: Number(price) || 0 } : o));
   const addExtraOption = () => { if (!exName.trim()) return; setOptions((p) => [...p, { id: `exop${Date.now()}`, name: exName.trim(), price: Number(exPrice) || 0, type: "extra", shop, castClass: cls }]); setExName(""); setExPrice(""); };
@@ -399,9 +399,9 @@ export function MasterForm({ courses, setCourses, options, setOptions }) {
       </div>
 
       {/* 指名料 */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, marginBottom: 8 }}>指名料(受付表の「F」欄で選択)</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMain, marginBottom: 8 }}>指名料({SHOP_OPTIONS.find((s) => s.key === shop)?.label} ・ {CAST_CLASS_OPTIONS.find((c) => c.key === cls)?.label})</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-        {options.filter((o) => o.type !== "extra" && o.type !== "discount").map((o) => (
+        {options.filter((o) => o.type === "shimei" && o.shop === shop && o.castClass === cls).map((o) => (
           <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.textMain, padding: "6px 10px", background: "#EDF3FA", borderRadius: 8 }}>
             <span style={{ flex: 1 }}>{o.name}</span>
             <input value={o.price} onChange={(e) => updateOptionPrice(o.id, e.target.value)} type="number" style={{ width: 90, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, textAlign: "right" }} />

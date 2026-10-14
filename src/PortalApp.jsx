@@ -464,7 +464,7 @@ function UketsukeViewer({ theme, myName, casts, active }) {
         <div style={{ textAlign: "center", color: SUB, fontSize: 12.5, padding: 24 }}>{dayOffset === 0 ? "本日" : "翌日"}の受付データはありません</div>
       ) : (
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-          <div style={{ minWidth: W.bikoL + W.taiki + W.no + W.time + W.cast + W.shimeiN + W.kaiin + W.name + W.kotsu + W.course + W.op * 2 + W.taishutsu + W.otoshi + W.joshi + W.biko + W.okuri + W.mukae + W.ryoshu + W.bikoR + W.memoR + W.method + W.net + W.baitai + W.status }}>
+          <div style={{ minWidth: W.bikoL + W.taiki + W.no + W.time + W.cast + W.shimeiN + W.kaiin + W.name + W.kotsu + W.course + W.op * 2 + W.taishutsu + W.waribiki + W.otoshi + W.joshi + W.biko + W.okuri + W.mukae + W.ryoshu + W.bikoR + W.memoR + W.method + W.net + W.baitai + W.status }}>
             {/* 見出し行 */}
             <div style={{ display: "flex", position: "sticky", top: 0, zIndex: 2 }}>
               <Th width={W.bikoL} />
@@ -479,9 +479,10 @@ function UketsukeViewer({ theme, myName, casts, active }) {
               <Th width={W.course}>コース</Th>
               <Th width={W.op * 2}>OP</Th>
               <Th width={W.taishutsu}>退出</Th>
+              <Th width={W.waribiki}>割引</Th>
               <Th width={W.otoshi}>落とし</Th>
               <Th width={W.joshi}>女子給</Th>
-              <Th width={W.biko}>備考</Th>
+              <Th width={W.biko}>控除</Th>
               <Th width={W.okuri}>送り</Th>
               <Th width={W.mukae}>迎え</Th>
               <Th width={W.ryoshu}>領収書</Th>
@@ -572,14 +573,12 @@ function UketsukeViewer({ theme, myName, casts, active }) {
                   {/* 退出(緑) */}
                   <div style={{ width: W.taishutsu, minWidth: W.taishutsu }}><ViewCell value={r.taishutsu} width={W.taishutsu} bg="#FFFFFF" color={INK} bold mono fontSize={12} /></div>
                   {/* 落とし */}
+                  <div style={{ width: W.waribiki, minWidth: W.waribiki }}><ViewCell value={r.biko2} width={W.waribiki} color="#000000" bg={r.biko2 ? "#FFFF00" : undefined} bold mono fontSize={11} /></div>
                   <div style={{ width: W.otoshi, minWidth: W.otoshi }}><ViewCell value={r.otoshi} width={W.otoshi} mono bold fontSize={12} /></div>
                   {/* 女子給 */}
                   <div style={{ width: W.joshi, minWidth: W.joshi }}><ViewCell value={r.joshi} width={W.joshi} mono bold fontSize={12} /></div>
-                  {/* 備考(上下2段) */}
-                  <div style={{ width: W.biko, minWidth: W.biko, display: "flex", flexDirection: "column" }}>
-                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.biko || (isFirst ? "-500" : "")} width={W.biko} color="#C00000" bold mono fontSize={11} /></div>
-                    <div style={{ height: ROW_H }}><ViewCell value={r.biko2} width={W.biko} color={r.biko2 ? "#000000" : "#C00000"} bg={r.biko2 ? "#FFFF00" : undefined} bold mono fontSize={11} /></div>
-                  </div>
+                  {/* 控除(結合) */}
+                  <div style={{ width: W.biko, minWidth: W.biko }}><ViewCell value={r.biko || (isFirst ? "-500" : "")} width={W.biko} color="#C00000" bold mono fontSize={11} /></div>
                   {/* 送り(自分が担当の場合は太字で強調) */}
                   <div style={{ width: W.okuri, minWidth: W.okuri }}><ViewCell value={r.okuri} width={W.okuri} fontSize={10.5} bold={!!myName && r.okuri === myName} color={!!myName && r.okuri === myName ? theme.accentDark : undefined} /></div>
                   {/* 迎え(自分が担当の場合は太字で強調) */}

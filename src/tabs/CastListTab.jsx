@@ -84,7 +84,7 @@ export function CastDetailModal({ cast, onClose, onSave, allOptions }) {
   const setShopClass = (shopKey, clsKey) => setF((p) => ({ ...p, castClassByShop: { ...p.castClassByShop, [shopKey]: clsKey } }));
   const toggleAllowedOption = (id) => setF((p) => ({ ...p, allowedOptions: p.allowedOptions.includes(id) ? p.allowedOptions.filter((x) => x !== id) : [...p.allowedOptions, id] }));
   const save = () => {
-    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, idVerified: f.idVerified, shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, salaryCondition: f.salaryCondition, inboundOk: !!f.inboundOk, allowedOptions: f.allowedOptions, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
+    onSave({ ...cast, name: f.name, honmyo: f.honmyo, age: Number(f.age) || cast.age, birthday: f.birthday, phone: f.phone, address: f.address, idType: f.idType, idNo: f.idNo, joinDate: f.joinDate, idVerified: f.idVerified, shops: f.shops, taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, salaryCondition: f.salaryCondition, inboundNg: !!f.inboundNg, allowedOptions: f.allowedOptions, loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "" });
     onClose();
   };
   const showRewardRank = f.shops.includes("hakata") && (f.castClassByShop.hakata || f.castClass) === "standard";
@@ -127,9 +127,9 @@ export function CastDetailModal({ cast, onClose, onSave, allOptions }) {
         <SelectField label="給与条件(人妻専科)" value={f.salaryCondition} onChange={(v) => set("salaryCondition", v)} options={SALARY_CONDITION_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(SALARY_CONDITION_OPTIONS.map((o) => [o.key, o.label]))} />
       )}
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 6, fontWeight: 600 }}>インバウンド可否(全店舗共通)</div>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: COLORS.textMain, cursor: "pointer", padding: "9px 12px", border: `1px solid ${f.inboundOk ? COLORS.accent : COLORS.border}`, borderRadius: 8, background: f.inboundOk ? COLORS.accentBg : "#FFF", fontWeight: f.inboundOk ? 700 : 400 }}>
-          <input type="checkbox" checked={!!f.inboundOk} onChange={(e) => set("inboundOk", e.target.checked)} style={{ width: 18, height: 18 }} />
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 6, fontWeight: 600 }}>インバウンド可否(全店舗共通・初期値は可)</div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: COLORS.textMain, cursor: "pointer", padding: "9px 12px", border: `1px solid ${!f.inboundNg ? COLORS.accent : COLORS.border}`, borderRadius: 8, background: !f.inboundNg ? COLORS.accentBg : "#FFF", fontWeight: !f.inboundNg ? 700 : 400 }}>
+          <input type="checkbox" checked={!f.inboundNg} onChange={(e) => set("inboundNg", !e.target.checked)} style={{ width: 18, height: 18 }} />
           インバウンド対応可
         </label>
       </div>
@@ -196,7 +196,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop, allOptions }
   const [f, setF] = useState({
     name: "", honmyo: "", birthday: "", age: "20", phone: "", address: "",
     idType: "運転免許証", idNo: "", joinDate: isoDate(new Date()), ratePct: "55", idVerified: false,
-    shops: defaultShop ? [defaultShop] : [], taikiba: "", castClass: "standard", castClassByShop: {}, rewardRank: "base", salaryCondition: "clear", inboundOk: false, allowedOptions: [], loginId: "", password: "", biko1: "", biko2: "",
+    shops: defaultShop ? [defaultShop] : [], taikiba: "", castClass: "standard", castClassByShop: {}, rewardRank: "base", salaryCondition: "clear", inboundNg: false, allowedOptions: [], loginId: "", password: "", biko1: "", biko2: "",
   });
   const [msg, setMsg] = useState("");
   const [optOpen, setOptOpen] = useState(true);
@@ -219,7 +219,7 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop, allOptions }
       shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0,
       itakuRate: (Number(f.ratePct) || 55) / 100, idVerified: f.idVerified,
       stdLast: isoDate(new Date()), okOptions: [], comment: "",
-      shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, salaryCondition: f.salaryCondition, inboundOk: !!f.inboundOk, allowedOptions: f.allowedOptions,
+      shops: f.shops.length ? f.shops : (defaultShop ? [defaultShop] : []), taikiba: f.taikiba, castClass: f.castClass, castClassByShop: f.castClassByShop, rewardRank: f.rewardRank, salaryCondition: f.salaryCondition, inboundNg: !!f.inboundNg, allowedOptions: f.allowedOptions,
       loginId: f.loginId.trim(), password: f.password.trim(), biko1: f.biko1 || "", biko2: f.biko2 || "",
     });
     onClose();
@@ -258,9 +258,9 @@ export function CastRegisterModal({ onClose, onCreate, defaultShop, allOptions }
         <SelectField label="給与条件(人妻専科)" value={f.salaryCondition} onChange={(v) => set("salaryCondition", v)} options={SALARY_CONDITION_OPTIONS.map((o) => o.key)} optionLabels={Object.fromEntries(SALARY_CONDITION_OPTIONS.map((o) => [o.key, o.label]))} />
       )}
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 6, fontWeight: 600 }}>インバウンド可否(全店舗共通)</div>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: COLORS.textMain, cursor: "pointer", padding: "9px 12px", border: `1px solid ${f.inboundOk ? COLORS.accent : COLORS.border}`, borderRadius: 8, background: f.inboundOk ? COLORS.accentBg : "#FFF", fontWeight: f.inboundOk ? 700 : 400 }}>
-          <input type="checkbox" checked={!!f.inboundOk} onChange={(e) => set("inboundOk", e.target.checked)} style={{ width: 18, height: 18 }} />
+        <div style={{ fontSize: 12, color: COLORS.textSub, marginBottom: 6, fontWeight: 600 }}>インバウンド可否(全店舗共通・初期値は可)</div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: COLORS.textMain, cursor: "pointer", padding: "9px 12px", border: `1px solid ${!f.inboundNg ? COLORS.accent : COLORS.border}`, borderRadius: 8, background: !f.inboundNg ? COLORS.accentBg : "#FFF", fontWeight: !f.inboundNg ? 700 : 400 }}>
+          <input type="checkbox" checked={!f.inboundNg} onChange={(e) => set("inboundNg", !e.target.checked)} style={{ width: 18, height: 18 }} />
           インバウンド対応可
         </label>
       </div>
@@ -341,6 +341,7 @@ export function CastList({ casts, setCasts, options }) {
     "クラス": (c) => castClass(c),
     "年齢": (c) => Number(c.age) || 0,
     "待機場": (c) => c.taikiba || "",
+    "インバウンド": (c) => (c.inboundNg ? 1 : 0),
     "給与条件": (c) => castSalaryCondition(c),
   };
   const toggleSort = (h) => {
@@ -369,7 +370,7 @@ export function CastList({ casts, setCasts, options }) {
       c.name, c.honmyo, c.age, c.birthday, c.phone, c.address, c.idType, c.idNo, c.joinDate,
       castShops(c).join("・"), c.taikiba || "",
       c.loginId || "", c.password || "", c.biko1 || "", c.biko2 || "", classLabelMap[castClass(c)] || "スタンダード",
-      rankLabelMap[castRewardRank(c)] || "ベース", salaryLabelMap[castSalaryCondition(c)] || "クリア", c.inboundOk ? "可" : "",
+      rankLabelMap[castRewardRank(c)] || "ベース", salaryLabelMap[castSalaryCondition(c)] || "クリア", c.inboundNg ? "不可" : "可",
     ].map(csvEscape).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + CSV_HEADER + "\n" + body], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "casts.csv"; a.click();
@@ -394,7 +395,7 @@ export function CastList({ casts, setCasts, options }) {
       rewardRank: rankKeyMap[(r[16] || "").trim()] || (r[16] || "").trim(),
       salaryCondition: salaryKeyMap[(r[17] || "").trim()] || (r[17] || "").trim(),
       // インバウンド可否(可/○/1/true で対応可)。列が無い古いCSVの場合は既存の設定を保持する
-      inboundOk: r.length > 18 ? ["可", "○", "◯", "1", "true", "TRUE"].includes((r[18] || "").trim()) : undefined,
+      inboundNg: r.length > 18 ? ["不可", "×", "✕", "✖", "✖️", "0", "false", "FALSE"].includes((r[18] || "").trim()) : undefined,
     })).filter((r) => r.name);
     if (incoming.length === 0) { setCsvMsg("取り込める行がありませんでした。1行目はヘッダー(name,...)にしてください。"); setCsvBusy(false); e.target.value = ""; return; }
 
@@ -411,7 +412,7 @@ export function CastList({ casts, setCasts, options }) {
           shops: inc.shops.length ? inc.shops : castShops(ex), taikiba: inc.taikiba,
           loginId: inc.loginId, password: inc.password,
           biko1: inc.biko1, biko2: inc.biko2,
-          castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base", salaryCondition: inc.salaryCondition || "clear", inboundOk: inc.inboundOk === undefined ? !!ex.inboundOk : inc.inboundOk,
+          castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base", salaryCondition: inc.salaryCondition || "clear", inboundNg: inc.inboundNg === undefined ? !!ex.inboundNg : inc.inboundNg,
         });
         updated++;
       } else {
@@ -420,7 +421,7 @@ export function CastList({ casts, setCasts, options }) {
           status: "before_shift", phone: inc.phone, address: inc.address, idType: inc.idType, idNo: inc.idNo, joinDate: inc.joinDate,
           shiftStart: "-", shiftEnd: "-", hotel: null, todayCount: 0, todaySales: 0, idVerified: false,
           stdLast: isoDate(new Date()), okOptions: [], comment: "", shops: inc.shops.length ? inc.shops : ["hakata"], taikiba: inc.taikiba,
-          loginId: inc.loginId, password: inc.password, biko1: inc.biko1, biko2: inc.biko2, castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base", salaryCondition: inc.salaryCondition || "clear", inboundOk: !!inc.inboundOk,
+          loginId: inc.loginId, password: inc.password, biko1: inc.biko1, biko2: inc.biko2, castClass: inc.castClass || "standard", rewardRank: inc.rewardRank || "base", salaryCondition: inc.salaryCondition || "clear", inboundNg: !!inc.inboundNg,
         });
         added++;
       }
@@ -462,7 +463,7 @@ export function CastList({ casts, setCasts, options }) {
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-scroll">
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
-            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "クラス", "年齢", "待機場", ...(shopKey === "hakata" ? [] : ["給与条件"]), ""].map((h) => <th key={h} onClick={() => toggleSort(h)} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: sortKey === h ? COLORS.accent : COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap", cursor: SORT_FIELDS[h] ? "pointer" : "default", userSelect: "none" }}>{h}{SORT_FIELDS[h] ? (sortKey === h ? (sortDir === 1 ? " ▲" : " ▼") : " ⇅") : ""}</th>)}</tr></thead>
+            <thead><tr style={{ background: "#EDF3FA" }}>{["キャスト名", "クラス", "年齢", "待機場", "インバウンド", ...(shopKey === "hakata" ? [] : ["給与条件"]), ""].map((h) => <th key={h} onClick={() => toggleSort(h)} style={{ textAlign: "left", padding: "12px 14px", fontSize: 12, color: sortKey === h ? COLORS.accent : COLORS.textSub, fontWeight: 600, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap", cursor: SORT_FIELDS[h] ? "pointer" : "default", userSelect: "none" }}>{h}{SORT_FIELDS[h] ? (sortKey === h ? (sortDir === 1 ? " ▲" : " ▼") : " ⇅") : ""}</th>)}</tr></thead>
             <tbody>
               {rows.map((c) => {
                 const cls = castClassInfo(c);
@@ -479,6 +480,7 @@ export function CastList({ casts, setCasts, options }) {
                   </td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13 }}>{c.age}</td>
                   <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, whiteSpace: "nowrap" }}>{c.taikiba || "-"}</td>
+                  <td style={{ padding: "12px 14px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: c.inboundNg ? COLORS.red : COLORS.green }}>{c.inboundNg ? "不可" : "可"}</td>
                   {shopKey !== "hakata" && <td style={{ padding: "12px 14px", color: COLORS.textMain, fontSize: 13, whiteSpace: "nowrap" }}>{SALARY_CONDITION_OPTIONS.find((o) => o.key === castSalaryCondition(c))?.label}</td>}
                   <td style={{ padding: "12px 14px" }}>
                     <button onClick={() => setDetailId(c.id)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>詳細</button>

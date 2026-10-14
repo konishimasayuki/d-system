@@ -29,7 +29,8 @@ export const W = {
   taishutsu: 52, // Q 退出
   otoshi: 56,  // R 落とし(62×0.9≒56)
   joshi: 56,   // S 女子給(62×0.9≒56)
-  biko: 66,    // T 備考
+  biko: 66,    // T 控除(1本目の-500＋割引額の合算表示)
+  waribiki: 80, // 割引(落としの左。設定の割引一覧から選択)
   okuri: 46,   // U 送り
   mukae: 46,   // V 迎え
   ryoshu: 40,  // W 領収書
@@ -819,10 +820,10 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
       <Card style={{ padding: 0, overflow: "hidden" }}>
         {/* 上側スクロールバー(PC版で横スクロールしやすいように・下側と連動) */}
         <div className="top-scrollbar-pc" ref={topScrollRef} onScroll={syncFromTop} style={{ overflowX: "auto", overflowY: "hidden", height: 16 }}>
-          <div style={{ minWidth: 2146, height: 1 }} />
+          <div style={{ minWidth: 2226, height: 1 }} />
         </div>
         <div className="table-scroll" ref={bodyScrollRef} onScroll={syncFromBody} onKeyDown={handleEnterNav} style={{ overflowX: "auto" }}>
-          <div style={{ minWidth: 2146 }}>
+          <div style={{ minWidth: 2226 }}>
 
             {/* ===== ヘッダー部(1〜3行目) ===== */}
             <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, background: "#FFF" }}>
@@ -888,9 +889,10 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
               <Th width={W.course}>コース</Th>
               <Th width={W.op * 2}>OP</Th>
               <Th width={W.taishutsu}>退出</Th>
+              <Th width={W.waribiki}>割引</Th>
               <Th width={W.otoshi}>落とし</Th>
               <Th width={W.joshi}>女子給</Th>
-              <Th width={W.biko}>備考</Th>
+              <Th width={W.biko}>控除</Th>
               <Th width={W.okuri}>送り</Th>
               <Th width={W.mukae}>迎え</Th>
               <Th width={W.ryoshu}>領収書</Th>
@@ -1050,6 +1052,11 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                   <Cell value={r.taishutsu} onChange={(v) => setRow(i, "taishutsu", v)} width={W.taishutsu - 2} bg="#FFFFFF" color={COLORS.textMain} bold mono fontSize={12} placeholder="9:54" customStyle={r.styles?.["taishutsu"]} cellKey={`${i}:taishutsu`} selected={selectedCell === `${i}:taishutsu`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "taishutsu", x, y)} />
                 </div>
 
+                {/* 割引(結合)。設定の割引一覧から選択。割引額は落としから引き、控除欄に合算表示(女子給からは引かない) */}
+                <div style={{ width: W.waribiki, minWidth: W.waribiki, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
+                  <SelCell value={r.biko2 || ""} onChange={(v) => setDiscountForRow(i, v)} options={discountOptionsForRow(r)} width={W.waribiki - 2} bold mono fontSize={10} bg={r.biko2 ? "#FFFF00" : undefined} color={r.biko2 ? "#000000" : undefined} customStyle={r.styles?.["biko2"]} cellKey={`${i}:biko2`} selected={selectedCell === `${i}:biko2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "biko2", x, y)} />
+                </div>
+
                 {/* R 落とし(結合) */}
                 <div style={{ width: W.otoshi, minWidth: W.otoshi, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
                   <Cell value={r.otoshi} onChange={(v) => setRow(i, "otoshi", v)} width={W.otoshi - 2} mono bold fontSize={12}  customStyle={r.styles?.["otoshi"]} cellKey={`${i}:otoshi`} selected={selectedCell === `${i}:otoshi`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "otoshi", x, y)}/>
@@ -1060,14 +1067,9 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                   <Cell value={r.joshi} onChange={(v) => setRow(i, "joshi", v)} width={W.joshi - 2} mono bold fontSize={12}  customStyle={r.styles?.["joshi"]} cellKey={`${i}:joshi`} selected={selectedCell === `${i}:joshi`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "joshi", x, y)}/>
                 </div>
 
-                {/* T 備考・上下2段(上段：1本目のキャストは自動で-500を赤文字表示) */}
-                <div style={{ width: W.biko, minWidth: W.biko, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
-                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                    <Cell value={r.biko || (shimeiCounts[i] === 1 ? "-500" : "")} onChange={(v) => setRow(i, "biko", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko"]} cellKey={`${i}:biko`} selected={selectedCell === `${i}:biko`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "biko", x, y)} />
-                  </div>
-                  <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
-                    <SelCell value={r.biko2 || ""} onChange={(v) => setDiscountForRow(i, v)} options={discountOptionsForRow(r)} width={W.biko - 2} bold mono fontSize={10} bg={r.biko2 ? "#FFFF00" : undefined} color={r.biko2 ? "#000000" : undefined} customStyle={r.styles?.["biko2"]} cellKey={`${i}:biko2`} selected={selectedCell === `${i}:biko2`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "biko2", x, y)} />
-                  </div>
+                {/* T 控除(結合)。1本目のキャストは自動で-500、割引を選ぶと割引額を合算して赤文字表示 */}
+                <div style={{ width: W.biko, minWidth: W.biko, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
+                  <Cell value={r.biko || (shimeiCounts[i] === 1 ? "-500" : "")} onChange={(v) => setRow(i, "biko", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko"]} cellKey={`${i}:biko`} selected={selectedCell === `${i}:biko`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "biko", x, y)} />
                 </div>
 
                 {/* U 送り(結合) */}

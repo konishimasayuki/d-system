@@ -896,7 +896,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
               <Th width={W.okuri}>送り</Th>
               <Th width={W.mukae}>迎え</Th>
               <Th width={W.ryoshu}>領収書</Th>
-              <Th width={W.bikoR}>備考(NG等)</Th>
+              <Th width={W.bikoR}>NGデータ</Th>
               <Th width={W.memoR}>備考</Th>
               <Th width={W.method}>予約方法</Th>
               <Th width={W.net}>ネット予約</Th>

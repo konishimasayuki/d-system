@@ -597,7 +597,8 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     const shimeiOpt = row.shimeiType === "写指" ? findShimeiOpt(row, "写指")
       : row.shimeiType === "本指" ? findShimeiOpt(row, "本指")
       : null;
-    const shimeiPrice = shimeiOpt?.price || 0;
+    // 写指は落としに加算(設定の写指料金。未登録なら1,100円)。女子給には加算しない
+    const shimeiPrice = row.shimeiType === "写指" ? (shimeiOpt ? Number(shimeiOpt.price) || 0 : 1100) : (Number(shimeiOpt?.price) || 0);
     const kotsu = Number(String(row.kotsu).replace(/[^0-9.-]/g, "")) || 0;
     const opTotal = [row.op1, row.op2, row.op3, row.op4].filter((n) => n && n !== "なし").reduce((sum, n) => sum + optionPriceByName(n), 0);
     // コース未選択でもOP・交通費・指名料だけで計算する(コース料金分は0として扱う)。

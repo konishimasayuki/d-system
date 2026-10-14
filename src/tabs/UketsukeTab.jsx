@@ -603,7 +603,9 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     // コース未選択でもOP・交通費・指名料だけで計算する(コース料金分は0として扱う)。
     // コースを選んでいれば従来通りコース料金+交通費+指名料+OPを合算する。
     const coursePrice = info ? info.price : 0;
-    const otoshi = coursePrice + kotsu + shimeiPrice + opTotal;
+    // 備考下段で選んだ割引(設定の割引一覧)の金額。落としから引く(女子給からは引かない)
+    const dcAmt = row.biko2 ? Math.abs(Number(discountsForRowCast(row.cast).find((o) => o.name === row.biko2)?.price) || 0) : 0;
+    const otoshi = coursePrice + kotsu + shimeiPrice + opTotal - dcAmt;
     // 女子給：博多ココ・スタンダードは報酬ランク別、それ以外は通常の女子給(コース未選択ならOPのみ加算)
     let baseJoshi = 0;
     if (info) {
@@ -618,8 +620,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     const bikoValue = row.biko || (idx != null && shimeiCounts[idx] === 1 ? "-500" : "");
     let bikoDeduction = Number(String(bikoValue).replace(/[^0-9.-]/g, "")) || 0; // マイナス値としてそのまま加算(控除)
     // 備考下段の割引は上段に合算表示するが、女子給からは引かない(1本目の-500などの分だけ引く)
-    const dcAmt = row.biko2 ? (discountsForRowCast(row.cast).find((o) => o.name === row.biko2)?.price || 0) : 0;
-    if (dcAmt > 0) bikoDeduction = Math.min(0, bikoDeduction + Math.abs(Number(dcAmt) || 0));
+    if (dcAmt > 0) bikoDeduction = Math.min(0, bikoDeduction + dcAmt);
     // 人妻専科で指名の下欄が「本指」の場合、給与条件に応じて女子給に加算(クリア+2000円/新クリア+3000円)
     let honshimeiBonus = 0;
     if (sheetKey === "hitozuma" && row.shimeiType === "本指") {

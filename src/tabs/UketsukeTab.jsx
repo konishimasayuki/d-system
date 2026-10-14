@@ -741,8 +741,9 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     // 以前は店舗共通のcastClassだけで判定していたため、2店舗所属で店舗ごとにクラスが違うキャストの場合、
     // 両店舗ぶんのコースが混ざって出てしまうことがあった。
     const cls = castClassForShop(cast, sheetKey);
-    if (!castShops(cast).includes(sheetKey)) return ["", ...courses.map((c) => c.code), FREE_COURSE];
-    const matched = courses.filter((c) => c.castClass === cls && c.shop === sheetKey);
+    if (!castShops(cast).includes(sheetKey)) return ["", ...courses.filter((c) => cast.inboundOk || !String(c.code || "").toUpperCase().startsWith("I")).map((c) => c.code), FREE_COURSE];
+    // インバウンド不可のキャストには「I」から始まるコース(インバウンド料金)を出さない
+    const matched = courses.filter((c) => c.castClass === cls && c.shop === sheetKey && (cast.inboundOk || !String(c.code || "").toUpperCase().startsWith("I")));
     return ["", ...matched.map((c) => c.code), FREE_COURSE];
   };
   // コース記号(code)は店舗・クラスをまたいで重複しうる(例:人妻専科と博多ココの両方に"60"がある)ため、

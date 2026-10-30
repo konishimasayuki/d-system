@@ -305,6 +305,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
   // 元に戻す(Undo)用の履歴。自分(myName)が行った変更だけを記録し、他人の変更を巻き戻さないようにする。
   // シート・日付を切り替えたら別の表になるのでリセットする。
   const undoStackRef = useRef([]);
+  const redoStackRef = useRef([]); // やり直し(Ctrl+Y)用
   const [canUndo, setCanUndo] = useState(false);
   const topScrollRef = useRef(null);
   const bodyScrollRef = useRef(null);
@@ -334,6 +335,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
   useEffect(() => {
     reloadSheet();
     undoStackRef.current = [];
+    redoStackRef.current = [];
     setCanUndo(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetKey, dateStr]);
@@ -341,6 +343,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
   // 保存(デバウンス)。変更前の状態を、自分の名前つきで履歴に積んでからサーバーに保存する。
   const save = (next) => {
     undoStackRef.current = [...undoStackRef.current, { sheet, staffName: myName || "" }].slice(-20); // 直近20件まで保持
+    redoStackRef.current = []; // 新しく入力したら、やり直しの履歴は消す(Excelと同じ)
     setCanUndo(true);
     setSheet(next);
     clearTimeout(window.__uketsukeTimer);
@@ -367,6 +370,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
           if (!window.confirm(`あなたの変更を取り消すと、その後に${names}さんが行った変更も一緒に取り消されます。よろしいですか？`)) return;
         }
         const restored = stack[i].sheet;
+        redoStackRef.current = [...redoStackRef.current, { sheet }].slice(-20); // 今の状態をやり直し用に退避
         undoStackRef.current = stack.slice(0, i);
         setCanUndo(undoStackRef.current.some((h) => h.staffName === (myName || "")));
         setSheet(restored);
@@ -452,6 +456,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     if (!cell) { closeMenu(); return; }
     const row = sheet.rows[cell.rowIdx];
     setClipboard({ value: row?.[cell.field] ?? "", styles: row?.styles?.[cell.field] || null });
+    try { navigator.clipboard?.writeText(String(row?.[cell.field] ?? "")); } catch (e) {}
     closeMenu();
   };
   // 値だけをセルに書き込む(色は変えない)。外部(Excel・メモ帳等)からの貼り付け用。
@@ -490,22 +495,95 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     closeMenu();
   };
 
-  // キーボードショートカット(Ctrl+C/Ctrl+X/Ctrl+V/Delete)。Excel感覚でセルをコピー・切り取り・貼り付け・削除できるようにする。
-  // 入力欄にフォーカスしたままでも動くよう、input/textarea/select上でも許可する(ブラウザ標準のテキスト選択コピーとは別に、
-  // セル単位の値+色移動を行いたいため)。ただし他のショートカット(Ctrl+A全選択など)は邪魔しないよう対象キーだけ拾う。
+  // ===== 基本のショートカットキー(Excel・スプレッドシートと同じ感覚) =====
+  // Ctrl+C / Ctrl+X / Ctrl+V : セル単位でコピー・切り取り・貼り付け(他のアプリとの間でも可)。
+  //   文字の一部を選択している時や、他アプリからの文字貼り付けは通常どおりの動き。
+  // Ctrl+Z : 元に戻す / Ctrl+Y・Ctrl+Shift+Z : やり直し / Ctrl+B : 太字 / Ctrl+S : 保存(自動保存の表示)
+  // (Ctrl+A全選択・Ctrl+F検索などはブラウザの標準のまま)
+  const redoLastChange = () => {
+    const last = redoStackRef.current[redoStackRef.current.length - 1];
+    if (!last) { setMsg("やり直せる操作がありません"); setTimeout(() => setMsg(""), 1500); return; }
+    redoStackRef.current = redoStackRef.current.slice(0, -1);
+    undoStackRef.current = [...undoStackRef.current, { sheet, staffName: myName || "" }].slice(-20);
+    setCanUndo(true);
+    setSheet(last.sheet);
+    clearTimeout(window.__uketsukeTimer);
+    fetch(`/api/state?key=uketsuke:${sheetKey}:${dateStr}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: last.sheet }) })
+      .then(() => { setMsg("やり直しました"); setTimeout(() => setMsg(""), 1200); })
+      .catch(() => setMsg("やり直しに失敗しました"));
+  };
   useEffect(() => {
-    const onKeyDown = (e) => {
-      const isCtrl = e.ctrlKey || e.metaKey; // Windows:Ctrl / Mac:Cmd
-      if (!isCtrl || !selectedCell) return;
-      const key = e.key.toLowerCase();
-      if (key === "c") { copySelected(); }
-      else if (key === "x") { copySelected(); deleteSelected(); }
-      else if (key === "v") { pasteToSelected(); }
-      else { return; }
-      e.preventDefault();
+    const cellKeyOf = (el) => (el && el.getAttribute && el.getAttribute("data-cell")) || null;
+    const hasPartialTextSelection = (el) => {
+      if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return false;
+      try {
+        const s = el.selectionStart, t = el.selectionEnd;
+        return s != null && t != null && s !== t && !(s === 0 && t === String(el.value).length);
+      } catch (err) { return false; }
     };
+    const cellValue = (cell) => String(sheet.rows[cell.rowIdx]?.[cell.field] ?? "");
+    const copyCell = (cell, isCut, clipboardData) => {
+      const value = cellValue(cell);
+      if (clipboardData) clipboardData.setData("text/plain", value);
+      else { try { navigator.clipboard?.writeText(value); } catch (err) {} }
+      setClipboard({ value, styles: sheet.rows[cell.rowIdx]?.styles?.[cell.field] || null });
+      if (isCut) save({ ...sheet, rows: sheet.rows.map((r, idx) => (idx === cell.rowIdx ? { ...r, [cell.field]: "" } : r)) });
+    };
+    const pasteInternal = (cell) => {
+      save({ ...sheet, rows: sheet.rows.map((r, idx) => (idx === cell.rowIdx ? { ...r, [cell.field]: clipboard.value, styles: { ...(r.styles || {}), [cell.field]: clipboard.styles } } : r)) });
+    };
+    // 文字入力欄でのコピー・切り取り・貼り付け
+    const onCopyOrCut = (e, isCut) => {
+      const el = document.activeElement;
+      const key = cellKeyOf(el);
+      if (!key || el.tagName === "SELECT" || hasPartialTextSelection(el)) return; // 一部選択は通常の文字コピー
+      e.preventDefault();
+      copyCell(parseCellKey(key), isCut, e.clipboardData);
+    };
+    const onCopy = (e) => onCopyOrCut(e, false);
+    const onCut = (e) => onCopyOrCut(e, true);
+    const onPaste = (e) => {
+      const el = document.activeElement;
+      const key = cellKeyOf(el);
+      if (!key || el.tagName === "SELECT") return;
+      const text = e.clipboardData?.getData("text/plain") ?? "";
+      if (clipboard && text === clipboard.value) { e.preventDefault(); pasteInternal(parseCellKey(key)); } // このシステム内のセルは色ごと貼る
+      // それ以外(他アプリの文字)は通常どおりカーソル位置に貼り付け
+    };
+    const onKeyDown = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const k = e.key.toLowerCase();
+      const el = document.activeElement;
+      const key = cellKeyOf(el);
+      if (k === "z" && !e.shiftKey) { e.preventDefault(); undoLastChange(); }
+      else if (k === "y" || (k === "z" && e.shiftKey)) { e.preventDefault(); redoLastChange(); }
+      else if (k === "b") {
+        const target = key || selectedCell;
+        if (!target) return;
+        e.preventDefault();
+        const cell = parseCellKey(target);
+        const cur = sheet.rows[cell.rowIdx]?.styles?.[cell.field] || {};
+        setRowStyle(cell.rowIdx, cell.field, { ...cur, bold: !cur.bold });
+      }
+      else if (k === "s") { e.preventDefault(); setMsg("自動で保存されています"); setTimeout(() => setMsg(""), 1500); }
+      else if (key && el.tagName === "SELECT" && (k === "c" || k === "x")) { e.preventDefault(); copyCell(parseCellKey(key), k === "x", null); }
+      else if (key && el.tagName === "SELECT" && k === "v") {
+        e.preventDefault();
+        const cell = parseCellKey(key);
+        if (clipboard) pasteInternal(cell);
+        else navigator.clipboard?.readText?.().then((t) => { if (t) pasteValueToCell(cell.rowIdx, cell.field, t.trim()); }).catch(() => {});
+      }
+    };
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCut);
+    document.addEventListener("paste", onPaste);
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("cut", onCut);
+      document.removeEventListener("paste", onPaste);
+      document.removeEventListener("keydown", onKeyDown);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCell, clipboard, sheet]);
 
@@ -769,7 +847,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: COLORS.accent }}>{msg}</span>
           <button onClick={reloadSheet} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>🔄 更新</button>
-          <button onClick={undoLastChange} disabled={!canUndo} title="自分が行った直前の変更を取り消します"
+          <button onClick={undoLastChange} disabled={!canUndo} title="自分が行った直前の変更を取り消します(Ctrl+Z)"
             style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${canUndo ? COLORS.red : COLORS.border}`, background: "transparent", color: canUndo ? COLORS.red : "#C7CFD8", fontWeight: 700, fontSize: 12.5, cursor: canUndo ? "pointer" : "default", whiteSpace: "nowrap" }}>↩ 元に戻す</button>
           <button onClick={sortByTime} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>⏱ 時間順にソート</button>
           <input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)}

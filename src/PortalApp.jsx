@@ -578,8 +578,11 @@ function UketsukeViewer({ theme, myName, casts, active }) {
                   <div style={{ width: W.otoshi, minWidth: W.otoshi }}><ViewCell value={r.otoshi} width={W.otoshi} mono bold fontSize={12} /></div>
                   {/* 女子給 */}
                   <div style={{ width: W.joshi, minWidth: W.joshi }}><ViewCell value={r.joshi} width={W.joshi} mono bold fontSize={12} /></div>
-                  {/* 控除(結合) */}
-                  <div style={{ width: W.biko, minWidth: W.biko }}><ViewCell value={r.biko || (isFirst ? "-500" : "")} width={W.biko} color="#C00000" bold mono fontSize={11} /></div>
+                  {/* 控除(上段:自動-500等 / 下段:雑費) */}
+                  <div style={{ width: W.biko, minWidth: W.biko, display: "flex", flexDirection: "column" }}>
+                    <div style={{ height: ROW_H, borderBottom: `1px solid ${LINE}` }}><ViewCell value={r.biko || (isFirst ? "-500" : "")} width={W.biko} color="#C00000" bold mono fontSize={11} /></div>
+                    <div style={{ height: ROW_H }}><ViewCell value={r.zappi} width={W.biko} color="#C00000" bold mono fontSize={11} /></div>
+                  </div>
                   {/* 送り(自分が担当の場合は太字で強調) */}
                   <div style={{ width: W.okuri, minWidth: W.okuri }}><ViewCell value={r.okuri} width={W.okuri} fontSize={10.5} bold={!!myName && r.okuri === myName} color={!!myName && r.okuri === myName ? theme.accentDark : undefined} /></div>
                   {/* 迎え(自分が担当の場合は太字で強調) */}

@@ -56,7 +56,7 @@ const emptyRow = () => ({
   bikoL: "", bikoL2: "", taiki: "", time: "", depart: "", cast: "", shimeiN: "",
   kaiin: "", shimeiType: "F", name: "", tel: "", hotel: "",
   kotsu: "", course: "", op1: "なし", op2: "なし", op3: "なし", op4: "なし",
-  taishutsu: "", otoshi: "", joshi: "", biko: "", biko2: "", okuri: "", mukae: "",
+  taishutsu: "", otoshi: "", joshi: "", biko: "", biko2: "", zappi: "", okuri: "", mukae: "",
   ryoshu: "", baitai: "", bikoR: "", bikoR2: "", memoR: "", memoR2: "", method: "", net: "", status: "", status2: "",
   styles: {}, // { [フィールド名]: { bg, color } } ユーザーが選んだセル色
 });
@@ -709,7 +709,9 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     }
     // 博多ココは指名の下欄が「本指」なら全員一律+2000円(キャスト未入力でも加算)
     if (sheetKey === "hakata" && row.shimeiType === "本指") honshimeiBonus = 2000;
-    const joshi = baseJoshi + opTotal + bikoDeduction + honshimeiBonus;
+    // 控除の下段(雑費などの自由入力)も女子給から引く(「1000」「-1000」どちらで入力しても1000円引く)
+    const zappiAmt = Math.abs(Number(String(row.zappi || "").replace(/[^0-9.-]/g, "")) || 0);
+    const joshi = baseJoshi + opTotal + bikoDeduction + honshimeiBonus - zappiAmt;
     return { ...row, otoshi: String(otoshi), joshi: String(joshi) };
   };
   // ---- 割引:備考(T列)の下段でプルダウン選択。割引額は上段(1本目なら-500)に合算し、女子給からも引く ----
@@ -1146,9 +1148,14 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                   <Cell value={r.joshi} onChange={(v) => setRow(i, "joshi", v)} width={W.joshi - 2} mono bold fontSize={12}  customStyle={r.styles?.["joshi"]} cellKey={`${i}:joshi`} selected={selectedCell === `${i}:joshi`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "joshi", x, y)}/>
                 </div>
 
-                {/* T 控除(結合)。1本目のキャストは自動で-500、割引を選ぶと割引額を合算して赤文字表示 */}
-                <div style={{ width: W.biko, minWidth: W.biko, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
-                  <Cell value={r.biko || (shimeiCounts[i] === 1 ? "-500" : "")} onChange={(v) => setRow(i, "biko", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko"]} cellKey={`${i}:biko`} selected={selectedCell === `${i}:biko`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "biko", x, y)} />
+                {/* T 控除(上下2段)。上段:1本目は自動で-500、割引を選ぶと割引額を合算。下段:雑費などを自由入力(女子給から引く) */}
+                <div style={{ width: W.biko, minWidth: W.biko, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
+                  <div style={{ height: ROW_H, borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }}>
+                    <Cell value={r.biko || (shimeiCounts[i] === 1 ? "-500" : "")} onChange={(v) => setRow(i, "biko", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} customStyle={r.styles?.["biko"]} cellKey={`${i}:biko`} selected={selectedCell === `${i}:biko`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "biko", x, y)} />
+                  </div>
+                  <div style={{ height: ROW_H, display: "flex", alignItems: "center" }}>
+                    <Cell value={r.zappi} onChange={(v) => setOpForRow(i, "zappi", v)} width={W.biko - 2} color="#C00000" bold mono fontSize={11} placeholder="雑費" customStyle={r.styles?.["zappi"]} cellKey={`${i}:zappi`} selected={selectedCell === `${i}:zappi`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "zappi", x, y)} />
+                  </div>
                 </div>
 
                 {/* U 送り(結合) */}

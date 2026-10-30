@@ -431,7 +431,8 @@ function UketsukeViewer({ theme, myName, casts, active }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, sheetKey, viewDate]);
 
-  const rowsAll = sheet?.rows || [];
+  // データが無い日もパソコンと同じく空の表(40行)を表示する
+  const rowsAll = sheet?.rows?.length ? sheet.rows : Array.from({ length: 40 }, () => ({}));
   const shimeiCounts = computeShimeiCounts(rowsAll);
   // 表示は入力がある行のみ(未入力の空行は隠す。ただし番号は元の行番号を維持)
   const visibleIdx = rowsAll.map((r, i) => i); // スプレッドシートと同じく空行も含めて全件表示
@@ -872,7 +873,7 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
   );
 
   return (
-    <MobileShell theme={theme} app="driver" subtitle={me ? `${me.name}(${me.car})` : ""} nav={nav} active={tab} onNav={setTab} onLogout={onLogout} toast={toast}>
+    <MobileShell theme={theme} app="driver" subtitle={me ? me.name : ""} nav={nav} active={tab} onNav={setTab} onLogout={onLogout} toast={toast}>
       {tab === "jobs" && (
         <div>
           {nextJob && (
@@ -994,7 +995,6 @@ function DriverApp({ theme, onLogout, casts, drivers, hotels, office, reservatio
           <Eyebrow>プロフィール</Eyebrow>
           <Card style={{ marginBottom: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><span style={{ color: SUB, fontSize: 13 }}>氏名</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{me.name}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: SUB, fontSize: 13 }}>担当車両</span><span style={{ color: INK, fontSize: 14, fontWeight: 700 }}>{me.car}</span></div>
           </Card>
           <Eyebrow>設定</Eyebrow>
           <NotifyToggle theme={theme} threadId={myThreadId} />
@@ -1166,7 +1166,7 @@ export default function PortalApp() {
   if (app === "driver" && !driverId) {
     return (
       <IdentityPicker theme={theme} title="あなたを選択してください"
-        options={data.drivers.map((d) => ({ value: d.id, label: `${d.car}・${d.name}` }))}
+        options={data.drivers.map((d) => ({ value: d.id, label: d.name }))}
         onPick={(id) => { setDriverId(id); saveLoginState(app, { authed: true, driverId: id, castId: null }); }}
       />
     );

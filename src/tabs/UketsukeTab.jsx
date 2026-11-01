@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { COLORS, Card, SectionTitle, castFullName, kanaNormalize, castShops, castClass, castClassForShop, castRewardRank, castSalaryCondition, isoDate } from "../shared.jsx";
+import { COLORS, Card, Modal, SectionTitle, castFullName, kanaNormalize, castShops, castClass, castClassForShop, castRewardRank, castSalaryCondition, isoDate } from "../shared.jsx";
 
 // ============================================================
 // 受付表タブ(スプレッドシート再現・1日1シート)
@@ -296,6 +296,35 @@ function handleEnterNav(e) {
   tryFocus(row + 1, 0);
 }
 
+// ===== 受付入力モーダル用の入力部品(ファイル直下で定義して、入力中にフォーカスが外れないようにする) =====
+const ENTRY_INP = { width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 14, boxSizing: "border-box", background: "#FFF", color: COLORS.textMain };
+function EntryF({ label, children, wide2 }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, gridColumn: wide2 ? "span 2" : undefined, minWidth: 0 }}>
+      <span style={{ fontSize: 11.5, color: COLORS.textSub, fontWeight: 600 }}>{label}</span>
+      {children}
+    </label>
+  );
+}
+function EntrySel({ d, on, field, options, bg }) {
+  return (
+    <select value={d[field] ?? ""} onChange={(e) => on({ [field]: e.target.value })} style={{ ...ENTRY_INP, background: bg || "#FFF" }}>
+      {options.map((o) => <option key={o} value={o}>{o === "" ? "-" : o}</option>)}
+    </select>
+  );
+}
+function EntryTxt({ d, on, field, placeholder, style }) {
+  return <input value={d[field] ?? ""} placeholder={placeholder} onChange={(e) => on({ [field]: e.target.value })} style={{ ...ENTRY_INP, ...(style || {}) }} />;
+}
+function EntrySec({ title, children }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.accent, margin: "4px 0 8px", borderLeft: `3px solid ${COLORS.accent}`, paddingLeft: 8 }}>{title}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>{children}</div>
+    </div>
+  );
+}
+
 export function UketsukeTab({ casts, courses, options, drivers, transportFees, myName }) {
   const [sheetKey, setSheetKey] = useState("hitozuma");
   const [dateStr, setDateStr] = useState(isoDate(new Date()));
@@ -552,6 +581,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     };
     const onKeyDown = (e) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      if (document.activeElement?.closest?.("[data-entry-modal]")) return; // 入力モーダル内は通常の動き
       const k = e.key.toLowerCase();
       const el = document.activeElement;
       const key = cellKeyOf(el);
@@ -671,7 +701,8 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     }
     return options.find((o) => !o.type && o.name.includes(kw));
   };
-  const recalcRow = (row, idx) => {
+  const recalcRow = (row, idx, countsOverride) => {
+    const counts = countsOverride || shimeiCounts; // モーダル入力時は下書きを含めた本数で判定
     const info = courseInfo(row.course, row.cast);
     const shimeiOpt = row.shimeiType === "写指" ? findShimeiOpt(row, "写指")
       : row.shimeiType === "本指" ? findShimeiOpt(row, "本指")
@@ -697,7 +728,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
       }
     }
     // 本日1本目(備考欄の自動-500表示)は、女子給からも雑費500円を控除する
-    const bikoValue = row.biko || (idx != null && shimeiCounts[idx] === 1 ? "-500" : "");
+    const bikoValue = row.biko || (idx != null && counts[idx] === 1 ? "-500" : "");
     let bikoDeduction = Number(String(bikoValue).replace(/[^0-9.-]/g, "")) || 0; // マイナス値としてそのまま加算(控除)
     // 備考下段の割引は上段に合算表示するが、女子給からは引かない(1本目の-500などの分だけ引く)
     if (dcAmt > 0) bikoDeduction = Math.min(0, bikoDeduction + dcAmt);
@@ -733,6 +764,53 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
     });
     save({ ...sheet, rows });
   };
+  // ===== 受付入力モーダル(新規受付・行番号クリックで編集)。項目は受付表と同じ =====
+  const [entry, setEntry] = useState(null); // { idx, isNew, draft, dirty }
+  const countsWithDraft = (draft, idx) => {
+    const rows = [...sheet.rows];
+    rows[idx] = draft;
+    return computeShimeiCounts(rows);
+  };
+  const openNewEntry = () => {
+    let idx = sheet.rows.findIndex((r) => !(r.cast || r.name || r.hotel || r.time || r.tel));
+    if (idx < 0) idx = sheet.rows.length; // 空き行が無ければ最後に追加
+    setEntry({ idx, isNew: true, draft: emptyRow(), dirty: false });
+  };
+  const openEntryModal = (i) => setEntry({ idx: i, isNew: false, draft: { ...emptyRow(), ...sheet.rows[i] }, dirty: false });
+  const closeEntry = () => {
+    if (entry?.dirty && !window.confirm("入力した内容を保存せずに閉じますか？")) return;
+    setEntry(null);
+  };
+  // 料金に関わる項目は受付表と同じ計算(落とし・女子給・控除)をやり直す
+  const PRICE_FIELDS = ["cast", "course", "kotsu", "shimeiType", "op1", "op2", "op3", "op4", "biko2", "zappi"];
+  const updateDraft = (patch) => setEntry((e) => {
+    let d = { ...e.draft, ...patch };
+    if ("cast" in patch) {
+      const name = String(patch.cast || "");
+      if (!name.trim()) d = { ...d, taiki: "", bikoR: "", bikoR2: "" };
+      else {
+        const m = findCastByName(name);
+        if (m) d = { ...d, taiki: m.taikiba || d.taiki, bikoR: d.bikoR || m.biko1 || "", bikoR2: d.bikoR2 || m.biko2 || "" };
+      }
+    }
+    const counts = countsWithDraft(d, e.idx);
+    if ("biko2" in patch || "cast" in patch) {
+      const amt = d.biko2 ? Math.abs(Number(discountsForRowCast(d.cast).find((o) => o.name === d.biko2)?.price) || 0) : 0;
+      const total = (counts[e.idx] === 1 ? 500 : 0) + amt;
+      if ("biko2" in patch) d = { ...d, biko: d.biko2 && total > 0 ? `-${total}` : "" };
+    }
+    if (Object.keys(patch).some((k) => PRICE_FIELDS.includes(k))) d = recalcRow(d, e.idx, counts);
+    return { ...e, draft: d, dirty: true };
+  });
+  const commitEntry = () => {
+    const rows = [...sheet.rows];
+    rows[entry.idx] = entry.draft;
+    save({ ...sheet, rows });
+    setMsg(entry.isNew ? `${entry.idx + 1}番に登録しました` : `${entry.idx + 1}番を更新しました`);
+    setTimeout(() => setMsg(""), 1800);
+    setEntry(null);
+  };
+
   const setOpForRow = (i, field, val) => {
     const rows = sheet.rows.map((r, idx) => idx === i ? recalcRow({ ...r, [field]: val }, idx) : r);
     save({ ...sheet, rows });
@@ -848,6 +926,7 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
         <SectionTitle>受付表</SectionTitle>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: COLORS.accent }}>{msg}</span>
+          <button onClick={openNewEntry} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>＋ 新規受付</button>
           <button onClick={reloadSheet} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${COLORS.accent}`, background: "transparent", color: COLORS.accent, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>🔄 更新</button>
           <button onClick={undoLastChange} disabled={!canUndo} title="自分が行った直前の変更を取り消します(Ctrl+Z)"
             style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${canUndo ? COLORS.red : COLORS.border}`, background: "transparent", color: canUndo ? COLORS.red : "#C7CFD8", fontWeight: 700, fontSize: 12.5, cursor: canUndo ? "pointer" : "default", whiteSpace: "nowrap" }}>↩ 元に戻す</button>
@@ -1024,8 +1103,8 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
                 <div style={{ width: W.taiki, minWidth: W.taiki, borderRight: `1px solid ${COLORS.border}`, background: "#FFFFFF", display: "flex", alignItems: "center" }}>
                   <Cell value={r.taiki} onChange={(v) => setRow(i, "taiki", v)} width={W.taiki - 2} bg="#FFFFFF" fontSize={10.5} bold customStyle={r.styles?.["taiki"]} cellKey={`${i}:taiki`} selected={selectedCell === `${i}:taiki`} onSelect={selectCell} onOpenMenu={(x, y) => openCellMenu(i, "taiki", x, y)} />
                 </div>
-                {/* C 番号 */}
-                <div style={{ width: W.no, minWidth: W.no, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: COLORS.textMain }}>
+                {/* C 番号(クリックで入力画面を開く) */}
+                <div onClick={() => openEntryModal(i)} title="クリックで入力画面を開く" style={{ cursor: "pointer", textDecoration: r.name || r.cast ? "underline" : "none", width: W.no, minWidth: W.no, borderRight: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: COLORS.textMain }}>
                   {r.name || r.cast ? i + 1 : ""}
                 </div>
 
@@ -1220,6 +1299,86 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
           <span>女子給合計: <strong style={{ fontFamily: "'JetBrains Mono', monospace" }}>{totals.joshi.toLocaleString()}</strong></span>
         </div>
       </div>
+
+      {entry && (() => {
+        const d = entry.draft;
+        const inp = ENTRY_INP;
+        const courseOpts = coursesForCastName(d.cast);
+        const courseFree = d.course === FREE_COURSE || (d.course && !courseOpts.includes(d.course));
+        const bikoLFree = d.bikoL === "自由入力" || (d.bikoL && d.bikoL.trim() !== "お客様降ろし");
+        const counts = countsWithDraft(d, entry.idx);
+        const koujoTop = d.biko || (counts[entry.idx] === 1 ? "-500" : "");
+        const opOpts = ["なし", ...optionsForRowCast(d.cast).filter(Boolean)];
+        return (
+          <Modal title={entry.isNew ? `新規受付(${entry.idx + 1}番に登録)` : `${entry.idx + 1}番の受付を編集`} onClose={closeEntry} maxwidth={920}>
+            <div data-entry-modal="1" style={{ padding: "4px 2px" }}>
+              <datalist id="uketsuke-cast-list">{castNames.filter(Boolean).map((n) => <option key={n} value={n} />)}</datalist>
+              <EntrySec title="受付">
+                <EntryF label="左上(お客様降ろし等)">
+                  {bikoLFree
+                    ? <input value={d.bikoL === "自由入力" ? "" : d.bikoL} placeholder="自由入力" onChange={(e) => updateDraft({ bikoL: e.target.value })} style={inp} />
+                    : <EntrySel d={d} on={updateDraft} field="bikoL" options={["", "お客様降ろし", "自由入力"]} bg={d.bikoL === "お客様降ろし" ? "#FFFF00" : undefined} />}
+                </EntryF>
+                <EntryF label="左下"><EntryTxt d={d} on={updateDraft} field="bikoL2" /></EntryF>
+                <EntryF label="待機場"><EntryTxt d={d} on={updateDraft} field="taiki" /></EntryF>
+                <EntryF label="時間"><EntryTxt d={d} on={updateDraft} field="time" placeholder="20:20" /></EntryF>
+                <EntryF label="時間(下)"><EntrySel d={d} on={updateDraft} field="depart" options={["", "出発", "到着", "指定", "到着次第", "以降", "ごろ", "入室後出発"]} /></EntryF>
+                <EntryF label="キャスト"><input list="uketsuke-cast-list" value={d.cast ?? ""} placeholder="キャスト名" onChange={(e) => updateDraft({ cast: e.target.value })} style={{ ...inp, fontWeight: 700 }} /></EntryF>
+                <EntryF label="指名(上)"><EntrySel d={d} on={updateDraft} field="kaiin" options={["", "新規", "会員"]} /></EntryF>
+                <EntryF label="指名(下)"><EntrySel d={d} on={updateDraft} field="shimeiType" options={["F", "写指", "本指"]} /></EntryF>
+              </EntrySec>
+              <EntrySec title="連絡先">
+                <EntryF label="氏名"><EntryTxt d={d} on={updateDraft} field="name" /></EntryF>
+                <EntryF label="電話番号"><EntryTxt d={d} on={updateDraft} field="tel" placeholder="090-0000-0000" /></EntryF>
+                <EntryF label="ホテル名 部屋番号" wide2><EntryTxt d={d} on={updateDraft} field="hotel" placeholder="ホテル名　部屋番号" style={{ color: String(d.hotel || "").includes("※") ? "#C00000" : COLORS.textMain }} /></EntryF>
+              </EntrySec>
+              <EntrySec title="料金">
+                <EntryF label="交通費"><EntrySel d={d} on={updateDraft} field="kotsu" options={kotsuOptions} bg={(Number(d.kotsu) || 0) >= 1000 ? "#FFFF00" : undefined} /></EntryF>
+                <EntryF label="コース">
+                  {courseFree
+                    ? <div style={{ display: "flex", gap: 4 }}><input value={d.course === FREE_COURSE ? "" : d.course} placeholder="自由入力" onChange={(e) => updateDraft({ course: e.target.value })} style={inp} /><button type="button" onClick={() => updateDraft({ course: "" })} style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "#FFF", fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}>選択へ</button></div>
+                    : <EntrySel d={d} on={updateDraft} field="course" options={courseOpts} />}
+                </EntryF>
+                {["op1", "op2", "op3", "op4"].map((f, n) => (
+                  <EntryF key={f} label={`オプション${n + 1}`}><EntrySel d={d} on={updateDraft} field={f} options={opOpts} bg={d[f] && d[f] !== "なし" ? "#FFFF00" : undefined} /></EntryF>
+                ))}
+                <EntryF label="退出"><EntryTxt d={d} on={updateDraft} field="taishutsu" /></EntryF>
+                <EntryF label="割引"><EntrySel d={d} on={updateDraft} field="biko2" options={discountOptionsForRow(d)} bg={d.biko2 ? "#FFFF00" : undefined} /></EntryF>
+                <EntryF label="落とし(自動計算・修正可)"><EntryTxt d={d} on={updateDraft} field="otoshi" style={{ fontWeight: 700 }} /></EntryF>
+                <EntryF label="女子給(自動計算・修正可)"><EntryTxt d={d} on={updateDraft} field="joshi" style={{ fontWeight: 700 }} /></EntryF>
+                <EntryF label="控除(上段・自動)"><input value={koujoTop} onChange={(e) => updateDraft({ biko: e.target.value })} style={{ ...inp, color: "#C00000", fontWeight: 700 }} /></EntryF>
+                <EntryF label="控除(下段・雑費)"><EntryTxt d={d} on={updateDraft} field="zappi" placeholder="雑費" style={{ color: "#C00000", fontWeight: 700 }} /></EntryF>
+              </EntrySec>
+              <EntrySec title="送迎・領収書">
+                <EntryF label="送り"><EntrySel d={d} on={updateDraft} field="okuri" options={driverNames} /></EntryF>
+                <EntryF label="迎え"><EntrySel d={d} on={updateDraft} field="mukae" options={driverNames} /></EntryF>
+                <EntryF label="領収書"><EntrySel d={d} on={updateDraft} field="ryoshu" options={["", "発行"]} bg={d.ryoshu === "発行" ? "#B7E6F2" : undefined} /></EntryF>
+              </EntrySec>
+              <EntrySec title="NGデータ・備考">
+                <EntryF label="NGデータ(上)" wide2><EntryTxt d={d} on={updateDraft} field="bikoR" style={{ color: "#C00000" }} /></EntryF>
+                <EntryF label="NGデータ(下)" wide2><EntryTxt d={d} on={updateDraft} field="bikoR2" style={{ color: "#C00000" }} /></EntryF>
+                <EntryF label="備考(上)" wide2><EntryTxt d={d} on={updateDraft} field="memoR" /></EntryF>
+                <EntryF label="備考(下)" wide2><EntryTxt d={d} on={updateDraft} field="memoR2" /></EntryF>
+              </EntrySec>
+              <EntrySec title="予約">
+                <EntryF label="予約方法"><EntrySel d={d} on={updateDraft} field="method" options={withLegacy(METHOD_OPTS, d.method)} bg={METHOD_BG[d.method]} /></EntryF>
+                <EntryF label="ネット予約"><EntrySel d={d} on={updateDraft} field="net" options={withLegacy(NET_OPTS, d.net)} bg={NET_BG[d.net]} /></EntryF>
+                <EntryF label="媒体"><EntrySel d={d} on={updateDraft} field="baitai" options={withLegacy(MEDIA_OPTS, d.baitai)} /></EntryF>
+                <EntryF label="予約状況(上)"><EntryTxt d={d} on={updateDraft} field="status" /></EntryF>
+                <EntryF label="予約状況(下)"><EntrySel d={d} on={updateDraft} field="status2" options={withLegacy(STATUS2_OPTS, d.status2)} /></EntryF>
+              </EntrySec>
+              <div style={{ position: "sticky", bottom: 0, background: "#FFF", borderTop: `1px solid ${COLORS.border}`, padding: "12px 0 4px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 14, flex: 1, flexWrap: "wrap", fontSize: 13 }}>
+                  <span>落とし <b style={{ fontSize: 17, color: COLORS.textMain }}>¥{(Number(d.otoshi) || 0).toLocaleString()}</b></span>
+                  <span>女子給 <b style={{ fontSize: 17, color: COLORS.accent }}>¥{(Number(d.joshi) || 0).toLocaleString()}</b></span>
+                </div>
+                <button type="button" onClick={closeEntry} style={{ padding: "10px 18px", borderRadius: 10, border: `1px solid ${COLORS.border}`, background: "#FFF", fontWeight: 700, cursor: "pointer" }}>キャンセル</button>
+                <button type="button" onClick={commitEntry} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: COLORS.accent, color: "#FFF", fontWeight: 700, cursor: "pointer" }}>{entry.isNew ? "登録" : "保存"}</button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {menu && (
         <CellContextMenu x={menu.x} y={menu.y} canPaste={!!clipboard}

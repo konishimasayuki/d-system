@@ -982,7 +982,9 @@ export function UketsukeTab({ casts, courses, options, drivers, transportFees, m
         <div className="top-scrollbar-pc" ref={topScrollRef} onScroll={syncFromTop} style={{ overflowX: "auto", overflowY: "hidden", height: 16 }}>
           <div style={{ minWidth: 2226, height: 1 }} />
         </div>
-        <div className="table-scroll" ref={bodyScrollRef} onScroll={syncFromBody} onKeyDown={handleEnterNav} style={{ overflowX: "auto" }}>
+        <div className="table-scroll" ref={bodyScrollRef} onScroll={syncFromBody} onKeyDown={handleEnterNav}
+          style={{ overflowX: "auto", overflowY: "auto", maxHeight: "max(360px, calc(100dvh - 190px))" }}>
+          {/* 表の中だけで上下スクロールさせ、横スクロールバーを常に画面内に表示する。見出し行は上に固定(スプレッドシートと同じ) */}
           <div style={{ minWidth: 2226 }}>
 
             {/* ===== ヘッダー部(1〜3行目) ===== */}
